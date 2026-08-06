@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>汉诺塔演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 12px; padding: 14px 30px 4px; flex-wrap: wrap; }
+  .tab {
+    padding: 10px 24px; border: 1px solid var(--border); border-radius: 4px;
+    background: rgba(0,240,255,0.03); color: var(--cyan); font-size: 15px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace;
+    transition: all .18s; clip-path: polygon(0 0, 100% 0, 100% 70%, 94% 100%, 0 100%);
+  }
+  .tab:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,240,255,.35) inset; }
+  .tab.active {
+    background: var(--cyan); color: #05060f; border-color: var(--cyan);
+    box-shadow: 0 0 18px rgba(0,240,255,.6); font-weight: 700;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; padding: 18px 30px; }
+  .controls.hidden { display: none; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 9px 12px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 120px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .btn {
+    padding: 10px 20px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 14px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .btn:hover { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed input { width: 130px; accent-color: var(--magenta); }
+  main { padding: 10px 30px 20px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  .towers { display: flex; justify-content: space-around; align-items: flex-end; gap: 20px; height: 300px; }
+  .tower { position: relative; flex: 1; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+  .tower.clickable { cursor: pointer; }
+  .tower.clickable:hover .rod { box-shadow: 0 0 14px rgba(0,240,255,.6); }
+  .tower.selected .rod { background: linear-gradient(180deg, var(--cyan), rgba(0,240,255,.2)); box-shadow: 0 0 18px rgba(0,240,255,.8); }
+  .tower .hint {
+    position: absolute; top: 6px; font-family: "SF Mono", Menlo, monospace; font-size: 12px;
+    color: var(--yellow); text-shadow: 0 0 8px rgba(255,212,0,.7); z-index: 5; letter-spacing: 1px;
+    opacity: 0; transition: opacity .18s;
+  }
+  .tower.selected .hint { opacity: 1; }
+  .rod {
+    position: absolute; bottom: 26px; width: 6px; height: 240px; border-radius: 3px;
+    background: linear-gradient(180deg, #6f6a9c, #2a2650);
+    box-shadow: 0 0 6px rgba(0,0,0,.5);
+  }
+  .base {
+    width: 92%; height: 14px; border-radius: 4px; z-index: 2;
+    background: linear-gradient(180deg, #3a3560, #16132e);
+    border: 1px solid var(--border);
+    box-shadow: 0 0 10px rgba(0,0,0,.6);
+  }
+  .disks { position: absolute; bottom: 26px; width: 100%; display: flex; flex-direction: column-reverse; align-items: center; z-index: 3; }
+  .disk {
+    height: 24px; border-radius: 5px; margin-bottom: 3px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700; color: #05060f;
+    border: 1px solid rgba(255,255,255,.4);
+    transition: all .12s;
+  }
+  .disk.lift { box-shadow: 0 0 22px currentColor; transform: translateY(-4px); }
+  .tower-label {
+    position: absolute; bottom: -2px; font-family: "SF Mono", Menlo, monospace;
+    font-size: 16px; font-weight: 700; color: var(--cyan); letter-spacing: 2px;
+    text-shadow: 0 0 8px rgba(0,240,255,.6); z-index: 4;
+  }
+  .stats { display: flex; gap: 30px; font-size: 15px; align-items: baseline; letter-spacing: .5px; margin-top: 18px; }
+  .stats b { font-size: 26px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(255,212,0,.6); }
+  .status { margin-top: 14px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .note { padding: 10px 30px 0; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>汉诺塔演示</h1>
+  <p id="subtitle">把所有圆盘从 A 借助 B 移到 C，每次只移一个，大盘不能压在小盘上。</p>
+</header>
+<a class="back" href="index.html">← 返回门户</a>
+
+<div class="tabs">
+  <button class="tab active" data-mode="auto">自动演示</button>
+  <button class="tab" data-mode="manual">手动挑战</button>
+</div>
+
+<div class="controls" id="autoControls">
+  <div class="field">
+    <label for="numInput">圆盘数量 (1-8)</label>
+    <input id="numInput" type="number" min="1" max="8" value="3">
+  </div>
+  <div class="speed">
+    <label for="speedInput">速度</label>
+    <input id="speedInput" type="range" min="120" max="1200" value="600" step="60">
+  </div>
+  <button class="btn" id="playBtn">开始移动</button>
+  <button class="btn secondary" id="stepBtn">单步</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+</div>
+
+<div class="controls hidden" id="manualControls">
+  <div class="field">
+    <label for="numInputM">圆盘数量 (1-8)</label>
+    <input id="numInputM" type="number" min="1" max="8" value="3">
+  </div>
+  <button class="btn secondary" id="undoBtn">悔一步</button>
+  <button class="btn secondary" id="restartBtn">重新挑战</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="towers">
+      <div class="tower" id="towerA" data-peg="0"><div class="hint">✋ 已拿起</div><div class="rod"></div><div class="disks" data-peg="0"></div><div class="base"></div><div class="tower-label">A</div></div>
+      <div class="tower" id="towerB" data-peg="1"><div class="hint">✋ 已拿起</div><div class="rod"></div><div class="disks" data-peg="1"></div><div class="base"></div><div class="tower-label">B</div></div>
+      <div class="tower" id="towerC" data-peg="2"><div class="hint">✋ 已拿起</div><div class="rod"></div><div class="disks" data-peg="2"></div><div class="base"></div><div class="tower-label">C</div></div>
+    </div>
+    <div class="stats">
+      移动步数：<b id="count">0</b>
+      <span>最少步数 (2ⁿ-1)：<b id="minCount">7</b></span>
+    </div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note">汉诺塔的最少移动次数是 2ⁿ - 1。n 每增加 1，步数翻倍还多一步，这是递归思想的经典例子。</div>
+
+<script>
+const DISK_COLORS = ["#00f0ff", "#ff2bd6", "#ffd400", "#00ff9c", "#a06bff", "#ff7a45", "#4ea3ff", "#ff5ea0"];
+const PEG_NAME = ["A", "B", "C"];
+
+let pegs = [[], [], []];   // 每个柱子上的圆盘（底->顶存大->小）
+let moves = [];            // 自动演示的移动序列 [from, to]
+let idx = 0, n = 3, timer = null;
+
+let mode = "auto";
+let selected = null;       // 手动模式：当前拿起圆盘所在的柱子 (0/1/2)，null 表示空手
+let manualCount = 0;       // 手动模式已用步数
+let history = [];          // 手动移动历史 [from, to]，用于悔棋
+const $ = id => document.getElementById(id);
+
+function genMoves(count, from, to, via, list) {
+  if (count === 0) return;
+  genMoves(count - 1, from, via, to, list);
+  list.push([from, to]);
+  genMoves(count - 1, via, to, from, list);
+}
+
+function renderPegs(lift) {
+  for (let p = 0; p < 3; p++) {
+    const el = document.querySelector(`.disks[data-peg="${p}"]`);
+    el.innerHTML = "";
+    pegs[p].forEach((size, i) => {
+      const d = document.createElement("div");
+      d.className = "disk";
+      const w = 22 + size * (78 / n);   // 宽度按盘号缩放
+      d.style.width = w + "%";
+      const color = DISK_COLORS[(size - 1) % DISK_COLORS.length];
+      d.style.background = color;
+      d.style.color = color;
+      d.textContent = size;
+      // 顶部圆盘且正在移动（自动）或被拿起（手动）时发光
+      const isTop = i === pegs[p].length - 1;
+      if (lift && lift.peg === p && isTop) d.classList.add("lift");
+      if (mode === "manual" && selected === p && isTop) d.classList.add("lift");
+      el.appendChild(d);
+    });
+  }
+}
+
+function prepare() {
+  n = Math.max(1, Math.min(8, parseInt($("numInput").value, 10) || 3));
+  $("numInput").value = n;
+  pegs = [[], [], []];
+  for (let s = n; s >= 1; s--) pegs[0].push(s);   // A 柱：大在下小在上
+  moves = [];
+  genMoves(n, 0, 2, 1, moves);
+  idx = 0;
+  $("count").textContent = 0;
+  $("minCount").textContent = Math.pow(2, n) - 1;
+  $("status").textContent = `准备就绪：${n} 个圆盘，共需 ${moves.length} 步。`;
+  renderPegs(null);
+}
+
+function stepOnce() {
+  if (idx >= moves.length) {
+    $("status").textContent = `全部完成！共移动 ${moves.length} 步（最少步数）。`;
+    return false;
+  }
+  const [from, to] = moves[idx];
+  const size = pegs[from].pop();
+  pegs[to].push(size);
+  idx++;
+  renderPegs({ peg: to });
+  $("count").textContent = idx;
+  $("status").textContent = `第 ${idx} 步：把圆盘 ${size} 从 ${PEG_NAME[from]} 移到 ${PEG_NAME[to]}`;
+  return true;
+}
+
+function play() {
+  stop();
+  const speed = parseInt($("speedInput").value, 10);
+  timer = setInterval(() => { if (!stepOnce()) stop(); }, 1320 - speed);
+}
+function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+$("playBtn").onclick = () => { if (idx >= moves.length || idx === 0) prepare(); play(); };
+$("stepBtn").onclick = () => { stop(); stepOnce(); };
+$("resetBtn").onclick = () => { stop(); prepare(); };
+$("numInput").onchange = () => { stop(); prepare(); };
+
+// ---------- 手动挑战模式 ----------
+function setupManual() {
+  n = Math.max(1, Math.min(8, parseInt($("numInputM").value, 10) || 3));
+  $("numInputM").value = n;
+  pegs = [[], [], []];
+  for (let s = n; s >= 1; s--) pegs[0].push(s);
+  selected = null;
+  manualCount = 0;
+  history = [];
+  $("count").textContent = 0;
+  $("minCount").textContent = Math.pow(2, n) - 1;
+  $("status").textContent = `手动挑战：把 ${n} 个圆盘全部移到 C 柱。点击柱子拿起 / 放下圆盘。`;
+  clearSelection();
+  renderPegs(null);
+}
+
+function clearSelection() {
+  document.querySelectorAll(".tower").forEach(t => t.classList.remove("selected"));
+}
+
+function checkWin() {
+  if (pegs[2].length === n) {
+    const best = Math.pow(2, n) - 1;
+    const extra = manualCount === best ? "，正好是最少步数，完美！"
+      : `，最少只需 ${best} 步，可以再挑战更优解。`;
+    $("status").textContent = `🎉 挑战成功！共用 ${manualCount} 步${extra}`;
+    return true;
+  }
+  return false;
+}
+
+function pegClick(p) {
+  if (mode !== "manual") return;
+  if (checkWinFlag) return;   // 已完成后不再响应
+  if (selected === null) {
+    // 拿起：该柱必须非空
+    if (pegs[p].length === 0) {
+      $("status").textContent = `${PEG_NAME[p]} 柱是空的，没有圆盘可拿。`;
+      return;
+    }
+    selected = p;
+    clearSelection();
+    $("tower" + PEG_NAME[p]).classList.add("selected");
+    renderPegs(null);
+    $("status").textContent = `拿起 ${PEG_NAME[p]} 柱顶部的圆盘 ${pegs[p][pegs[p].length - 1]}，选择要放到的柱子。`;
+  } else if (selected === p) {
+    // 点同一柱：放回（取消）
+    clearSelection();
+    selected = null;
+    renderPegs(null);
+    $("status").textContent = "已取消，重新选择要拿起的柱子。";
+  } else {
+    // 放下：检查大盘不能压小盘
+    const from = selected, to = p;
+    const moving = pegs[from][pegs[from].length - 1];
+    const topTo = pegs[to][pegs[to].length - 1];
+    if (topTo !== undefined && moving > topTo) {
+      $("status").textContent = `❌ 不能把大盘 ${moving} 压在小盘 ${topTo} 上！请换一个柱子。`;
+      return;
+    }
+    pegs[from].pop();
+    pegs[to].push(moving);
+    history.push([from, to]);
+    manualCount++;
+    selected = null;
+    clearSelection();
+    renderPegs({ peg: to });
+    $("count").textContent = manualCount;
+    if (!checkWin()) {
+      $("status").textContent = `第 ${manualCount} 步：把圆盘 ${moving} 从 ${PEG_NAME[from]} 移到 ${PEG_NAME[to]}`;
+    } else {
+      checkWinFlag = true;
+    }
+  }
+}
+let checkWinFlag = false;
+
+function undo() {
+  if (selected !== null) { clearSelection(); selected = null; renderPegs(null); return; }
+  if (history.length === 0) { $("status").textContent = "没有可撤销的步骤。"; return; }
+  const [from, to] = history.pop();
+  const size = pegs[to].pop();
+  pegs[from].push(size);
+  manualCount--;
+  checkWinFlag = false;
+  $("count").textContent = manualCount;
+  renderPegs(null);
+  $("status").textContent = `已悔一步：把圆盘 ${size} 从 ${PEG_NAME[to]} 放回 ${PEG_NAME[from]}。`;
+}
+
+document.querySelectorAll(".tower").forEach(t => {
+  t.onclick = () => pegClick(parseInt(t.dataset.peg, 10));
+});
+$("undoBtn").onclick = undo;
+$("restartBtn").onclick = () => { checkWinFlag = false; setupManual(); };
+$("numInputM").onchange = () => { checkWinFlag = false; setupManual(); };
+
+// ---------- 模式切换 ----------
+function applyMode(m) {
+  mode = m; stop();
+  checkWinFlag = false;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === m));
+  document.querySelectorAll(".tower").forEach(t => t.classList.toggle("clickable", m === "manual"));
+  clearSelection();
+  selected = null;
+  if (m === "auto") {
+    $("autoControls").classList.remove("hidden");
+    $("manualControls").classList.add("hidden");
+    $("subtitle").textContent = "把所有圆盘从 A 借助 B 移到 C，每次只移一个，大盘不能压在小盘上。";
+    $("numInput").value = n;
+    prepare();
+  } else {
+    $("autoControls").classList.add("hidden");
+    $("manualControls").classList.remove("hidden");
+    $("subtitle").textContent = "手动挑战：点击柱子拿起圆盘，再点目标柱放下。规则：大盘不能压小盘。目标是全部移到 C。";
+    $("numInputM").value = n;
+    setupManual();
+  }
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => applyMode(t.dataset.mode));
+
+prepare();
+</script>
+</body>
+</html>

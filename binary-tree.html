@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>二叉树遍历演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 12px; padding: 14px 30px 4px; flex-wrap: wrap; }
+  .tab {
+    padding: 10px 24px; border: 1px solid var(--border); border-radius: 4px;
+    background: rgba(0,240,255,0.03); color: var(--cyan); font-size: 15px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace;
+    transition: all .18s; clip-path: polygon(0 0, 100% 0, 100% 70%, 94% 100%, 0 100%);
+  }
+  .tab:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,240,255,.35) inset; }
+  .tab.active {
+    background: var(--cyan); color: #05060f; border-color: var(--cyan);
+    box-shadow: 0 0 18px rgba(0,240,255,.6); font-weight: 700;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; padding: 18px 30px; }
+  .btn {
+    padding: 10px 20px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 14px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .btn:hover { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 130px; accent-color: var(--magenta); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  svg { width: 100%; height: auto; display: block; }
+  .tlegend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); letter-spacing: .5px; }
+  .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tlegend .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .tlegend .bar { width: 18px; height: 4px; border-radius: 2px; }
+  .edge { stroke: #4a4478; stroke-width: 2; }
+  .node circle {
+    fill: rgba(0,240,255,0.05); stroke: var(--border); stroke-width: 2; transition: all .2s;
+  }
+  .node text { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 16px; font-weight: 700; }
+  .node.visit circle { fill: var(--yellow); stroke: var(--yellow); filter: drop-shadow(0 0 10px rgba(255,212,0,.8)); }
+  .node.visit text { fill: #120e00; }
+  .node.done circle { fill: rgba(0,255,156,0.18); stroke: var(--green); }
+  .node.active circle { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 12px rgba(255,43,214,.8)); }
+  .node.active text { fill: #fff; }
+  .node.back circle { fill: rgba(255,122,69,0.22); stroke: #ff7a45; filter: drop-shadow(0 0 12px rgba(255,122,69,.8)); }
+  .node.back text { fill: #fff; }
+  .edge.down { stroke: var(--magenta); stroke-width: 3; filter: drop-shadow(0 0 6px rgba(255,43,214,.7)); }
+  .edge.up { stroke: #ff7a45; stroke-width: 3; filter: drop-shadow(0 0 6px rgba(255,122,69,.7)); }
+  .pseudocode {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13.5px; color: #8fb8c9; margin: 0 0 16px;
+  }
+  .pseudocode .line { padding: 3px 8px; border-radius: 3px; white-space: pre; }
+  .pseudocode .line.active {
+    background: linear-gradient(90deg, rgba(255,43,214,.9), rgba(0,240,255,.6));
+    color: #fff; box-shadow: 0 0 14px rgba(255,43,214,.5);
+  }
+  .seqlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 4px 0 8px; }
+  .sequence { display: flex; flex-wrap: wrap; gap: 8px; min-height: 44px; }
+  .chip {
+    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--green); border-radius: 6px; background: rgba(0,255,156,0.12);
+    color: var(--green); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 16px;
+    box-shadow: 0 0 10px rgba(0,255,156,.3);
+  }
+  .status { margin-top: 14px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+
+  /* ---- 还原模式 ---- */
+  .node, .edge { transition: opacity .25s, all .2s; }
+  .node.hidden { opacity: 0; }
+  .edge.hidden { opacity: 0; }
+  .node.newn circle { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 12px rgba(255,43,214,.8)); }
+  .node.newn text { fill: #fff; }
+  .node.rootn circle { fill: rgba(255,212,0,.2); stroke: var(--yellow); filter: drop-shadow(0 0 10px rgba(255,212,0,.6)); }
+  .rseq { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
+  .rcell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .rcell .chip {
+    width: 38px; height: 38px; border-color: var(--border); background: rgba(255,255,255,.03);
+    color: var(--text); box-shadow: none; transition: all .2s;
+  }
+  .rcell .ix { font-size: 10px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; }
+  .rcell.range .chip { border-color: var(--cyan); background: rgba(0,240,255,.1); color: var(--cyan); }
+  .rcell.root .chip { border-color: var(--magenta); background: var(--magenta); color: #05060f; box-shadow: 0 0 14px rgba(255,43,214,.6); }
+  .rcell.leftp .chip { border-color: var(--yellow); background: rgba(255,212,0,.16); color: var(--yellow); }
+  .rcell.rightp .chip { border-color: var(--green); background: rgba(0,255,156,.16); color: var(--green); }
+  .rebuildlog {
+    margin-top: 12px; font-size: 13.5px; color: #b7c6d1; font-family: "SF Mono", Menlo, monospace;
+    min-height: 48px; border-left: 3px solid var(--magenta); padding-left: 12px; line-height: 1.6;
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>二叉树遍历演示</h1>
+  <p id="subtitle"></p>
+</header>
+<a class="back" href="index.html">← 返回门户</a>
+
+<div class="tabs">
+  <button class="tab active" data-mode="pre">前序遍历</button>
+  <button class="tab" data-mode="in">中序遍历</button>
+  <button class="tab" data-mode="post">后序遍历</button>
+  <button class="tab" data-mode="rebuild-pre">前序+中序 还原</button>
+  <button class="tab" data-mode="rebuild-post">后序+中序 还原</button>
+</div>
+
+<div class="controls">
+  <div class="speed">
+    <label for="speedInput">速度</label>
+    <input id="speedInput" type="range" min="150" max="1400" value="700" step="50">
+  </div>
+  <button class="btn" id="playBtn">开始</button>
+  <button class="btn secondary" id="stepBtn">单步</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+</div>
+
+<main>
+  <section class="card">
+    <svg id="tree" viewBox="0 0 640 380" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="tlegend">
+      <span><i class="dot" style="background:#ff2bd6"></i>进入子树</span>
+      <span><i class="dot" style="background:#ffd400"></i>访问节点</span>
+      <span><i class="dot" style="background:#ff7a45"></i>回溯返回</span>
+      <span><i class="dot" style="background:#00ff9c"></i>已完成</span>
+      <span><i class="bar" style="background:#ff2bd6"></i>递归下探边</span>
+      <span><i class="bar" style="background:#ff7a45"></i>回溯返回边</span>
+    </div>
+  </section>
+  <section class="card">
+    <!-- 遍历模式面板 -->
+    <div id="travPanel">
+      <div class="pseudocode" id="code"></div>
+      <div class="seqlabel">访问序列</div>
+      <div class="sequence" id="sequence"></div>
+    </div>
+    <!-- 还原模式面板 -->
+    <div id="rebuildPanel" style="display:none">
+      <div class="seqlabel" id="seq1Label">前序序列</div>
+      <div class="rseq" id="seq1"></div>
+      <div class="seqlabel">中序序列</div>
+      <div class="rseq" id="seq2"></div>
+      <div class="rebuildlog" id="rlog"></div>
+    </div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script>
+// 二叉树结构：              1
+//                    2           3
+//                 4     5           6
+//                     7
+const TREE = {
+  1: { val: 1, l: 2, r: 3, x: 320, y: 50 },
+  2: { val: 2, l: 4, r: 5, x: 170, y: 130 },
+  3: { val: 3, l: null, r: 6, x: 470, y: 130 },
+  4: { val: 4, l: null, r: null, x: 90, y: 220 },
+  5: { val: 5, l: 7, r: null, x: 250, y: 220 },
+  6: { val: 6, l: null, r: null, x: 540, y: 220 },
+  7: { val: 7, l: null, r: null, x: 210, y: 310 },
+};
+const ROOT = 1;
+
+// 父节点映射，用于回溯提示
+const PARENT = {};
+for (const k in TREE) {
+  const n = TREE[k];
+  if (n.l != null) PARENT[n.l] = +k;
+  if (n.r != null) PARENT[n.r] = +k;
+}
+
+const CFG = {
+  pre: {
+    subtitle: "前序遍历：根 → 左子树 → 右子树（先访问根节点）。",
+    note: "前序遍历：先根，再递归左，最后递归右。橙色表示递归返回（回溯）——子树处理完后沿边回到父节点，继续上层剩余步骤。",
+    code: ["preorder(node):", "    if node == null: return", "    visit(node)        // 访问根", "    preorder(node.left)", "    preorder(node.right)"],
+    visitLine: 2,
+  },
+  in: {
+    subtitle: "中序遍历：左子树 → 根 → 右子树（对二叉搜索树输出有序序列）。",
+    note: "中序遍历：先递归左，再访问根，最后递归右；对二叉搜索树输出有序序列。橙色表示递归返回（回溯）到父节点。",
+    code: ["inorder(node):", "    if node == null: return", "    inorder(node.left)", "    visit(node)        // 访问根", "    inorder(node.right)"],
+    visitLine: 3,
+  },
+  post: {
+    subtitle: "后序遍历：左子树 → 右子树 → 根（最后访问根节点）。",
+    note: "后序遍历：先递归左，再递归右，最后访问根；常用于释放树、生成后缀表达式。橙色表示递归返回（回溯）——注意后序中访问根就发生在回溯前。",
+    code: ["postorder(node):", "    if node == null: return", "    postorder(node.left)", "    postorder(node.right)", "    visit(node)        // 访问根"],
+    visitLine: 4,
+  },
+};
+
+let mode = "pre";          // pre / in / post / rebuild-pre / rebuild-post
+let steps = [], idx = 0, timer = null;
+const $ = id => document.getElementById(id);
+const isRebuild = () => mode.startsWith("rebuild");
+
+// 生成遍历的每一步：{type:'enter'|'visit', id}
+function traverse(id, type, out) {
+  if (id == null) return;
+  const node = TREE[id];
+  out.push({ kind: "enter", id });
+  if (type === "pre") out.push({ kind: "visit", id });
+  traverse(node.l, type, out);
+  if (type === "in") out.push({ kind: "visit", id });
+  traverse(node.r, type, out);
+  if (type === "post") out.push({ kind: "visit", id });
+  out.push({ kind: "leave", id });   // 递归返回：回溯到上层
+}
+
+// 计算三种遍历的值序列（用于还原演示）
+function seqOf(type) {
+  const out = [];
+  (function go(id) {
+    if (id == null) return;
+    if (type === "pre") out.push(TREE[id].val);
+    go(TREE[id].l);
+    if (type === "in") out.push(TREE[id].val);
+    go(TREE[id].r);
+    if (type === "post") out.push(TREE[id].val);
+  })(ROOT);
+  return out;
+}
+const SEQ = { pre: seqOf("pre"), in: seqOf("in"), post: seqOf("post") };
+// 值 -> 节点 id（本示例树值唯一）
+const VAL2ID = {};
+for (const k in TREE) VAL2ID[TREE[k].val] = +k;
+
+/*
+ 还原算法（前序+中序）：
+   前序首元素是根；在中序里找到根，左段=左子树中序，右段=右子树中序；
+   左子树大小决定前序里如何切分左右子树的前序段，递归。
+ 还原算法（后序+中序）：
+   后序末元素是根；其余同理。
+ 生成分步 steps，每步记录：当前子树在两序列中的区间、选中的根、左右划分、以及新建节点(带父/方向)。
+*/
+function genRebuildSteps(kind) {
+  // kind: 'pre'(前序+中序) 或 'post'(后序+中序)
+  const primary = kind === "pre" ? SEQ.pre : SEQ.post;  // 提供根的序列
+  const ino = SEQ.in;
+  const out = [];
+  // build(pRange:[ps,pe], iRange:[is,ie], parentVal, dir)
+  function build(ps, pe, is, ie, parentVal, dir) {
+    if (ps > pe) {
+      out.push({ type: "empty", pRange: [ps, pe], iRange: [is, ie], parentVal, dir });
+      return null;
+    }
+    const rootVal = kind === "pre" ? primary[ps] : primary[pe];
+    // 在中序区间内找根
+    let k = is;
+    while (ino[k] !== rootVal) k++;
+    const leftSize = k - is;
+    out.push({
+      type: "root", pRange: [ps, pe], iRange: [is, ie],
+      rootVal, rootInoIdx: k, leftSize,
+      leftIn: [is, k - 1], rightIn: [k + 1, ie], parentVal, dir,
+    });
+    // 递归：前序左段 [ps+1, ps+leftSize]；后序左段 [ps, ps+leftSize-1]
+    if (kind === "pre") {
+      build(ps + 1, ps + leftSize, is, k - 1, rootVal, "L");
+      build(ps + leftSize + 1, pe, k + 1, ie, rootVal, "R");
+    } else {
+      build(ps, ps + leftSize - 1, is, k - 1, rootVal, "L");
+      build(ps + leftSize, pe - 1, k + 1, ie, rootVal, "R");
+    }
+    return rootVal;
+  }
+  build(0, primary.length - 1, 0, ino.length - 1, null, null);
+  return out;
+}
+
+function buildTreeSVG() {
+  const svg = $("tree");
+  let edges = "", nodes = "";
+  for (const k in TREE) {
+    const n = TREE[k];
+    [n.l, n.r].forEach(c => {
+      if (c != null) {
+        const cn = TREE[c];
+        edges += `<line class="edge" id="edge-${c}" x1="${n.x}" y1="${n.y}" x2="${cn.x}" y2="${cn.y}"/>`;
+      }
+    });
+  }
+  for (const k in TREE) {
+    const n = TREE[k];
+    nodes += `<g class="node" id="node-${k}"><circle cx="${n.x}" cy="${n.y}" r="22"/><text x="${n.x}" y="${n.y+6}" text-anchor="middle">${n.val}</text></g>`;
+  }
+  svg.innerHTML = edges + nodes;
+}
+
+function renderCode(lines) {
+  $("code").innerHTML = lines.map((l, i) => `<div class="line" data-line="${i}">${l}</div>`).join("");
+}
+function setLine(line) {
+  $("code").querySelectorAll(".line").forEach(l => l.classList.remove("active"));
+  const t = $("code").querySelector(`[data-line="${line}"]`); if (t) t.classList.add("active");
+}
+function clearNodes() {
+  document.querySelectorAll(".node").forEach(n => n.className.baseVal = "node");
+  document.querySelectorAll(".edge").forEach(e => e.classList.remove("up", "down"));
+}
+
+// 还原模式：隐藏所有节点和边，逐步显现
+function hideAllTree() {
+  document.querySelectorAll(".node").forEach(n => n.className.baseVal = "node hidden");
+  document.querySelectorAll(".edge").forEach(e => { e.className.baseVal = "edge hidden"; });
+}
+function showNode(val, cls) {
+  const id = VAL2ID[val];
+  const el = document.getElementById("node-" + id);
+  el.classList.remove("hidden");
+  if (cls) el.classList.add(cls);
+  // 显示它到父节点的边
+  const edge = document.getElementById("edge-" + id);
+  if (edge) edge.classList.remove("hidden");
+}
+
+// 渲染还原用的两条序列（带下标），并按当前步高亮
+function renderRSeq(elId, arr, marks) {
+  const el = $(elId);
+  el.innerHTML = arr.map((v, i) => {
+    let cls = "rcell";
+    if (marks) {
+      if (marks.range && i >= marks.range[0] && i <= marks.range[1]) cls += " range";
+      if (marks.left && i >= marks.left[0] && i <= marks.left[1]) cls = "rcell leftp";
+      if (marks.right && i >= marks.right[0] && i <= marks.right[1]) cls = "rcell rightp";
+      if (marks.rootIdx === i) cls = "rcell root";
+    }
+    return `<div class="${cls}"><div class="chip">${v}</div><div class="ix">${i}</div></div>`;
+  }).join("");
+}
+
+function draw(k) {
+  clearNodes();
+  const visited = new Set();
+  // 应用到第 k 步为止的所有 visit
+  for (let i = 0; i <= k; i++) {
+    if (steps[i].kind === "visit") visited.add(steps[i].id);
+  }
+  visited.forEach(id => document.getElementById("node-" + id).classList.add("done"));
+
+  const s = steps[k];
+  const nodeEl = document.getElementById("node-" + s.id);
+  if (s.kind === "visit") {
+    nodeEl.classList.remove("done");
+    nodeEl.classList.add("visit");
+    setLine(CFG[mode].visitLine);
+    $("status").textContent = `访问节点 ${TREE[s.id].val}`;
+  } else if (s.kind === "enter") {
+    nodeEl.classList.add("active");
+    const edge = document.getElementById("edge-" + s.id);
+    if (edge) edge.classList.add("down");   // 递归下探：高亮从父节点进入的边
+    setLine(0);
+    const parent = PARENT[s.id];
+    $("status").textContent = parent
+      ? `从父节点 ${TREE[parent].val} 递归进入节点 ${TREE[s.id].val}`
+      : `进入根节点 ${TREE[s.id].val}`;
+  } else {   // leave：递归返回，回溯到父节点
+    nodeEl.classList.remove("done");
+    nodeEl.classList.add("back");
+    const edge = document.getElementById("edge-" + s.id);
+    if (edge) edge.classList.add("up");
+    setLine(1);
+    const parent = PARENT[s.id];
+    $("status").textContent = parent
+      ? `节点 ${TREE[s.id].val} 处理完毕，回溯到父节点 ${TREE[parent].val}`
+      : `根节点 ${TREE[s.id].val} 处理完毕，遍历结束`;
+  }
+
+  // 访问序列
+  const seq = [];
+  for (let i = 0; i <= k; i++) if (steps[i].kind === "visit") seq.push(TREE[steps[i].id].val);
+  $("sequence").innerHTML = seq.map(v => `<div class="chip">${v}</div>`).join("");
+}
+
+// 还原模式的分步绘制
+function drawRebuild(k) {
+  hideAllTree();
+  // 先把 0..k-1 已确定的根都显现（普通已完成态）
+  for (let i = 0; i < k; i++) {
+    if (steps[i].type === "root") showNode(steps[i].rootVal, "done");
+  }
+  const s = steps[k];
+  const kind = mode === "rebuild-pre" ? "pre" : "post";
+  const primaryArr = kind === "pre" ? SEQ.pre : SEQ.post;
+
+  if (s.type === "empty") {
+    // 空子树：仅高亮序列区间提示
+    renderRSeq("seq1", primaryArr, { range: s.pRange });
+    renderRSeq("seq2", SEQ.in, { range: [s.iRange[0], s.iRange[1]] });
+    const dirTxt = s.dir === "L" ? "左" : "右";
+    $("rlog").innerHTML = `区间为空 → 节点 <b style="color:var(--yellow)">${s.parentVal}</b> 没有${dirTxt}子树。`;
+    $("status").textContent = `空子树：${s.parentVal} 的${dirTxt}孩子不存在。`;
+    return;
+  }
+
+  // root 步：显现当前根，高亮两序列
+  showNode(s.rootVal, "newn");
+  const rootPidx = kind === "pre" ? s.pRange[0] : s.pRange[1];
+  renderRSeq("seq1", primaryArr, { range: s.pRange, rootIdx: rootPidx });
+  renderRSeq("seq2", SEQ.in, {
+    range: s.iRange, rootIdx: s.rootInoIdx,
+    left: s.leftSize > 0 ? s.leftIn : null,
+    right: (s.iRange[1] >= s.rootInoIdx + 1) ? s.rightIn : null,
+  });
+
+  const posWord = kind === "pre" ? "首" : "末";
+  let msg = `${kind === "pre" ? "前序" : "后序"}区间的${posWord}元素 <b style="color:var(--magenta)">${s.rootVal}</b> 是当前子树的根。`;
+  msg += `<br>在中序里找到 <b style="color:var(--magenta)">${s.rootVal}</b>（下标 ${s.rootInoIdx}）：`;
+  msg += `左边 <b style="color:var(--yellow)">${s.leftSize}</b> 个是左子树，`;
+  msg += `右边 <b style="color:var(--green)">${s.iRange[1] - s.rootInoIdx}</b> 个是右子树。`;
+  if (s.parentVal != null) {
+    const dirTxt = s.dir === "L" ? "左" : "右";
+    msg = `确定 <b style="color:var(--yellow)">${s.parentVal}</b> 的${dirTxt}孩子是 <b style="color:var(--magenta)">${s.rootVal}</b>。<br>` + msg;
+  } else {
+    msg = `<b style="color:var(--magenta)">${s.rootVal}</b> 是整棵树的根。<br>` + msg;
+  }
+  $("rlog").innerHTML = msg;
+  $("status").textContent = `选定根 ${s.rootVal}，划分左右子树。`;
+}
+
+const REBUILD_CFG = {
+  "rebuild-pre": {
+    subtitle: "已知前序 + 中序，还原二叉树。前序首元素是根，中序据此分割左右子树，递归还原。",
+    note: "前序+中序还原：① 前序区间的首元素 = 当前子树的根；② 在中序中定位根，其左边是左子树、右边是右子树；③ 按左子树大小切分前序，递归。前序序列决定「谁是根」，中序序列决定「左右如何分」。",
+    seq1Label: "前序序列（提供根）",
+  },
+  "rebuild-post": {
+    subtitle: "已知后序 + 中序，还原二叉树。后序末元素是根，中序据此分割左右子树，递归还原。",
+    note: "后序+中序还原：① 后序区间的末元素 = 当前子树的根；② 在中序中定位根，其左边是左子树、右边是右子树；③ 按左子树大小切分后序，递归。后序序列决定「谁是根」，中序序列决定「左右如何分」。",
+    seq1Label: "后序序列（提供根）",
+  },
+};
+
+function prepare() {
+  stop();
+  idx = 0;
+  if (isRebuild()) {
+    const cfg = REBUILD_CFG[mode];
+    $("travPanel").style.display = "none";
+    $("rebuildPanel").style.display = "block";
+    $("subtitle").textContent = cfg.subtitle;
+    $("note").textContent = cfg.note;
+    $("seq1Label").textContent = cfg.seq1Label;
+    const kind = mode === "rebuild-pre" ? "pre" : "post";
+    steps = genRebuildSteps(kind);
+    hideAllTree();
+    renderRSeq("seq1", kind === "pre" ? SEQ.pre : SEQ.post, null);
+    renderRSeq("seq2", SEQ.in, null);
+    $("rlog").innerHTML = `已知${kind === "pre" ? "前序" : "后序"}：<b style="color:var(--cyan)">${(kind === "pre" ? SEQ.pre : SEQ.post).join(" ")}</b>，中序：<b style="color:var(--cyan)">${SEQ.in.join(" ")}</b>。点击开始逐步还原。`;
+    $("status").textContent = "准备就绪，点击开始逐步还原二叉树。";
+  } else {
+    const cfg = CFG[mode];
+    $("travPanel").style.display = "block";
+    $("rebuildPanel").style.display = "none";
+    $("subtitle").textContent = cfg.subtitle;
+    $("note").textContent = cfg.note;
+    renderCode(cfg.code);
+    steps = [];
+    traverse(ROOT, mode, steps);
+    clearNodes();
+    $("sequence").innerHTML = "";
+    $("status").textContent = "准备就绪，点击开始遍历。";
+    setLine(0);
+  }
+}
+function stepOnce() {
+  if (idx < steps.length) {
+    if (isRebuild()) drawRebuild(idx); else draw(idx);
+    idx++;
+    return true;
+  }
+  $("status").textContent = isRebuild() ? "还原完成！二叉树已重建。" : "遍历完成！";
+  return false;
+}
+function play() {
+  stop();
+  const spd = parseInt($("speedInput").value, 10);
+  timer = setInterval(() => { if (!stepOnce()) stop(); }, 1550 - spd);
+}
+function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+function applyMode(m) {
+  mode = m; stop();
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === m));
+  prepare();
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => applyMode(t.dataset.mode));
+$("playBtn").onclick = () => { if (idx >= steps.length || idx === 0) prepare(); play(); };
+$("stepBtn").onclick = () => { stop(); stepOnce(); };
+$("resetBtn").onclick = () => { stop(); prepare(); };
+
+buildTreeSVG();
+applyMode("pre");
+</script>
+</body>
+</html>

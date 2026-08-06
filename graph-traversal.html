@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图遍历演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 12px; padding: 14px 30px 4px; flex-wrap: wrap; }
+  .tab {
+    padding: 10px 24px; border: 1px solid var(--border); border-radius: 4px;
+    background: rgba(0,240,255,0.03); color: var(--cyan); font-size: 15px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace;
+    transition: all .18s; clip-path: polygon(0 0, 100% 0, 100% 70%, 94% 100%, 0 100%);
+  }
+  .tab:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,240,255,.35) inset; }
+  .tab.active {
+    background: var(--cyan); color: #05060f; border-color: var(--cyan);
+    box-shadow: 0 0 18px rgba(0,240,255,.6); font-weight: 700;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; padding: 18px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field select {
+    padding: 9px 12px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .field select:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .btn {
+    padding: 10px 20px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 14px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .btn:hover { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 130px; accent-color: var(--magenta); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  svg { width: 100%; height: auto; display: block; }
+  .tlegend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); letter-spacing: .5px; }
+  .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tlegend .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .tlegend .bar { width: 18px; height: 4px; border-radius: 2px; }
+  .edge { stroke: #4a4478; stroke-width: 2; transition: all .2s; }
+  .edge.tree { stroke: var(--green); stroke-width: 3.5; filter: drop-shadow(0 0 6px rgba(0,255,156,.7)); }
+  .edge.down { stroke: var(--magenta); stroke-width: 3.5; filter: drop-shadow(0 0 6px rgba(255,43,214,.7)); }
+  .edge.up { stroke: #ff7a45; stroke-width: 3.5; filter: drop-shadow(0 0 6px rgba(255,122,69,.7)); }
+  .gnode circle { fill: rgba(0,240,255,0.05); stroke: var(--border); stroke-width: 2; transition: all .2s; }
+  .gnode text { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 16px; font-weight: 700; }
+  .gnode.frontier circle { fill: rgba(255,212,0,0.18); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.5)); }
+  .gnode.active circle { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 12px rgba(255,43,214,.8)); }
+  .gnode.active text { fill: #fff; }
+  .gnode.back circle { fill: rgba(255,122,69,0.22); stroke: #ff7a45; filter: drop-shadow(0 0 12px rgba(255,122,69,.8)); }
+  .gnode.back text { fill: #fff; }
+  .gnode.done circle { fill: rgba(0,255,156,0.18); stroke: var(--green); }
+  /* 递归调用栈：竖向堆叠，栈顶在上 */
+  .callstack { display: flex; flex-direction: column-reverse; gap: 6px; min-height: 44px; }
+  .callstack .frame {
+    display: flex; align-items: center; gap: 8px; padding: 7px 12px;
+    border: 1px solid var(--cyan); border-radius: 6px; background: rgba(0,240,255,0.08);
+    color: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-size: 13px;
+    box-shadow: 0 0 8px rgba(0,240,255,.2);
+  }
+  .callstack .frame.top { border-color: var(--magenta); background: rgba(255,43,214,0.15); color: var(--magenta); box-shadow: 0 0 12px rgba(255,43,214,.4); }
+  .callstack .frame .fnum { font-size: 11px; color: var(--muted); }
+  .panelbox { margin-bottom: 16px; }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .ds { display: flex; flex-wrap: wrap; gap: 8px; min-height: 44px; align-items: center; }
+  .ds .chip {
+    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--cyan); border-radius: 6px; background: rgba(0,240,255,0.12);
+    color: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 16px;
+    box-shadow: 0 0 10px rgba(0,240,255,.25);
+  }
+  .ds .chip.head { border-color: var(--magenta); background: rgba(255,43,214,0.15); color: var(--magenta); box-shadow: 0 0 12px rgba(255,43,214,.4); }
+  .sequence .chip {
+    border-color: var(--green); background: rgba(0,255,156,0.12); color: var(--green);
+    box-shadow: 0 0 10px rgba(0,255,156,.3);
+  }
+  .dshint { font-size: 11px; color: var(--muted); margin-top: 6px; font-family: "SF Mono", Menlo, monospace; }
+  .status { margin-top: 6px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>图遍历演示</h1>
+  <p id="subtitle"></p>
+</header>
+<a class="back" href="index.html">← 返回门户</a>
+
+<div class="tabs">
+  <button class="tab active" data-mode="dfs">DFS（栈实现）</button>
+  <button class="tab" data-mode="dfsr">DFS（递归实现）</button>
+  <button class="tab" data-mode="bfs">BFS 广度优先</button>
+</div>
+
+<div class="controls">
+  <div class="field">
+    <label for="startSel">起点</label>
+    <select id="startSel"></select>
+  </div>
+  <div class="speed">
+    <label for="speedInput">速度</label>
+    <input id="speedInput" type="range" min="150" max="1400" value="700" step="50">
+  </div>
+  <button class="btn" id="playBtn">开始遍历</button>
+  <button class="btn secondary" id="stepBtn">单步</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="btn secondary" id="randBtn">随机生成</button>
+</div>
+
+<main>
+  <section class="card">
+    <svg id="graph" viewBox="0 0 640 400" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="tlegend">
+      <span><i class="dot" style="background:#ffd400"></i>已入栈/队列</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>当前处理</span>
+      <span><i class="dot" style="background:#ff7a45"></i>回溯返回</span>
+      <span><i class="dot" style="background:#00ff9c"></i>已访问完</span>
+      <span><i class="bar" style="background:#00ff9c"></i>遍历树边</span>
+      <span><i class="bar" style="background:#ff2bd6"></i>递归下探边</span>
+      <span><i class="bar" style="background:#ff7a45"></i>回溯返回边</span>
+    </div>
+  </section>
+  <section class="card">
+    <!-- 栈/队列面板（栈实现 DFS、BFS） -->
+    <div class="panelbox" id="dsPanel">
+      <p class="plabel" id="dsLabel">栈 (Stack)</p>
+      <div class="ds" id="dsBox"></div>
+      <div class="dshint" id="dsHint"></div>
+    </div>
+    <!-- 递归调用栈面板（递归实现 DFS） -->
+    <div class="panelbox" id="csPanel" style="display:none">
+      <p class="plabel">递归调用栈（栈顶在上）</p>
+      <div class="callstack" id="csBox"></div>
+      <div class="dshint">每层 dfs(u) 是一个栈帧；进入时压栈，返回（回溯）时弹栈。</div>
+    </div>
+    <div class="panelbox">
+      <p class="plabel">访问序列</p>
+      <div class="ds sequence" id="sequence"></div>
+    </div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script>
+// 无向图：节点坐标与邻接表可随机重建
+let NODES = {}, ADJ = {};
+
+const DEFAULT_NODES = {
+  0: { x: 320, y: 50 },
+  1: { x: 160, y: 140 },
+  2: { x: 480, y: 140 },
+  3: { x: 90,  y: 260 },
+  4: { x: 250, y: 260 },
+  5: { x: 400, y: 260 },
+  6: { x: 560, y: 260 },
+  7: { x: 320, y: 360 },
+};
+const DEFAULT_ADJ = {
+  0: [1, 2],
+  1: [0, 3, 4],
+  2: [0, 5, 6],
+  3: [1, 7],
+  4: [1, 7],
+  5: [2, 7],
+  6: [2],
+  7: [3, 4, 5],
+};
+
+// 由无向边列表构建邻接表（双向）并升序排序
+function buildADJ(n, edges) {
+  const adj = {};
+  for (let i = 0; i < n; i++) adj[i] = [];
+  edges.forEach(([u, v]) => { adj[u].push(v); adj[v].push(u); });
+  for (const k in adj) adj[k] = [...new Set(adj[k])].sort((a, b) => a - b);
+  return adj;
+}
+
+function setGraph(nodes, adj) {
+  NODES = nodes;
+  ADJ = adj;
+  for (const k in ADJ) ADJ[k].sort((a, b) => a - b);
+}
+
+// 随机生成一个连通无向图
+function randomGraph() {
+  const n = 6 + Math.floor(Math.random() * 4);   // 6~9 个节点
+  // 圆形布局，避免节点重叠
+  const nodes = {};
+  const cx = 320, cy = 200, R = 150;
+  for (let i = 0; i < n; i++) {
+    const ang = -Math.PI / 2 + (2 * Math.PI * i) / n;
+    nodes[i] = { x: Math.round(cx + R * Math.cos(ang)), y: Math.round(cy + R * Math.sin(ang)) };
+  }
+  // 先用随机生成树保证连通：每个新节点连到一个已有节点
+  const edges = [];
+  const edgeSet = new Set();
+  const addEdge = (u, v) => {
+    const key = Math.min(u, v) + "-" + Math.max(u, v);
+    if (u !== v && !edgeSet.has(key)) { edgeSet.add(key); edges.push([u, v]); return true; }
+    return false;
+  };
+  for (let v = 1; v < n; v++) {
+    const u = Math.floor(Math.random() * v);
+    addEdge(u, v);
+  }
+  // 再随机加若干条边，增加分支
+  const extra = Math.floor(n * (0.4 + Math.random() * 0.5));
+  let tries = 0;
+  for (let e = 0; e < extra && tries < extra * 6; ) {
+    const u = Math.floor(Math.random() * n);
+    const v = Math.floor(Math.random() * n);
+    if (addEdge(u, v)) e++; else tries++;
+  }
+  return { nodes, adj: buildADJ(n, edges) };
+}
+
+const CFG = {
+  dfs: {
+    subtitle: "DFS 深度优先（栈实现）：用显式栈沿一条路径走到底，再回退换分支。",
+    dsLabel: "栈 (Stack)  —— 后进先出",
+    dsHint: "栈顶（右端，品红）最先弹出处理。",
+    note: "DFS 尽可能深入，走到尽头再回溯。用栈实现：弹出栈顶，把它未访问的邻居压栈。",
+  },
+  dfsr: {
+    subtitle: "DFS 深度优先（递归实现）：dfs(u) 访问 u 后，对每个未访问邻居递归调用；返回即回溯。",
+    note: "递归 DFS 用系统调用栈代替显式栈。进入 dfs(u) 压栈帧、访问 u；对每个未访问邻居递归下探（品红边）；某邻居的 dfs 返回后回溯（橙色边），继续尝试下一个邻居；邻居都处理完则本层返回。",
+  },
+  bfs: {
+    subtitle: "BFS 广度优先：用队列一层一层向外扩展，先近后远。",
+    dsLabel: "队列 (Queue)  —— 先进先出",
+    dsHint: "队首（左端，品红）最先出队处理。",
+    note: "BFS 按距起点的层数由近及远访问。用队列实现：出队队首，把它未访问的邻居入队。可用于求无权图最短路径。",
+  },
+};
+
+let mode = "dfs";
+let steps = [], idx = 0, timer = null, start = 0;
+const $ = id => document.getElementById(id);
+
+function buildGraphSVG() {
+  const svg = $("graph");
+  let edges = "", nodes = "";
+  const seen = new Set();
+  for (const u in ADJ) {
+    ADJ[u].forEach(v => {
+      const key = Math.min(u, v) + "-" + Math.max(u, v);
+      if (seen.has(key)) return;
+      seen.add(key);
+      const a = NODES[u], b = NODES[v];
+      edges += `<line class="edge" id="edge-${key}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`;
+    });
+  }
+  for (const k in NODES) {
+    const n = NODES[k];
+    nodes += `<g class="gnode" id="node-${k}"><circle cx="${n.x}" cy="${n.y}" r="22"/><text x="${n.x}" y="${n.y+6}" text-anchor="middle">${k}</text></g>`;
+  }
+  svg.innerHTML = edges + nodes;
+}
+function edgeKey(a, b) { return Math.min(a, b) + "-" + Math.max(a, b); }
+
+// 生成 DFS/BFS 的每一步快照
+function genSteps(type, s) {
+  const out = [];
+  const visited = new Set();
+  const container = [s];          // 栈(DFS) 或 队列(BFS)
+  const parent = {};              // 记录父节点，用于在访问时确定遍历树边
+  const treeEdges = [];
+  const seq = [];
+  const dsName = type === "dfs" ? "栈" : "队列";
+  const snap = (active, desc) => out.push({
+    ds: [...container], visited: [...visited], seq: [...seq], tree: [...treeEdges], active, desc });
+
+  snap(null, `起点 ${s} 入${dsName}`);
+
+  while (container.length) {
+    const cur = type === "dfs" ? container.pop() : container.shift();
+    if (visited.has(cur)) continue;   // 安全兜底，正常不会触发
+    visited.add(cur);
+    seq.push(cur);
+    if (parent[cur] !== undefined) treeEdges.push(edgeKey(parent[cur], cur));
+    snap(cur, `处理节点 ${cur}，标记为已访问`);
+
+    // DFS 逆序、BFS 正序，保证按邻接表升序先访问
+    const iter = type === "dfs" ? ADJ[cur].slice().reverse() : ADJ[cur];
+    iter.forEach(nb => {
+      if (visited.has(nb)) return;
+      if (type === "dfs") {
+        // 移到栈顶：已在栈中则先移除旧位置，再压到顶部（保证正确的 DFS 顺序）
+        const i = container.indexOf(nb);
+        if (i !== -1) container.splice(i, 1);
+        container.push(nb);
+        parent[nb] = cur;
+      } else if (!container.includes(nb)) {
+        // BFS 入队去重
+        container.push(nb);
+        parent[nb] = cur;
+      }
+    });
+    snap(cur, `把 ${cur} 未访问的邻居加入${dsName}`);
+  }
+  snap(null, `容器为空，遍历完成！共访问 ${seq.length} 个节点`);
+  return out;
+}
+
+// 生成递归 DFS 的每一步快照，展示调用栈与回溯
+function genRecSteps(s) {
+  const out = [];
+  const visited = new Set();
+  const callstack = [];        // 递归调用栈（栈帧 = 节点 id）
+  const treeEdges = [];
+  const seq = [];
+  // kind: enter(进入dfs) / visit(访问) / down(下探到邻居) / up(邻居返回,回溯) / leave(本层返回)
+  const snap = (active, desc, edge) => out.push({
+    stack: [...callstack], visited: [...visited], seq: [...seq], tree: [...treeEdges],
+    active, desc, edge });
+
+  function dfs(u, from) {
+    callstack.push(u);
+    snap(u, from == null ? `调用 dfs(${u})：起点进入递归` : `调用 dfs(${u})：进入递归，压入调用栈`, null);
+    visited.add(u);
+    seq.push(u);
+    if (from != null) treeEdges.push(edgeKey(from, u));
+    snap(u, `访问节点 ${u}，标记为已访问`, null);
+
+    for (const nb of ADJ[u]) {
+      if (visited.has(nb)) {
+        snap(u, `邻居 ${nb} 已访问过，跳过`, null);
+        continue;
+      }
+      snap(u, `发现未访问邻居 ${nb}，递归下探 dfs(${nb})`, { key: edgeKey(u, nb), dir: "down" });
+      dfs(nb, u);
+      // 递归返回后：回溯到 u
+      snap(u, `dfs(${nb}) 返回，回溯到 ${u}，继续尝试其余邻居`, { key: edgeKey(u, nb), dir: "up" });
+    }
+    callstack.pop();
+    snap(u, callstack.length ? `节点 ${u} 邻居处理完毕，dfs(${u}) 返回（弹出调用栈）` :
+      `dfs(${u}) 返回，调用栈清空，遍历完成！共访问 ${seq.length} 个节点`, null);
+  }
+  dfs(s, null);
+  return out;
+}
+
+function clearGraph() {
+  document.querySelectorAll(".gnode").forEach(n => n.className.baseVal = "gnode");
+  document.querySelectorAll(".edge").forEach(e => e.classList.remove("tree", "down", "up"));
+}
+
+function draw(k) {
+  const s = steps[k];
+  clearGraph();
+  s.visited.forEach(id => $("node-" + id).classList.add("done"));
+  // 在容器中但尚未访问的节点标为 frontier
+  s.ds.forEach(id => { if (!s.visited.includes(id)) $("node-" + id).classList.add("frontier"); });
+  if (s.active != null) {
+    const el = $("node-" + s.active);
+    el.classList.remove("done", "frontier");
+    el.classList.add("active");
+  }
+  s.tree.forEach(key => { const e = $("edge-" + key); if (e) e.classList.add("tree"); });
+
+  // 数据结构（栈/队列）
+  const headEnd = mode === "dfs" ? "right" : "left";  // 下一个要处理的元素位置
+  $("dsBox").innerHTML = s.ds.map((v, i) => {
+    const isHead = (mode === "dfs" && i === s.ds.length - 1) || (mode === "bfs" && i === 0);
+    return `<div class="chip${isHead ? " head" : ""}">${v}</div>`;
+  }).join("") || '<span style="color:var(--muted);font-family:monospace">（空）</span>';
+
+  $("sequence").innerHTML = s.seq.map(v => `<div class="chip">${v}</div>`).join("");
+  $("status").textContent = s.desc;
+}
+
+// 递归 DFS 的绘制
+function drawRec(k) {
+  const s = steps[k];
+  clearGraph();
+  s.visited.forEach(id => $("node-" + id).classList.add("done"));
+  // 调用栈中的节点标记：栈顶=当前活跃层
+  const top = s.stack.length ? s.stack[s.stack.length - 1] : null;
+  s.tree.forEach(key => { const e = $("edge-" + key); if (e) e.classList.add("tree"); });
+
+  // 下探/回溯边高亮
+  if (s.edge) {
+    const e = $("edge-" + s.edge.key);
+    if (e) e.classList.add(s.edge.dir);
+  }
+  // 活跃节点着色：回溯(up)用橙色 back，其余用品红 active
+  if (s.active != null) {
+    const el = $("node-" + s.active);
+    el.classList.remove("done");
+    el.classList.add(s.edge && s.edge.dir === "up" ? "back" : "active");
+  }
+
+  // 调用栈可视化
+  $("csBox").innerHTML = s.stack.map((v, i) => {
+    const isTop = i === s.stack.length - 1;
+    return `<div class="frame${isTop ? " top" : ""}"><span class="fnum">帧${i + 1}</span> dfs(${v})</div>`;
+  }).join("") || '<span style="color:var(--muted);font-family:monospace">（调用栈空）</span>';
+
+  $("sequence").innerHTML = s.seq.map(v => `<div class="chip">${v}</div>`).join("");
+  $("status").textContent = s.desc;
+}
+
+function prepare() {
+  const cfg = CFG[mode];
+  $("subtitle").textContent = cfg.subtitle;
+  $("note").textContent = cfg.note;
+  start = parseInt($("startSel").value, 10);
+  idx = 0;
+  if (mode === "dfsr") {
+    $("dsPanel").style.display = "none";
+    $("csPanel").style.display = "block";
+    steps = genRecSteps(start);
+    drawRec(0);
+  } else {
+    $("dsPanel").style.display = "block";
+    $("csPanel").style.display = "none";
+    $("dsLabel").textContent = cfg.dsLabel;
+    $("dsHint").textContent = cfg.dsHint;
+    steps = genSteps(mode, start);
+    draw(0);
+  }
+}
+function stepOnce() {
+  if (idx < steps.length - 1) { idx++; (mode === "dfsr" ? drawRec : draw)(idx); return true; }
+  return false;
+}
+function play() {
+  stop();
+  const speed = parseInt($("speedInput").value, 10);
+  timer = setInterval(() => { if (!stepOnce()) stop(); }, 1550 - speed);
+}
+function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+function applyMode(m) {
+  mode = m; stop();
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === m));
+  prepare();
+}
+
+// 根据当前 NODES 重建起点下拉
+function populateStartSelect() {
+  const sel = $("startSel");
+  sel.innerHTML = "";
+  Object.keys(NODES).map(Number).sort((a, b) => a - b).forEach(k => {
+    const o = document.createElement("option");
+    o.value = k; o.textContent = "节点 " + k;
+    sel.appendChild(o);
+  });
+  sel.value = "0";
+}
+
+// 用新图重建 SVG、下拉，并按当前模式初始化
+function regenerate(randomize) {
+  stop();
+  if (randomize) {
+    const g = randomGraph();
+    setGraph(g.nodes, g.adj);
+  } else {
+    setGraph({ ...DEFAULT_NODES }, JSON.parse(JSON.stringify(DEFAULT_ADJ)));
+  }
+  buildGraphSVG();
+  populateStartSelect();
+  applyMode(mode);
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => applyMode(t.dataset.mode));
+$("startSel").onchange = () => { stop(); prepare(); };
+$("playBtn").onclick = () => { if (idx >= steps.length - 1 || idx === 0) prepare(); play(); };
+$("stepBtn").onclick = () => { stop(); stepOnce(); };
+$("resetBtn").onclick = () => { stop(); prepare(); };
+$("randBtn").onclick = () => regenerate(true);
+
+setGraph({ ...DEFAULT_NODES }, JSON.parse(JSON.stringify(DEFAULT_ADJ)));
+buildGraphSVG();
+populateStartSelect();
+applyMode("dfs");
+</script>
+</body>
+</html>

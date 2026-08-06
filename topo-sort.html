@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>拓扑排序演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 12px; padding: 14px 30px 4px; flex-wrap: wrap; }
+  .tab {
+    padding: 10px 24px; border: 1px solid var(--border); border-radius: 4px;
+    background: rgba(0,240,255,0.03); color: var(--cyan); font-size: 15px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace;
+    transition: all .18s; clip-path: polygon(0 0, 100% 0, 100% 70%, 94% 100%, 0 100%);
+  }
+  .tab:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,240,255,.35) inset; }
+  .tab.active {
+    background: var(--cyan); color: #05060f; border-color: var(--cyan);
+    box-shadow: 0 0 18px rgba(0,240,255,.6); font-weight: 700;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; padding: 18px 30px; }
+  .controls.hidden { display: none; }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 130px; accent-color: var(--magenta); }
+  .btn {
+    padding: 10px 20px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 14px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  svg { width: 100%; height: auto; display: block; }
+  .tlegend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); letter-spacing: .5px; }
+  .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tlegend .dot { width: 12px; height: 12px; border-radius: 50%; }
+  /* 边 */
+  .edge { stroke: #4a4478; stroke-width: 2; transition: all .2s; }
+  .edge.removing { stroke: #ff5555; stroke-width: 3; filter: drop-shadow(0 0 6px rgba(255,85,85,.7)); }
+  .edge.gone { opacity: 0; }
+  /* 节点 */
+  .gnode circle { fill: rgba(0,240,255,0.05); stroke: var(--border); stroke-width: 2; transition: all .2s; }
+  .gnode text.lbl { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 16px; font-weight: 700; }
+  .gnode text.ind { font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; fill: var(--yellow); }
+  .gnode.ready circle { fill: rgba(255,212,0,0.16); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.5)); }
+  .gnode.active circle { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 12px rgba(255,43,214,.8)); }
+  .gnode.active text.lbl { fill: #fff; }
+  .gnode.done circle { fill: rgba(0,255,156,0.18); stroke: var(--green); }
+  .gnode { transition: opacity .3s; }
+  .gnode.removed { opacity: 0; pointer-events: none; }
+  .gnode.clickable { cursor: pointer; }
+  .gnode.clickable:hover circle { stroke: var(--cyan); filter: drop-shadow(0 0 10px rgba(0,240,255,.6)); }
+  .gnode.bad circle { stroke: #ff5555; filter: drop-shadow(0 0 10px rgba(255,85,85,.7)); }
+  /* 面板 */
+  .panelbox { margin-bottom: 18px; }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .ds { display: flex; flex-wrap: wrap; gap: 8px; min-height: 44px; align-items: center; }
+  .ds .chip {
+    width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--yellow); border-radius: 6px; background: rgba(255,212,0,0.12);
+    color: var(--yellow); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 16px;
+    box-shadow: 0 0 10px rgba(255,212,0,.25);
+  }
+  .ds .chip.head { border-color: var(--magenta); background: rgba(255,43,214,0.15); color: var(--magenta); box-shadow: 0 0 12px rgba(255,43,214,.4); }
+  .sequence .chip {
+    border-color: var(--green); background: rgba(0,255,156,0.12); color: var(--green);
+    box-shadow: 0 0 10px rgba(0,255,156,.3); position: relative;
+  }
+  .sequence .chip .ord { position: absolute; top: -14px; font-size: 10px; color: var(--muted); }
+  .dshint { font-size: 11px; color: var(--muted); margin-top: 6px; font-family: "SF Mono", Menlo, monospace; }
+  .status { margin-top: 6px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>拓扑排序演示</h1>
+  <p id="subtitle"></p>
+</header>
+<a class="back" href="index.html">← 返回门户</a>
+
+<div class="tabs">
+  <button class="tab active" data-mode="auto">自动演示 (Kahn)</button>
+  <button class="tab" data-mode="manual">手动挑战</button>
+</div>
+
+<div class="controls" id="autoControls">
+  <div class="speed">
+    <label for="speedInput">速度</label>
+    <input id="speedInput" type="range" min="150" max="1400" value="700" step="50">
+  </div>
+  <button class="btn" id="playBtn">开始排序</button>
+  <button class="btn secondary" id="stepBtn">单步</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="btn secondary" id="randBtn">随机生成</button>
+</div>
+
+<div class="controls hidden" id="manualControls">
+  <button class="btn secondary" id="undoBtn">悔一步</button>
+  <button class="btn secondary" id="restartBtn">重新挑战</button>
+  <button class="btn secondary" id="randBtnM">随机生成</button>
+</div>
+
+<main>
+  <section class="card">
+    <svg id="graph" viewBox="0 0 640 420" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="tlegend">
+      <span><i class="dot" style="background:#ffd400"></i>入度为 0（可选）</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>当前处理</span>
+      <span><i class="dot" style="background:#00ff9c"></i>已排序</span>
+      <span style="color:var(--yellow)">右上小数字 = 当前入度</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="panelbox" id="queuePanel">
+      <p class="plabel">队列（入度为 0 的节点）</p>
+      <div class="ds" id="queueBox"></div>
+      <div class="dshint">Kahn 算法：反复取出入度为 0 的节点，删除其出边，邻居入度减 1。</div>
+    </div>
+    <div class="panelbox">
+      <p class="plabel" id="seqLabel">拓扑序列</p>
+      <div class="ds sequence" id="sequence"></div>
+    </div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// 有向无环图 (DAG)：节点坐标、边、邻接表、初始入度均可随机重建
+let NODES = {}, EDGES = [], ADJ = {}, INDEG0 = {};
+
+// 默认图（模拟课程先修关系）
+const DEFAULT_NODES = {
+  0: { x: 90,  y: 80 },
+  1: { x: 90,  y: 220 },
+  2: { x: 260, y: 60 },
+  3: { x: 260, y: 200 },
+  4: { x: 260, y: 340 },
+  5: { x: 440, y: 130 },
+  6: { x: 440, y: 300 },
+  7: { x: 600, y: 210 },
+};
+const DEFAULT_EDGES = [
+  [0, 2], [0, 3],
+  [1, 3], [1, 4],
+  [2, 5],
+  [3, 5], [3, 6],
+  [4, 6],
+  [5, 7],
+  [6, 7],
+];
+
+// 根据 NODES/EDGES 重算邻接表与入度
+function rebuildADJ() {
+  ADJ = {}; INDEG0 = {};
+  Object.keys(NODES).forEach(k => { ADJ[+k] = []; INDEG0[+k] = 0; });
+  EDGES.forEach(([u, v]) => { ADJ[u].push(v); INDEG0[v]++; });
+  for (const k in ADJ) ADJ[k].sort((a, b) => a - b);
+}
+
+function setGraph(nodes, edges) {
+  NODES = nodes; EDGES = edges;
+  rebuildADJ();
+}
+
+// 随机生成一个 DAG：按层（column）布局，边只从左列指向右列 → 天然无环
+function randomDAG() {
+  const n = 6 + Math.floor(Math.random() * 4);   // 6~9 个节点
+  // 分层：每个节点随机分到一列，列越靠右越晚
+  const cols = 3 + Math.floor(Math.random() * 2); // 3~4 列
+  const layer = [];
+  for (let i = 0; i < n; i++) layer.push(Math.floor(Math.random() * cols));
+  layer.sort((a, b) => a - b);                    // 保证 0 号节点在较左列
+  // 每列至少不空：把前 cols 个节点强制分到不同列
+  for (let c = 0; c < cols && c < n; c++) layer[c] = c;
+  layer.sort((a, b) => a - b);
+
+  // 按列分组算坐标
+  const byCol = {};
+  const nodes = {};
+  const colX = [90, 260, 430, 600];
+  layer.forEach((c, i) => { (byCol[c] = byCol[c] || []).push(i); });
+  for (const c in byCol) {
+    const arr = byCol[c];
+    const gap = 360 / (arr.length + 1);
+    arr.forEach((id, j) => {
+      nodes[id] = { x: colX[c] || (90 + c * 170), y: 40 + gap * (j + 1) };
+    });
+  }
+
+  // 生成边：只从小列指向大列，随机加边（保证无环）
+  const edges = [];
+  const edgeSet = new Set();
+  for (let u = 0; u < n; u++) {
+    for (let v = 0; v < n; v++) {
+      if (layer[u] < layer[v] && Math.random() < 0.35) {
+        const key = u + "-" + v;
+        if (!edgeSet.has(key)) { edges.push([u, v]); edgeSet.add(key); }
+      }
+    }
+  }
+  // 确保每个非源节点至少有一条入边（更像连通图），非汇节点尽量有出边
+  for (let v = 0; v < n; v++) {
+    const hasIn = edges.some(e => e[1] === v);
+    if (!hasIn) {
+      // 从任意更左列的节点连一条
+      const cands = [];
+      for (let u = 0; u < n; u++) if (layer[u] < layer[v]) cands.push(u);
+      if (cands.length) {
+        const u = cands[Math.floor(Math.random() * cands.length)];
+        const key = u + "-" + v;
+        if (!edgeSet.has(key)) { edges.push([u, v]); edgeSet.add(key); }
+      }
+    }
+  }
+  return { nodes, edges };
+}
+
+let mode = "auto";
+let steps = [], idx = 0, timer = null;
+
+function edgeId(u, v) { return `e-${u}-${v}`; }
+
+function buildSVG() {
+  const svg = $("graph");
+  // 箭头 marker
+  let defs = `<defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L9,3 L0,6 Z" fill="#6b64a0"/>
+    </marker></defs>`;
+  let edges = "", nodes = "";
+  EDGES.forEach(([u, v]) => {
+    const a = NODES[u], b = NODES[v];
+    // 端点收缩到圆边缘
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy);
+    const r = 24;
+    const x1 = a.x + dx / len * r, y1 = a.y + dy / len * r;
+    const x2 = b.x - dx / len * r, y2 = b.y - dy / len * r;
+    edges += `<line class="edge" id="${edgeId(u, v)}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" marker-end="url(#arrow)"/>`;
+  });
+  for (const k in NODES) {
+    const n = NODES[k];
+    nodes += `<g class="gnode" id="node-${k}" data-id="${k}">
+      <circle cx="${n.x}" cy="${n.y}" r="22"/>
+      <text class="lbl" x="${n.x}" y="${n.y+6}" text-anchor="middle">${k}</text>
+      <text class="ind" x="${n.x+24}" y="${n.y-16}" text-anchor="middle">0</text>
+    </g>`;
+  }
+  svg.innerHTML = defs + edges + nodes;
+}
+
+// ---------- 自动演示：Kahn 算法分步 ----------
+function genSteps() {
+  const out = [];
+  const indeg = { ...INDEG0 };
+  const gone = new Set();          // 已删除的边 "u-v"
+  const seq = [];
+  const snap = (active, queue, hl, desc) => out.push({
+    indeg: { ...indeg }, gone: new Set(gone), seq: [...seq],
+    active, queue: [...queue], hl: hl ? [...hl] : [], desc });
+
+  // 初始：找出所有入度为 0 的节点
+  let queue = Object.keys(indeg).map(Number).filter(u => indeg[u] === 0).sort((a, b) => a - b);
+  snap(null, queue, null, `初始化：把所有入度为 0 的节点 [${queue.join(", ")}] 加入队列。`);
+
+  while (queue.length) {
+    const u = queue.shift();
+    seq.push(u);
+    snap(u, queue, null, `取出入度为 0 的节点 ${u}，加入拓扑序列。`);
+
+    // 删除 u 的出边，邻居入度减 1
+    const hl = ADJ[u].map(v => `${u}-${v}`);
+    if (hl.length) {
+      snap(u, queue, hl, `删除 ${u} 的出边，指向的邻居 [${ADJ[u].join(", ")}] 入度各减 1。`);
+    }
+    const newZero = [];
+    ADJ[u].forEach(v => {
+      gone.add(`${u}-${v}`);
+      indeg[v]--;
+      if (indeg[v] === 0) newZero.push(v);
+    });
+    if (newZero.length) queue.push(...newZero);
+    queue.sort((a, b) => a - b);
+    snap(u, queue, null, newZero.length
+      ? `节点 [${newZero.join(", ")}] 入度降为 0，加入队列。`
+      : `没有新的入度为 0 的节点。`);
+  }
+
+  const total = Object.keys(NODES).length;
+  if (seq.length === total) {
+    snap(null, [], null, `队列为空，拓扑排序完成！序列：${seq.join(" → ")}`);
+  } else {
+    snap(null, [], null, `队列为空但只排了 ${seq.length}/${total} 个节点 → 图中存在环，无拓扑序。`);
+  }
+  return out;
+}
+
+function clearGraph() {
+  document.querySelectorAll(".gnode").forEach(n => { n.className.baseVal = "gnode"; });
+  document.querySelectorAll(".edge").forEach(e => { e.className.baseVal = "edge"; });
+}
+
+function setIndegLabels(indeg) {
+  for (const k in indeg) {
+    const t = document.querySelector(`#node-${k} .ind`);
+    if (t) t.textContent = indeg[k];
+  }
+}
+
+function draw(k) {
+  const s = steps[k];
+  clearGraph();
+  setIndegLabels(s.indeg);
+
+  const total = Object.keys(NODES).length;
+  const doneSet = new Set(s.seq);
+
+  // 全部排完（最后一步）：恢复显示完整原图
+  if (doneSet.size === total && s.active == null) {
+    $("queueBox").innerHTML = '<span style="color:var(--muted);font-family:monospace">（空）</span>';
+    $("sequence").innerHTML = s.seq.map((v, i) =>
+      `<div class="chip"><span class="ord">${i + 1}</span>${v}</div>`).join("");
+    $("status").textContent = s.desc;
+    return;   // 不加任何 removed / gone，原图完整重现
+  }
+
+  // 已彻底移除的节点（排除当前正在处理的 active，让它保持可见）
+  const removedSet = new Set(s.seq);
+  if (s.active != null) removedSet.delete(s.active);
+
+  removedSet.forEach(id => $("node-" + id).classList.add("removed"));
+  // 隐藏与已移除节点相连的边，或 Kahn 已删除的出边
+  EDGES.forEach(([u, v]) => {
+    if (removedSet.has(u) || removedSet.has(v) || s.gone.has(`${u}-${v}`)) {
+      const e = $("e-" + u + "-" + v);
+      if (e) e.classList.add("gone");
+    }
+  });
+  // 本步高亮删除的边标红
+  s.hl.forEach(key => { const e = $("e-" + key); if (e && !e.classList.contains("gone")) e.classList.add("removing"); });
+
+  // 剩余节点着色
+  s.queue.forEach(id => { if (!doneSet.has(id)) $("node-" + id).classList.add("ready"); });
+  if (s.active != null) {
+    const el = $("node-" + s.active);
+    el.classList.remove("done", "ready", "removed");
+    el.classList.add("active");
+  }
+
+  $("queueBox").innerHTML = s.queue.map((v, i) =>
+    `<div class="chip${i === 0 ? " head" : ""}">${v}</div>`).join("")
+    || '<span style="color:var(--muted);font-family:monospace">（空）</span>';
+  $("sequence").innerHTML = s.seq.map((v, i) =>
+    `<div class="chip"><span class="ord">${i + 1}</span>${v}</div>`).join("");
+  $("status").textContent = s.desc;
+}
+
+// ---------- 手动挑战 ----------
+let mIndeg = {}, mGone = new Set(), mSeq = [], mHistory = [];
+
+function manualRender(msg) {
+  clearGraph();
+  setIndegLabels(mIndeg);
+  const doneSet = new Set(mSeq);
+  const total = Object.keys(NODES).length;
+
+  // 全部排完：恢复显示完整原图
+  if (doneSet.size === total) {
+    $("queueBox").innerHTML = '<span style="color:var(--muted);font-family:monospace">（全部完成）</span>';
+    $("sequence").innerHTML = mSeq.map((v, i) =>
+      `<div class="chip"><span class="ord">${i + 1}</span>${v}</div>`).join("");
+    if (msg) $("status").textContent = msg;
+    return;
+  }
+
+  // 已选节点随其边一起消失
+  doneSet.forEach(id => $("node-" + id).classList.add("removed"));
+  EDGES.forEach(([u, v]) => {
+    if (doneSet.has(u) || doneSet.has(v) || mGone.has(`${u}-${v}`)) {
+      const e = $("e-" + u + "-" + v);
+      if (e) e.classList.add("gone");
+    }
+  });
+  // 入度为 0 且未排序的节点 = 可点击
+  Object.keys(NODES).map(Number).forEach(id => {
+    if (!doneSet.has(id) && mIndeg[id] === 0) {
+      const el = $("node-" + id);
+      el.classList.add("ready", "clickable");
+    }
+  });
+  $("queueBox").innerHTML = Object.keys(NODES).map(Number)
+    .filter(id => !doneSet.has(id) && mIndeg[id] === 0)
+    .map(v => `<div class="chip">${v}</div>`).join("")
+    || '<span style="color:var(--muted);font-family:monospace">（无可选节点）</span>';
+  $("sequence").innerHTML = mSeq.map((v, i) =>
+    `<div class="chip"><span class="ord">${i + 1}</span>${v}</div>`).join("");
+  if (msg) $("status").textContent = msg;
+}
+
+function manualSetup() {
+  mIndeg = { ...INDEG0 };
+  mGone = new Set();
+  mSeq = [];
+  mHistory = [];
+  manualRender("手动挑战：点击任意「入度为 0」（黄色）的节点，把它加入拓扑序列。");
+}
+
+function nodeClick(id) {
+  if (mode !== "manual") return;
+  const doneSet = new Set(mSeq);
+  if (doneSet.has(id)) return;
+  if (mIndeg[id] !== 0) {
+    // 错误选择：入度不为 0
+    const el = $("node-" + id);
+    el.classList.add("bad");
+    $("status").textContent = `✗ 节点 ${id} 当前入度为 ${mIndeg[id]}，还有前驱没排，不能现在选它！`;
+    setTimeout(() => el.classList.remove("bad"), 700);
+    return;
+  }
+  // 正确：加入序列，删出边，邻居入度减 1
+  mHistory.push({ id, removed: [...ADJ[id]] });
+  mSeq.push(id);
+  ADJ[id].forEach(v => { mGone.add(`${id}-${v}`); mIndeg[v]--; });
+  const total = Object.keys(NODES).length;
+  if (mSeq.length === total) {
+    manualRender(`🎉 完成！你确定的一个合法拓扑序：${mSeq.join(" → ")}`);
+  } else {
+    manualRender(`已选 ${id}（第 ${mSeq.length} 个）。继续点击入度为 0 的节点。`);
+  }
+}
+
+function manualUndo() {
+  if (!mHistory.length) { $("status").textContent = "没有可撤销的步骤。"; return; }
+  const last = mHistory.pop();
+  mSeq.pop();
+  last.removed.forEach(v => { mGone.delete(`${last.id}-${v}`); mIndeg[v]++; });
+  manualRender(`已悔一步：撤销选择 ${last.id}。`);
+}
+
+// ---------- 播放控制 ----------
+function stepOnce() {
+  if (idx < steps.length - 1) { idx++; draw(idx); return true; }
+  return false;
+}
+function play() {
+  stop();
+  const spd = parseInt($("speedInput").value, 10);
+  timer = setInterval(() => { if (!stepOnce()) stop(); }, 1550 - spd);
+}
+function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+function prepareAuto() {
+  steps = genSteps();
+  idx = 0;
+  draw(0);
+}
+
+function applyMode(m) {
+  mode = m; stop();
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === m));
+  document.querySelectorAll(".gnode").forEach(n => n.classList.remove("clickable"));
+  if (m === "auto") {
+    $("autoControls").classList.remove("hidden");
+    $("manualControls").classList.add("hidden");
+    $("subtitle").textContent = "Kahn 算法：反复取出入度为 0 的节点，删除其出边并更新邻居入度，直到全部排完。";
+    $("seqLabel").textContent = "拓扑序列";
+    $("note").innerHTML = "拓扑排序针对<code>有向无环图 (DAG)</code>：若存在边 u→v，则 u 必须排在 v 前面。节点右上角小数字是<b style='color:var(--yellow)'>当前入度</b>。若最终排出的节点数少于总数，说明图里有环。";
+    prepareAuto();
+  } else {
+    $("autoControls").classList.add("hidden");
+    $("manualControls").classList.remove("hidden");
+    $("subtitle").textContent = "手动挑战：只有入度为 0 的节点才能被选。点击它们，自己确定一个合法的拓扑序。";
+    $("seqLabel").textContent = "你的拓扑序列";
+    $("note").innerHTML = "规则：一个节点的所有前驱都排完后，它的入度才降为 0，此时才能选它。<b style='color:var(--yellow)'>黄色节点</b>为当前可选。合法拓扑序通常不唯一。";
+    manualSetup();
+  }
+}
+
+function bindNodeClicks() {
+  document.querySelectorAll(".gnode").forEach(g => {
+    g.onclick = () => nodeClick(parseInt(g.dataset.id, 10));
+  });
+}
+
+// 用新图重建 SVG 并刷新当前模式
+function regenerate(randomize) {
+  stop();
+  if (randomize) {
+    const g = randomDAG();
+    setGraph(g.nodes, g.edges);
+  } else {
+    setGraph({ ...DEFAULT_NODES }, DEFAULT_EDGES.map(e => [...e]));
+  }
+  buildSVG();
+  bindNodeClicks();
+  applyMode(mode);   // 重新按当前模式初始化
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => applyMode(t.dataset.mode));
+$("playBtn").onclick = () => { if (idx >= steps.length - 1 || idx === 0) prepareAuto(); play(); };
+$("stepBtn").onclick = () => { stop(); stepOnce(); };
+$("resetBtn").onclick = () => { stop(); prepareAuto(); };
+$("undoBtn").onclick = manualUndo;
+$("restartBtn").onclick = manualSetup;
+$("randBtn").onclick = () => regenerate(true);
+$("randBtnM").onclick = () => regenerate(true);
+
+setGraph({ ...DEFAULT_NODES }, DEFAULT_EDGES.map(e => [...e]));
+buildSVG();
+bindNodeClicks();
+applyMode("auto");
+</script>
+</body>
+</html>

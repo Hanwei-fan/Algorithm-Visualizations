@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>算法演示门户 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 44px 40px 10px; text-align: center; }
+  header h1 {
+    margin: 0 0 10px; font-size: 34px; font-weight: 800; letter-spacing: 3px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 8px var(--cyan), 0 0 26px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 15px; letter-spacing: 1px; }
+  .grid {
+    max-width: 1000px; margin: 0 auto; padding: 30px 40px 50px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 22px;
+  }
+  .card {
+    display: block; text-decoration: none; color: inherit; position: relative;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+    padding: 24px 22px 22px; backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    transition: transform .18s, box-shadow .18s, border-color .18s;
+    overflow: hidden;
+  }
+  .card::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: linear-gradient(90deg, var(--cyan), var(--magenta));
+    opacity: .8;
+  }
+  .card:hover {
+    transform: translateY(-6px); border-color: var(--cyan);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.2), 0 14px 50px rgba(0,240,255,.18);
+  }
+  .card .icon {
+    font-size: 34px; margin-bottom: 12px; display: block;
+    filter: drop-shadow(0 0 8px rgba(0,240,255,.5));
+  }
+  .card .tag {
+    display: inline-block; font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--cyan); border: 1px solid var(--border); border-radius: 999px;
+    padding: 2px 10px; margin-bottom: 10px; font-family: "SF Mono", Menlo, monospace;
+  }
+  .card h2 { margin: 0 0 8px; font-size: 20px; letter-spacing: 1px; color: #fff; }
+  .card p { margin: 0; font-size: 13.5px; color: var(--muted); }
+  .card .go {
+    margin-top: 16px; font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    color: var(--magenta); font-family: "SF Mono", Menlo, monospace;
+  }
+  .card.soon { opacity: .5; pointer-events: none; }
+  .card.soon::before { background: var(--border); }
+  .card.soon .tag { color: var(--muted); }
+  .card.soon .go { color: var(--muted); }
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 10px 0 40px; letter-spacing: 1px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>算法演示门户</h1>
+  <p>可视化 · 交互式 · 逐步演示 —— 点击卡片进入对应算法</p>
+</header>
+
+<div class="grid" id="grid"></div>
+
+<footer>CYBER ALGO LAB // 持续扩充中</footer>
+
+<script>
+// 新增算法：往这里加一项即可，file 指向对应 html（同目录）
+const DEMOS = [
+  {
+    icon: "🔍", tag: "查找",
+    title: "查找算法",
+    desc: "顺序查找 / 二分查找，可切换。逐格高亮比较，对比效率差异。",
+    file: "search.html",
+    ready: true,
+  },
+  {
+    icon: "🗼", tag: "递归",
+    title: "汉诺塔",
+    desc: "把圆盘从 A 借助 B 移到 C。演示递归拆解与 2ⁿ-1 步数规律。",
+    file: "hanoi.html",
+    ready: true,
+  },
+  {
+    icon: "🌲", tag: "树",
+    title: "二叉树遍历",
+    desc: "前/中/后序遍历（含回溯），以及由前序+中序、后序+中序分步还原二叉树。",
+    file: "binary-tree.html",
+    ready: true,
+  },
+  {
+    icon: "🕸️", tag: "图",
+    title: "图遍历",
+    desc: "DFS（栈实现 / 递归实现，含回溯与调用栈）与 BFS 广度优先，可切换。",
+    file: "graph-traversal.html",
+    ready: true,
+  },
+  {
+    icon: "🔗", tag: "链表",
+    title: "单链表",
+    desc: "带头结点：头插/尾插建表、查找、按位序插入与删除，指针遍历动画。",
+    file: "linked-list.html",
+    ready: true,
+  },
+  {
+    icon: "🧭", tag: "图",
+    title: "拓扑排序",
+    desc: "Kahn 算法自动演示（入度递减 + 队列），也可手动点击入度为 0 的节点确定拓扑序。",
+    file: "topo-sort.html",
+    ready: true,
+  },
+  {
+    icon: "🔀", tag: "排序",
+    title: "排序算法",
+    desc: "冒泡 / 选择 / 快速排序等可视化。",
+    file: "",
+    ready: false,
+  },
+];
+
+const grid = document.getElementById("grid");
+DEMOS.forEach(d => {
+  const el = document.createElement(d.ready ? "a" : "div");
+  el.className = "card" + (d.ready ? "" : " soon");
+  if (d.ready) el.href = d.file;
+  el.innerHTML = `
+    <span class="icon">${d.icon}</span>
+    <span class="tag">${d.tag}</span>
+    <h2>${d.title}</h2>
+    <p>${d.desc}</p>
+    <div class="go">${d.ready ? "进入演示 →" : "敬请期待"}</div>`;
+  grid.appendChild(el);
+});
+</script>
+</body>
+</html>

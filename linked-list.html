@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>链表演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .ops { display: flex; flex-wrap: wrap; gap: 22px; padding: 16px 30px; }
+  .opgroup {
+    border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px 14px;
+    background: rgba(0,240,255,0.02); display: flex; flex-direction: column; gap: 10px;
+  }
+  .opgroup h3 {
+    margin: 0; font-size: 12px; letter-spacing: 1px; text-transform: uppercase; color: var(--cyan);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  input[type=text], input[type=number] {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .w-vals { width: 150px; }
+  .w-sm { width: 64px; }
+  .btn {
+    padding: 8px 16px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.ghost { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.ghost:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  .speed { display: flex; align-items: center; gap: 8px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  main { padding: 6px 30px 20px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 26px 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  .list { display: flex; align-items: flex-start; gap: 0; min-height: 120px; padding-top: 26px; }
+  .node { display: flex; align-items: center; position: relative; }
+  .box {
+    display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+    background: rgba(0,240,255,0.04); transition: all .2s; position: relative;
+  }
+  .box .val {
+    min-width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
+    font-family: "SF Mono", Menlo, monospace; font-size: 17px; font-weight: 700; color: var(--text);
+    padding: 0 6px;
+  }
+  .box .next {
+    width: 26px; height: 46px; display: flex; align-items: center; justify-content: center;
+    border-left: 1px solid var(--border); color: var(--muted); font-size: 12px;
+    background: rgba(255,255,255,0.02);
+  }
+  .node.head .box { border-color: var(--green); background: rgba(0,255,156,0.1); }
+  .node.head .val { color: var(--green); font-size: 13px; }
+  .node.visit .box { border-color: var(--yellow); background: rgba(255,212,0,0.16); box-shadow: 0 0 14px rgba(255,212,0,.5); transform: translateY(-4px); }
+  .node.hit .box { border-color: var(--green); background: rgba(0,255,156,0.22); box-shadow: 0 0 18px rgba(0,255,156,.7); }
+  .node.newnode .box { border-color: var(--magenta); background: rgba(255,43,214,0.2); box-shadow: 0 0 18px rgba(255,43,214,.7); }
+  .node.fade { opacity: 0; transform: scale(.6); }
+  .node.pop .box { border-color: #ff5555; background: rgba(255,85,85,0.25); box-shadow: 0 0 16px rgba(255,85,85,.6); }
+  .arrow { color: var(--cyan); font-size: 22px; padding: 0 8px; align-self: center; margin-top: 0; }
+  .arrow.top { align-self: flex-start; margin-top: 12px; }
+  .nullbox {
+    align-self: center; font-family: "SF Mono", Menlo, monospace; font-size: 14px;
+    color: var(--muted); border: 1px dashed var(--border); border-radius: 6px; padding: 12px 10px;
+  }
+  .ptr {
+    position: absolute; top: -24px; left: 50%; transform: translateX(-50%);
+    font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--magenta);
+    text-shadow: 0 0 8px rgba(255,43,214,.7); white-space: nowrap; transition: all .2s;
+  }
+  .stats { display: flex; gap: 30px; font-size: 15px; align-items: baseline; letter-spacing: .5px; margin-top: 18px; }
+  .stats b { font-size: 22px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(255,212,0,.6); }
+  .status { margin-top: 12px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .note { padding: 8px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>链表演示</h1>
+  <p>带头结点的单链表：创建（头插/尾插）、查找、插入、删除。头结点不存数据，只指向首元结点。</p>
+</header>
+<a class="back" href="index.html">← 返回门户</a>
+
+<div class="ops">
+  <div class="opgroup">
+    <h3>创建链表</h3>
+    <div class="row">
+      <input id="buildVals" class="w-vals" type="text" value="11, 22, 33" placeholder="如 11,22,33">
+      <button class="btn cy" id="headInsertBtn">头插法</button>
+      <button class="btn cy" id="tailInsertBtn">尾插法</button>
+    </div>
+  </div>
+
+  <div class="opgroup">
+    <h3>查找元素</h3>
+    <div class="row">
+      <input id="findVal" class="w-sm" type="number" placeholder="值">
+      <button class="btn" id="findBtn">查找</button>
+    </div>
+  </div>
+
+  <div class="opgroup">
+    <h3>插入元素（第 i 个位置）</h3>
+    <div class="row">
+      <input id="insPos" class="w-sm" type="number" min="1" placeholder="位序i">
+      <input id="insVal" class="w-sm" type="number" placeholder="值">
+      <button class="btn" id="insertBtn">插入</button>
+    </div>
+  </div>
+
+  <div class="opgroup">
+    <h3>删除元素（第 i 个位置）</h3>
+    <div class="row">
+      <input id="delPos" class="w-sm" type="number" min="1" placeholder="位序i">
+      <button class="btn" id="deleteBtn">删除</button>
+    </div>
+  </div>
+
+  <div class="opgroup">
+    <h3>其他</h3>
+    <div class="row">
+      <button class="btn ghost" id="clearBtn">清空</button>
+      <div class="speed">
+        <label>速度</label>
+        <input id="speedInput" type="range" min="120" max="1000" value="500" step="40">
+      </div>
+    </div>
+  </div>
+</div>
+
+<main>
+  <section class="card">
+    <div class="list" id="listBox"></div>
+    <div class="stats">链表长度：<b id="len">0</b></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note">
+  带头结点的好处：插入/删除首元结点与其他位置<b style="color:var(--cyan)">统一处理</b>，无需特判空表或表头。
+  查找第 i 个结点时，指针 <code>p</code> 从头结点出发走 i 步。位序 i 从 1 开始计数。
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const speed = () => 1080 - parseInt($("speedInput").value, 10);
+
+// 链表结点：{ val, next(id) }，用对象池 + id 模拟指针。头结点 id = 0，val = null
+let nodes = {};        // id -> {val, next}
+let headId = 0;
+let nextId = 1;
+let busy = false;      // 动画进行中，禁用操作
+
+function reset() {
+  nodes = { 0: { val: null, next: null } };  // 头结点
+  headId = 0;
+  nextId = 1;
+}
+
+function listLength() {
+  let cnt = 0, p = nodes[headId].next;
+  while (p !== null) { cnt++; p = nodes[p].next; }
+  return cnt;
+}
+
+// 把链表渲染成 DOM
+function render(marks = {}) {
+  const box = $("listBox");
+  box.innerHTML = "";
+  const order = [];
+  let p = headId;
+  while (p !== null) { order.push(p); p = nodes[p].next; }
+
+  order.forEach((id, i) => {
+    const isHead = id === headId;
+    const node = document.createElement("div");
+    node.className = "node" + (isHead ? " head" : "");
+    if (marks[id]) node.className += " " + marks[id];
+    node.dataset.id = id;
+
+    const box2 = document.createElement("div");
+    box2.className = "box";
+    const val = document.createElement("div");
+    val.className = "val";
+    val.textContent = isHead ? "head" : nodes[id].val;
+    const next = document.createElement("div");
+    next.className = "next";
+    next.textContent = nodes[id].next === null ? "∧" : "●";
+    box2.appendChild(val);
+    box2.appendChild(next);
+    node.appendChild(box2);
+
+    // 指针标签
+    if (marks["__ptr__"] === id) {
+      const ptr = document.createElement("div");
+      ptr.className = "ptr";
+      ptr.textContent = "▼ p";
+      node.appendChild(ptr);
+    }
+
+    box.appendChild(node);
+
+    // 箭头 / NULL
+    if (nodes[id].next !== null) {
+      const arrow = document.createElement("div");
+      arrow.className = "arrow";
+      arrow.textContent = "→";
+      box.appendChild(arrow);
+    } else {
+      const arrow = document.createElement("div");
+      arrow.className = "arrow";
+      arrow.textContent = "→";
+      box.appendChild(arrow);
+      const nb = document.createElement("div");
+      nb.className = "nullbox";
+      nb.textContent = "NULL";
+      box.appendChild(nb);
+    }
+  });
+
+  $("len").textContent = listLength();
+}
+
+function setStatus(t) { $("status").textContent = t; }
+function lock(v) {
+  busy = v;
+  document.querySelectorAll(".btn").forEach(b => b.disabled = v);
+}
+
+function parseVals(str) {
+  return str.split(/[,，\s]+/).map(x => parseInt(x, 10)).filter(x => !isNaN(x));
+}
+
+// 头插法：每个新结点插到头结点之后，结果与输入顺序相反
+async function buildHead() {
+  if (busy) return;
+  const vals = parseVals($("buildVals").value);
+  if (!vals.length) { setStatus("请先输入要插入的数据。"); return; }
+  lock(true);
+  reset(); render();
+  setStatus("头插法：每个新结点都插在头结点之后。");
+  await sleep(speed());
+  for (const v of vals) {
+    const id = nextId++;
+    // 新结点 next 指向头结点原来的后继
+    nodes[id] = { val: v, next: nodes[headId].next };
+    nodes[headId].next = id;
+    render({ [id]: "newnode", __ptr__: headId });
+    setStatus(`新结点 ${v}：先让它的 next 指向头结点的原后继，再让头结点指向它 → 插在最前面。`);
+    await sleep(speed() * 1.3);
+    render();
+    await sleep(speed() * 0.5);
+  }
+  setStatus(`头插法完成。注意结果顺序 ${[...vals].reverse().join(" → ")} 与输入相反。`);
+  lock(false);
+}
+
+// 尾插法：维护尾指针，新结点接在表尾，结果与输入顺序相同
+async function buildTail() {
+  if (busy) return;
+  const vals = parseVals($("buildVals").value);
+  if (!vals.length) { setStatus("请先输入要插入的数据。"); return; }
+  lock(true);
+  reset(); render();
+  setStatus("尾插法：用尾指针 r 指向表尾，新结点接在其后。");
+  await sleep(speed());
+  let tail = headId;
+  for (const v of vals) {
+    const id = nextId++;
+    nodes[id] = { val: v, next: null };
+    nodes[tail].next = id;
+    tail = id;
+    render({ [id]: "newnode", __ptr__: id });
+    setStatus(`新结点 ${v}：接到当前表尾之后，尾指针 r 后移到新结点。`);
+    await sleep(speed() * 1.3);
+    render();
+    await sleep(speed() * 0.5);
+  }
+  setStatus(`尾插法完成。结果顺序 ${vals.join(" → ")} 与输入一致。`);
+  lock(false);
+}
+
+// 查找值为 target 的结点，返回其位序
+async function findVal() {
+  if (busy) return;
+  const target = parseInt($("findVal").value, 10);
+  if (isNaN(target)) { setStatus("请输入要查找的值。"); return; }
+  lock(true);
+  let p = nodes[headId].next;   // 从首元结点开始
+  let pos = 1;
+  while (p !== null) {
+    render({ [p]: "visit", __ptr__: p });
+    setStatus(`比较第 ${pos} 个结点：${nodes[p].val} ${nodes[p].val === target ? "==" : "≠"} ${target}`);
+    await sleep(speed() * 1.2);
+    if (nodes[p].val === target) {
+      render({ [p]: "hit", __ptr__: p });
+      setStatus(`✓ 找到了！值 ${target} 在第 ${pos} 个位置。`);
+      lock(false);
+      return;
+    }
+    p = nodes[p].next;
+    pos++;
+  }
+  render();
+  setStatus(`✗ 未找到值 ${target}。`);
+  lock(false);
+}
+
+// 在第 pos 个位置插入 val（带头结点：找第 pos-1 个结点）
+async function insert() {
+  if (busy) return;
+  const pos = parseInt($("insPos").value, 10);
+  const val = parseInt($("insVal").value, 10);
+  if (isNaN(pos) || isNaN(val)) { setStatus("请输入插入位序和值。"); return; }
+  const len = listLength();
+  if (pos < 1 || pos > len + 1) { setStatus(`位序非法：应在 1 ~ ${len + 1} 之间。`); return; }
+  lock(true);
+  // 从头结点走 pos-1 步，找到插入位置的前驱
+  let p = headId, j = 0;
+  render({ __ptr__: p });
+  setStatus(`带头结点：指针 p 从头结点出发，走 ${pos - 1} 步找到第 ${pos - 1} 个结点（新结点的前驱）。`);
+  await sleep(speed() * 1.2);
+  while (j < pos - 1) {
+    p = nodes[p].next;
+    j++;
+    render({ __ptr__: p });
+    setStatus(`p 前进到第 ${j} 个结点。`);
+    await sleep(speed());
+  }
+  // 插入
+  const id = nextId++;
+  nodes[id] = { val, next: nodes[p].next };
+  nodes[p].next = id;
+  render({ [id]: "newnode", __ptr__: p });
+  setStatus(`新结点 ${val}：先 s.next = p.next，再 p.next = s。插入完成（第 ${pos} 个位置）。`);
+  await sleep(speed() * 1.3);
+  render();
+  lock(false);
+}
+
+// 删除第 pos 个结点（带头结点：找第 pos-1 个结点作前驱）
+async function del() {
+  if (busy) return;
+  const pos = parseInt($("delPos").value, 10);
+  if (isNaN(pos)) { setStatus("请输入要删除的位序。"); return; }
+  const len = listLength();
+  if (pos < 1 || pos > len) { setStatus(`位序非法：应在 1 ~ ${len} 之间。`); return; }
+  lock(true);
+  let p = headId, j = 0;
+  render({ __ptr__: p });
+  setStatus(`指针 p 从头结点出发，走 ${pos - 1} 步找到待删结点的前驱。`);
+  await sleep(speed() * 1.2);
+  while (j < pos - 1) {
+    p = nodes[p].next;
+    j++;
+    render({ __ptr__: p });
+    await sleep(speed());
+  }
+  const target = nodes[p].next;   // 待删结点
+  render({ [target]: "pop", __ptr__: p });
+  setStatus(`待删结点是第 ${pos} 个（值 ${nodes[target].val}）。让 p.next 指向它的后继。`);
+  await sleep(speed() * 1.3);
+  // 删除：p.next = target.next
+  nodes[p].next = nodes[target].next;
+  const doomed = document.querySelector(`.node[data-id="${target}"]`);
+  if (doomed) doomed.classList.add("fade");
+  await sleep(speed() * 0.8);
+  delete nodes[target];
+  render();
+  setStatus(`已删除第 ${pos} 个结点，其空间被释放。`);
+  lock(false);
+}
+
+$("headInsertBtn").onclick = buildHead;
+$("tailInsertBtn").onclick = buildTail;
+$("findBtn").onclick = findVal;
+$("insertBtn").onclick = insert;
+$("deleteBtn").onclick = del;
+$("clearBtn").onclick = () => { if (busy) return; reset(); render(); setStatus("已清空，只剩头结点。"); };
+
+
+reset();
+render();
+setStatus("空链表（只有头结点）。输入数据后点头插法或尾插法创建链表。");
+</script>
+</body>
+</html>

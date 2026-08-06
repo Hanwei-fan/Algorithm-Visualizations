@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>查找算法演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --bg2: #0d0b1a;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+  }
+  .mono { font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 12px; padding: 14px 30px 4px; }
+  .tab {
+    padding: 10px 24px; border: 1px solid var(--border); border-radius: 4px;
+    background: rgba(0,240,255,0.03); color: var(--cyan); font-size: 15px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace;
+    transition: all .18s; clip-path: polygon(0 0, 100% 0, 100% 70%, 94% 100%, 0 100%);
+  }
+  .tab:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,240,255,.35) inset; }
+  .tab.active {
+    background: var(--cyan); color: #05060f; border-color: var(--cyan);
+    box-shadow: 0 0 18px rgba(0,240,255,.6); font-weight: 700;
+  }
+  .controls { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; padding: 18px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 9px 12px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  #arrayInput { width: 340px; }
+  #targetInput { width: 90px; }
+  .btn {
+    padding: 10px 20px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 14px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .btn:hover { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed input { width: 130px; accent-color: var(--magenta); }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--muted); padding: 0 30px 6px; letter-spacing: .5px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; }
+  main { padding: 10px 30px 28px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  .array { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .cell { width: 56px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+  .cell .box {
+    width: 56px; height: 56px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 6px; font-size: 18px; font-weight: 700;
+    background: rgba(0,240,255,0.03); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace;
+    transition: all .2s;
+  }
+  .cell .idx { font-size: 11px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; }
+  .cell.range .box { background: rgba(0,240,255,0.14); border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,240,255,.25) inset; }
+  .cell.compare .box {
+    background: var(--yellow); border-color: var(--yellow); color: #120e00;
+    transform: translateY(-6px); box-shadow: 0 0 22px rgba(255,212,0,.75);
+  }
+  .cell.found .box {
+    background: var(--green); border-color: var(--green); color: #002915;
+    box-shadow: 0 0 26px rgba(0,255,156,.85); animation: pulse .8s ease-in-out infinite alternate;
+  }
+  @keyframes pulse { to { box-shadow: 0 0 40px rgba(0,255,156,1); } }
+  .cell.discard .box { background: rgba(255,255,255,0.015); color: #45406a; border-color: #1a163a; opacity: .55; }
+  .pointers { min-height: 22px; font-size: 14px; color: var(--cyan); margin-bottom: 14px;
+    font-family: "SF Mono", Menlo, monospace; letter-spacing: .5px; }
+  .pseudocode {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13.5px; color: #8fb8c9; margin: 10px 0 16px;
+  }
+  .pseudocode .line { padding: 3px 8px; border-radius: 3px; white-space: pre; }
+  .pseudocode .line.active {
+    background: linear-gradient(90deg, rgba(255,43,214,.9), rgba(0,240,255,.6));
+    color: #fff; box-shadow: 0 0 14px rgba(255,43,214,.5);
+  }
+  .stats { display: flex; gap: 24px; font-size: 15px; align-items: baseline; letter-spacing: .5px; }
+  .stats b { font-size: 26px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace;
+    text-shadow: 0 0 12px rgba(255,212,0,.6); }
+  .status { margin-top: 14px; font-size: 15px; min-height: 22px; color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; }
+  .note { padding: 10px 30px 0; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">查找算法演示</h1>
+  <p id="subtitle"></p>
+</header>
+<a class="back" href="index.html">← 返回门户</a>
+
+<div class="tabs">
+  <button class="tab active" data-algo="seq">顺序查找</button>
+  <button class="tab" data-algo="bin">二分查找</button>
+</div>
+
+<div class="controls">
+  <div class="field">
+    <label for="arrayInput" id="arrayLabel">数组（逗号分隔）</label>
+    <input id="arrayInput" type="text" value="42, 8, 15, 23, 4, 16, 68, 55, 31, 77, 9, 90">
+  </div>
+  <div class="field">
+    <label for="targetInput">查找目标</label>
+    <input id="targetInput" type="number" value="68">
+  </div>
+  <div class="speed">
+    <label for="speedInput">速度</label>
+    <input id="speedInput" type="range" min="200" max="1600" value="800" step="100">
+  </div>
+  <button class="btn" id="playBtn">开始查找</button>
+  <button class="btn secondary" id="stepBtn">单步</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<main>
+  <section class="card">
+    <div class="array" id="arrayBox"></div>
+    <div class="pointers" id="pointer"></div>
+    <div class="pseudocode" id="code"></div>
+    <div class="stats">比较次数：<b id="count">0</b></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script>
+const CFG = {
+  seq: {
+    subtitle: "从第一个元素开始，逐个比较，直到找到目标或走完整个数组。",
+    arrayLabel: "数组（逗号分隔）",
+    sorted: false,
+    note: "顺序查找不要求数组有序，最坏情况需比较 n 次。",
+    legend: [
+      ["#ffd400", "正在比较"], ["#00ff9c", "命中"], ["#45406a", "已比较(不符)"],
+    ],
+    code: [
+      "for i = 0 to n-1:",
+      "    if a[i] == target:",
+      "        return i   // 找到",
+      "return -1          // 未找到",
+    ],
+  },
+  bin: {
+    subtitle: "数组必须有序。每次取中间元素比较，一次排除一半区间。",
+    arrayLabel: "数组（逗号分隔，会自动排序）",
+    sorted: true,
+    note: "数组长度为 n 时，二分查找最多比较约 log₂n 次。例如 12 个元素最多约 4 次。",
+    legend: [
+      ["#00f0ff", "当前区间"], ["#ffd400", "中间元素(mid)"], ["#00ff9c", "命中"], ["#45406a", "已排除"],
+    ],
+    code: [
+      "low = 0; high = n-1",
+      "while low <= high:",
+      "    mid = (low + high) / 2",
+      "    if a[mid] == target: return mid",
+      "    else if a[mid] < target: low = mid+1",
+      "    else: high = mid-1",
+      "return -1",
+    ],
+  },
+};
+
+let algo = "seq";
+let arr = [], target = 0, steps = [], idx = 0, timer = null;
+const $ = id => document.getElementById(id);
+
+function renderCode(lines) {
+  $("code").innerHTML = lines.map((l, i) => `<div class="line" data-line="${i}">${l}</div>`).join("");
+}
+function renderLegend(items) {
+  $("legend").innerHTML = items.map(([c, t]) =>
+    `<span><i class="swatch" style="background:${c}"></i>${t}</span>`).join("");
+}
+function buildArray(n) {
+  const el = $("arrayBox"); el.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    const c = document.createElement("div");
+    c.className = "cell"; c.dataset.i = i;
+    c.innerHTML = `<div class="box">${arr[i]}</div><div class="idx">${i}</div>`;
+    el.appendChild(c);
+  }
+}
+function setLine(line) {
+  $("code").querySelectorAll(".line").forEach(l => l.classList.remove("active"));
+  const t = $("code").querySelector(`[data-line="${line}"]`); if (t) t.classList.add("active");
+}
+function clearCells() { $("arrayBox").querySelectorAll(".cell").forEach(c => c.className = "cell"); }
+
+function genSeqSteps() {
+  const s = []; let count = 0;
+  for (let i = 0; i < arr.length; i++) {
+    count++;
+    const hit = arr[i] === target;
+    s.push({ compare: i, count, line: hit ? 2 : 1,
+      status: hit ? `a[${i}] = ${arr[i]} = 目标，命中！` : `a[${i}] = ${arr[i]} ≠ ${target}，继续下一个`,
+      found: hit ? i : -1 });
+    if (hit) return s;
+  }
+  s.push({ compare: -1, count, line: 3, status: "遍历结束，未找到目标", found: -1 });
+  return s;
+}
+function genBinSteps() {
+  const s = []; let low = 0, high = arr.length - 1, count = 0;
+  while (low <= high) {
+    const mid = Math.floor((low + high) / 2); count++;
+    if (arr[mid] === target) {
+      s.push({ low, high, mid, count, line: 3, status: `a[${mid}] = ${arr[mid]} = 目标，命中！`, found: mid });
+      return s;
+    } else if (arr[mid] < target) {
+      s.push({ low, high, mid, count, line: 4,
+        status: `a[${mid}] = ${arr[mid]} < ${target}，去右半区间 (low = ${mid+1})`, found: -1 });
+      low = mid + 1;
+    } else {
+      s.push({ low, high, mid, count, line: 5,
+        status: `a[${mid}] = ${arr[mid]} > ${target}，去左半区间 (high = ${mid-1})`, found: -1 });
+      high = mid - 1;
+    }
+  }
+  s.push({ low, high, mid: -1, count, line: 6, status: "区间为空，未找到目标", found: -1 });
+  return s;
+}
+
+function draw(k) {
+  const s = steps[k];
+  clearCells();
+  const cells = $("arrayBox").querySelectorAll(".cell");
+  if (algo === "seq") {
+    for (let i = 0; i < s.compare; i++) cells[i].classList.add("discard");
+    if (s.found >= 0) cells[s.found].classList.add("found");
+    else if (s.compare >= 0) cells[s.compare].classList.add("compare");
+    $("pointer").textContent = s.compare >= 0 ? `当前检查 i = ${s.compare}` : "";
+  } else {
+    cells.forEach((c, i) => c.classList.add(i < s.low || i > s.high ? "discard" : "range"));
+    if (s.found >= 0) { cells[s.found].classList.remove("range"); cells[s.found].classList.add("found"); }
+    else if (s.mid >= 0) { cells[s.mid].classList.remove("range"); cells[s.mid].classList.add("compare"); }
+    $("pointer").textContent = s.mid >= 0
+      ? `low = ${s.low}   mid = ${s.mid}   high = ${s.high}`
+      : `low = ${s.low}   high = ${s.high}（区间为空）`;
+  }
+  setLine(s.line);
+  $("count").textContent = s.count;
+  $("status").textContent = s.status;
+}
+
+function prepare() {
+  const cfg = CFG[algo];
+  arr = $("arrayInput").value.split(",").map(x => parseInt(x.trim(), 10)).filter(x => !isNaN(x));
+  if (cfg.sorted) arr.sort((a, b) => a - b);
+  $("arrayInput").value = arr.join(", ");
+  target = parseInt($("targetInput").value, 10);
+  buildArray(arr.length);
+  renderCode(cfg.code);
+  steps = algo === "seq" ? genSeqSteps() : genBinSteps();
+  idx = 0; draw(0);
+}
+function stepOnce() {
+  if (idx < steps.length - 1) { idx++; draw(idx); return true; }
+  return false;
+}
+function play() {
+  stop();
+  const speed = 1800 - parseInt($("speedInput").value, 10);
+  timer = setInterval(() => { if (!stepOnce()) stop(); }, speed + 200);
+}
+function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+function applyAlgo(a) {
+  algo = a; stop();
+  const cfg = CFG[a];
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.algo === a));
+  $("subtitle").textContent = cfg.subtitle;
+  $("arrayLabel").textContent = cfg.arrayLabel;
+  $("note").textContent = cfg.note;
+  renderLegend(cfg.legend);
+  prepare();
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => applyAlgo(t.dataset.algo));
+$("playBtn").onclick = () => { prepare(); play(); };
+$("stepBtn").onclick = () => { if (!timer && idx === 0) prepare(); stop(); stepOnce(); };
+$("resetBtn").onclick = () => { stop(); prepare(); };
+
+applyAlgo("seq");
+</script>
+</body>
+</html>
