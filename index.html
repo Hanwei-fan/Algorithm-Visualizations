@@ -32,21 +32,44 @@
       var(--bg);
     min-height: 100vh;
   }
-  header { padding: 44px 40px 10px; text-align: center; }
+  header { padding: 44px 40px 6px; text-align: center; }
   header h1 {
     margin: 0 0 10px; font-size: 34px; font-weight: 800; letter-spacing: 3px;
     text-transform: uppercase; color: #fff;
     text-shadow: 0 0 8px var(--cyan), 0 0 26px rgba(0,240,255,.5), 3px 0 var(--magenta);
   }
   header p { margin: 0; color: var(--muted); font-size: 15px; letter-spacing: 1px; }
+
+  /* 板块快速导航 */
+  .nav {
+    max-width: 1080px; margin: 22px auto 0; padding: 0 40px;
+    display: flex; flex-wrap: wrap; gap: 10px; justify-content: center;
+  }
+  .nav a {
+    text-decoration: none; font-family: "SF Mono", Menlo, monospace; font-size: 12px;
+    letter-spacing: 1px; color: var(--cyan); border: 1px solid var(--border);
+    border-radius: 999px; padding: 5px 14px; transition: all .18s;
+  }
+  .nav a:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 10px rgba(0,240,255,.3); }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 20px 40px 60px; }
+
+  /* 板块 */
+  .section { margin-top: 42px; scroll-margin-top: 20px; }
+  .section-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+  .section-head .sicon { font-size: 22px; filter: drop-shadow(0 0 8px rgba(0,240,255,.5)); }
+  .section-head h2 { margin: 0; font-size: 20px; letter-spacing: 2px; color: #fff; text-transform: uppercase; }
+  .section-head .scount { font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--muted); }
+  .section-head .sdesc { margin-left: auto; font-size: 12.5px; color: var(--muted); letter-spacing: .5px; }
+
   .grid {
-    max-width: 1000px; margin: 0 auto; padding: 30px 40px 50px;
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 22px;
+    margin-top: 18px;
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;
   }
   .card {
     display: block; text-decoration: none; color: inherit; position: relative;
     background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
-    padding: 24px 22px 22px; backdrop-filter: blur(6px);
+    padding: 22px 20px 20px; backdrop-filter: blur(6px);
     box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
     transition: transform .18s, box-shadow .18s, border-color .18s;
     overflow: hidden;
@@ -61,7 +84,7 @@
     box-shadow: 0 0 0 1px rgba(0,240,255,.2), 0 14px 50px rgba(0,240,255,.18);
   }
   .card .icon {
-    font-size: 34px; margin-bottom: 12px; display: block;
+    font-size: 30px; margin-bottom: 10px; display: block;
     filter: drop-shadow(0 0 8px rgba(0,240,255,.5));
   }
   .card .tag {
@@ -69,95 +92,135 @@
     color: var(--cyan); border: 1px solid var(--border); border-radius: 999px;
     padding: 2px 10px; margin-bottom: 10px; font-family: "SF Mono", Menlo, monospace;
   }
-  .card h2 { margin: 0 0 8px; font-size: 20px; letter-spacing: 1px; color: #fff; }
-  .card p { margin: 0; font-size: 13.5px; color: var(--muted); }
+  .card h3 { margin: 0 0 8px; font-size: 18px; letter-spacing: 1px; color: #fff; }
+  .card p { margin: 0; font-size: 13px; color: var(--muted); }
   .card .go {
-    margin-top: 16px; font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    margin-top: 14px; font-size: 12.5px; letter-spacing: 1px; text-transform: uppercase;
     color: var(--magenta); font-family: "SF Mono", Menlo, monospace;
   }
   .card.soon { opacity: .5; pointer-events: none; }
   .card.soon::before { background: var(--border); }
-  .card.soon .tag { color: var(--muted); }
-  .card.soon .go { color: var(--muted); }
+  .card.soon .tag, .card.soon .go { color: var(--muted); }
+
   footer { text-align: center; color: var(--muted); font-size: 12px; padding: 10px 0 40px; letter-spacing: 1px; }
 </style>
 </head>
 <body>
 <header>
   <h1>算法演示门户</h1>
-  <p>可视化 · 交互式 · 逐步演示 —— 点击卡片进入对应算法</p>
+  <p>可视化 · 交互式 · 逐步演示 —— 按板块浏览各算法与数据结构</p>
 </header>
 
-<div class="grid" id="grid"></div>
-
+<nav class="nav" id="nav"></nav>
+<div class="wrap" id="wrap"></div>
 <footer>CYBER ALGO LAB // 持续扩充中</footer>
 
 <script>
-// 新增算法：往这里加一项即可，file 指向对应 html（同目录）
-const DEMOS = [
+/*
+  按知识板块组织。新增演示：找到对应板块的 items 里加一项即可，
+  file 指向 demos/ 下的 html；ready:false 显示为「敬请期待」占位卡。
+  新增板块：在 SECTIONS 里加一个 {id, icon, title, desc, items:[...]} 对象。
+*/
+const SECTIONS = [
   {
-    icon: "🔍", tag: "查找",
-    title: "查找算法",
-    desc: "顺序查找 / 二分查找，可切换。逐格高亮比较，对比效率差异。",
-    file: "search.html",
-    ready: true,
+    id: "search", icon: "🔍", title: "查找", desc: "在数据中定位目标元素",
+    items: [
+      { icon: "🔍", tag: "查找", title: "查找算法", file: "search.html", ready: true,
+        desc: "顺序查找 / 二分查找，可切换。逐格高亮比较，对比效率差异。" },
+    ],
   },
   {
-    icon: "🗼", tag: "递归",
-    title: "汉诺塔",
-    desc: "把圆盘从 A 借助 B 移到 C。演示递归拆解与 2ⁿ-1 步数规律。",
-    file: "hanoi.html",
-    ready: true,
+    id: "sort", icon: "🔀", title: "排序", desc: "把序列按关键字有序排列",
+    items: [
+      { icon: "🫧", tag: "排序", title: "冒泡 / 选择 / 插入", file: "", ready: false,
+        desc: "基础比较类排序，逐趟高亮比较与交换。" },
+      { icon: "⚡", tag: "排序", title: "快速排序 / 归并排序", file: "", ready: false,
+        desc: "分治类排序，展示划分与合并过程。" },
+    ],
   },
   {
-    icon: "🌲", tag: "树",
-    title: "二叉树遍历",
-    desc: "前/中/后序遍历（含回溯），以及由前序+中序、后序+中序分步还原二叉树。",
-    file: "binary-tree.html",
-    ready: true,
+    id: "linear", icon: "🔗", title: "线性结构", desc: "线性表 · 栈 · 队列",
+    items: [
+      { icon: "🔗", tag: "链表", title: "单链表", file: "linked-list.html", ready: true,
+        desc: "带头结点：头插/尾插建表、查找、按位序插入与删除，指针遍历动画。" },
+      { icon: "🥞", tag: "栈/队列", title: "栈与队列", file: "", ready: false,
+        desc: "入栈出栈、入队出队的动态演示，对比 LIFO 与 FIFO。" },
+    ],
   },
   {
-    icon: "🕸️", tag: "图",
-    title: "图遍历",
-    desc: "DFS（栈实现 / 递归实现，含回溯与调用栈）与 BFS 广度优先，可切换。",
-    file: "graph-traversal.html",
-    ready: true,
+    id: "tree", icon: "🌲", title: "树结构", desc: "二叉树 · 遍历 · 还原",
+    items: [
+      { icon: "🌲", tag: "树", title: "二叉树遍历", file: "binary-tree.html", ready: true,
+        desc: "前/中/后序遍历（含回溯），以及由前序+中序、后序+中序分步还原二叉树。" },
+      { icon: "🗼", tag: "递归", title: "汉诺塔", file: "hanoi.html", ready: true,
+        desc: "把圆盘从 A 借助 B 移到 C。递归自动演示 + 手动挑战模式。" },
+      { icon: "🌳", tag: "树", title: "二叉搜索树 (BST)", file: "", ready: false,
+        desc: "插入、查找、删除的动态演示，中序遍历得有序序列。" },
+    ],
   },
   {
-    icon: "🔗", tag: "链表",
-    title: "单链表",
-    desc: "带头结点：头插/尾插建表、查找、按位序插入与删除，指针遍历动画。",
-    file: "linked-list.html",
-    ready: true,
+    id: "graph", icon: "🕸️", title: "图论", desc: "遍历 · 拓扑 · 最短路",
+    items: [
+      { icon: "🕸️", tag: "图", title: "图遍历", file: "graph-traversal.html", ready: true,
+        desc: "DFS（栈实现 / 递归实现，含回溯与调用栈）与 BFS，支持随机生成连通图。" },
+      { icon: "🧭", tag: "图", title: "拓扑排序", file: "topo-sort.html", ready: true,
+        desc: "Kahn 算法自动演示 + 手动确定拓扑序，节点随边消失，支持随机生成 DAG。" },
+      { icon: "📡", tag: "图", title: "最短路径", file: "", ready: false,
+        desc: "Dijkstra / Floyd 逐步松弛过程可视化。" },
+      { icon: "🌉", tag: "图", title: "最小生成树", file: "", ready: false,
+        desc: "Prim / Kruskal 建树过程演示。" },
+    ],
   },
   {
-    icon: "🧭", tag: "图",
-    title: "拓扑排序",
-    desc: "Kahn 算法自动演示（入度递减 + 队列），也可手动点击入度为 0 的节点确定拓扑序。",
-    file: "topo-sort.html",
-    ready: true,
-  },
-  {
-    icon: "🔀", tag: "排序",
-    title: "排序算法",
-    desc: "冒泡 / 选择 / 快速排序等可视化。",
-    file: "",
-    ready: false,
+    id: "advanced", icon: "🧩", title: "递归与动态规划", desc: "分治 · 记忆化 · 状态转移",
+    items: [
+      { icon: "🧩", tag: "DP", title: "经典 DP", file: "", ready: false,
+        desc: "背包 / 最长公共子序列等，展示状态表填充过程。" },
+    ],
   },
 ];
 
-const grid = document.getElementById("grid");
-DEMOS.forEach(d => {
-  const el = document.createElement(d.ready ? "a" : "div");
-  el.className = "card" + (d.ready ? "" : " soon");
-  if (d.ready) el.href = d.file;
-  el.innerHTML = `
-    <span class="icon">${d.icon}</span>
-    <span class="tag">${d.tag}</span>
-    <h2>${d.title}</h2>
-    <p>${d.desc}</p>
-    <div class="go">${d.ready ? "进入演示 →" : "敬请期待"}</div>`;
-  grid.appendChild(el);
+const nav = document.getElementById("nav");
+const wrap = document.getElementById("wrap");
+
+SECTIONS.forEach(sec => {
+  // 导航
+  const a = document.createElement("a");
+  a.href = "#sec-" + sec.id;
+  a.textContent = sec.icon + " " + sec.title;
+  nav.appendChild(a);
+
+  // 板块
+  const section = document.createElement("section");
+  section.className = "section";
+  section.id = "sec-" + sec.id;
+  const readyCount = sec.items.filter(i => i.ready).length;
+
+  const head = document.createElement("div");
+  head.className = "section-head";
+  head.innerHTML = `
+    <span class="sicon">${sec.icon}</span>
+    <h2>${sec.title}</h2>
+    <span class="scount">${readyCount}/${sec.items.length}</span>
+    <span class="sdesc">${sec.desc}</span>`;
+  section.appendChild(head);
+
+  const grid = document.createElement("div");
+  grid.className = "grid";
+  sec.items.forEach(d => {
+    const el = document.createElement(d.ready ? "a" : "div");
+    el.className = "card" + (d.ready ? "" : " soon");
+    if (d.ready) el.href = "demos/" + d.file;
+    el.innerHTML = `
+      <span class="icon">${d.icon}</span>
+      <span class="tag">${d.tag}</span>
+      <h3>${d.title}</h3>
+      <p>${d.desc}</p>
+      <div class="go">${d.ready ? "进入演示 →" : "敬请期待"}</div>`;
+    grid.appendChild(el);
+  });
+  section.appendChild(grid);
+  wrap.appendChild(section);
 });
 </script>
 </body>
