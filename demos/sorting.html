@@ -126,12 +126,10 @@
   }
   .acell.L .box { background: rgba(0,240,255,.12); border-color: var(--cyan); color: var(--cyan); }
   .acell.R .box { background: rgba(160,107,255,.14); border-color: #a06bff; color: #c9b3ff; }
-  .acell.used .box { opacity: .3; }
-  .acell.cur .box { box-shadow: 0 0 14px currentColor; transform: translateY(-4px); background: var(--yellow); border-color: var(--yellow); color: #120e00; }
+  .acell.empty .box { border-style: dashed; border-color: var(--border); background: transparent; }
+  .acell.used .box { opacity: .35; }
+  .acell.cur .box { box-shadow: 0 0 16px var(--yellow); transform: translateY(-4px); background: var(--yellow); border-color: var(--yellow); color: #120e00; }
   .acell .ix { font-size: 10px; color: var(--muted); }
-  .acell .ptr { font-size: 11px; height: 14px; font-weight: 700; }
-  .acell .ptr.i { color: var(--cyan); }
-  .acell .ptr.j { color: #a06bff; }
   .bar.hole {
     background: transparent; border: 2px dashed var(--magenta);
     box-shadow: none; opacity: .7;
@@ -208,7 +206,7 @@
   <section class="card">
     <div class="bars" id="bars"></div>
     <div class="auxwrap" id="auxwrap" style="display:none">
-      <div class="auxlabel">辅助数组（合并时使用）</div>
+      <div class="auxlabel">辅助数组（存放合并的有序结果，最后还原回原数组）</div>
       <div class="aux" id="aux"></div>
     </div>
     <div class="tlegend">
@@ -418,37 +416,40 @@ function genQuick(a) {
   return g.out;
 }
 
-// 合并 [lo,mid] 与 [mid+1,hi]，产生分步快照。line5 = 合并伪代码行
-// 每步的 merge 字段承载辅助数组可视化所需信息：
-//   { lo, mid, hi, i, j, k, aux, cmp:[iAux,jAux], picked }
+// 合并 [lo,mid] 与 [mid+1,hi]，line5 = 合并伪代码行
+// 辅助数组 aux 存放本次合并「从小到大」的结果，最后整体还原回原数组。
+// merge 字段：{ lo, mid, hi, i, j, aux:[{v,from}], phase, ci, cj, restoreIdx }
 function mergeSteps(g, a, tmp, lo, mid, hi, mergeLine) {
-  let i = lo, j = mid + 1, k = lo;
-  for (let t = lo; t <= hi; t++) tmp[t] = a[t];
-  const aux = tmp.slice(lo, hi + 1);   // 本次合并冻结的辅助数组（不再变动）
-  const mkMerge = (extra) => Object.assign({ lo, mid, hi, i, j, k, aux }, extra);
-  g.push(a, { range: [lo, hi], line: mergeLine, merge: mkMerge({ phase: "copy" }),
-    desc: `把区间 [${lo},${hi}] 复制到辅助数组：左段 [${lo},${mid}]、右段 [${mid+1},${hi}]。` });
+  let i = lo, j = mid + 1;
+  const aux = [];   // 合并输出（有序结果），元素记来源段
+  const mk = (extra) => Object.assign({ lo, mid, hi, i, j, aux: aux.map(o => ({ ...o })) }, extra);
+  g.push(a, { range: [lo, hi], line: mergeLine, merge: mk({ phase: "start" }),
+    desc: `准备合并左段 [${lo},${mid}] 与右段 [${mid+1},${hi}]，辅助数组存放从小到大的结果。` });
   while (i <= mid && j <= hi) {
     g.incCmp();
-    g.push(a, { range: [lo, hi], line: mergeLine, merge: mkMerge({ phase: "compare", cmp: [i - lo, j - lo] }),
-      desc: `比较左段 aux[${i}]=${tmp[i]} 与右段 aux[${j}]=${tmp[j]}` });
+    g.push(a, { range: [lo, hi], line: mergeLine, merge: mk({ phase: "compare", ci: i, cj: j }),
+      desc: `比较 左段 a[${i}]=${a[i]} 与 右段 a[${j}]=${a[j]}` });
     let from;
-    if (tmp[i] <= tmp[j]) { a[k] = tmp[i]; from = "L"; i++; } else { a[k] = tmp[j]; from = "R"; j++; }
-    k++; g.incSwp();
-    g.push(a, { swap: [k - 1], range: [lo, hi], line: mergeLine,
-      merge: mkMerge({ phase: "write", picked: from, writeAux: (from === "L" ? i - 1 : j - 1) - lo }),
-      desc: `取较小者（${from === "L" ? "左" : "右"}段 ${a[k-1]}）写回原数组 a[${k-1}]。` });
+    if (a[i] <= a[j]) { aux.push({ v: a[i], from: "L" }); from = "L"; i++; }
+    else { aux.push({ v: a[j], from: "R" }); from = "R"; j++; }
+    g.incSwp();
+    g.push(a, { range: [lo, hi], line: mergeLine, merge: mk({ phase: "pick", picked: from }),
+      desc: `较小者（${from === "L" ? "左" : "右"}段 ${aux[aux.length-1].v}）放入辅助数组第 ${aux.length} 位。` });
   }
-  while (i <= mid) { a[k] = tmp[i]; i++; k++; g.incSwp();
-    g.push(a, { swap: [k - 1], range: [lo, hi], line: mergeLine,
-      merge: mkMerge({ phase: "write", picked: "L", writeAux: i - 1 - lo }),
-      desc: `右段已空，左段剩余 ${a[k-1]} 直接写回 a[${k-1}]。` }); }
-  while (j <= hi) { a[k] = tmp[j]; j++; k++; g.incSwp();
-    g.push(a, { swap: [k - 1], range: [lo, hi], line: mergeLine,
-      merge: mkMerge({ phase: "write", picked: "R", writeAux: j - 1 - lo }),
-      desc: `左段已空，右段剩余 ${a[k-1]} 直接写回 a[${k-1}]。` }); }
-  g.push(a, { range: [lo, hi], line: mergeLine, merge: mkMerge({ phase: "done", i, j, k }),
-    desc: `区间 [${lo},${hi}] 合并完成，已还原回原数组。` });
+  while (i <= mid) { aux.push({ v: a[i], from: "L" }); i++; g.incSwp();
+    g.push(a, { range: [lo, hi], line: mergeLine, merge: mk({ phase: "pick", picked: "L" }),
+      desc: `右段已空，左段剩余 ${aux[aux.length-1].v} 依次放入辅助数组。` }); }
+  while (j <= hi) { aux.push({ v: a[j], from: "R" }); j++; g.incSwp();
+    g.push(a, { range: [lo, hi], line: mergeLine, merge: mk({ phase: "pick", picked: "R" }),
+      desc: `左段已空，右段剩余 ${aux[aux.length-1].v} 依次放入辅助数组。` }); }
+  // 还原：把辅助数组（有序结果）拷回原数组
+  for (let t = 0; t < aux.length; t++) {
+    a[lo + t] = aux[t].v; g.incSwp();
+    g.push(a, { swap: [lo + t], range: [lo, hi], line: mergeLine, merge: mk({ phase: "restore", restoreIdx: t }),
+      desc: `还原：把辅助数组第 ${t+1} 个结果 ${aux[t].v} 写回原数组 a[${lo+t}]。` });
+  }
+  g.push(a, { range: [lo, hi], line: mergeLine, merge: mk({ phase: "done", restoreIdx: aux.length }),
+    desc: `区间 [${lo},${hi}] 合并完成，辅助数组结果已全部还原。` });
 }
 
 // 自顶向下（递归）
@@ -513,39 +514,47 @@ function draw(k) {
     }
     if (s.range && (i < s.range[0] || i > s.range[1])) {} else if (s.range) cls += " range";
     if (sorted.has(i)) cls += " sorted";
-    // 归并：合并区间内、且尚未被写回的位置，按左/右段分色标出
-    if (mg && i >= mg.lo && i <= mg.hi && i >= mg.k) {
-      cls += (i <= mg.mid) ? " segL" : " segR";
+    if (mg && i >= mg.lo && i <= mg.hi) {
+      // 还原阶段：已写回的位置正常显示，未写回的仍属左/右段
+      if (mg.phase === "restore" || mg.phase === "done") {
+        if (i < mg.lo + (mg.restoreIdx || 0)) { /* 已还原，普通色 */ }
+        else cls += (i <= mg.mid) ? " segL" : " segR";
+      } else {
+        // 收集阶段：尚未取用的元素按左/右段分色（i/j 之前的已取走）
+        const taken = (i <= mg.mid) ? (i < mg.i) : (i < mg.j);
+        if (!taken) cls += (i <= mg.mid) ? " segL" : " segR";
+      }
     }
     if (i === s.pivot) cls += " pivot";
     if (cset.has(i)) cls += " compare";
+    // 收集阶段高亮正在比较的原数组元素
+    if (mg && mg.phase === "compare" && (i === mg.ci || i === mg.cj)) cls += " compare";
     if (sw.has(i)) cls += " swap";
     const h = 20 + (v / maxV) * 260;
     return `<div class="${cls}" style="height:${h}px"><span class="v">${v}</span></div>`;
   }).join("");
 
-  // 辅助数组可视化
+  // 辅助数组可视化：存放合并的有序结果
   const auxwrap = $("auxwrap");
   if (mg && mg.aux) {
     auxwrap.style.display = "block";
-    const leftLen = mg.mid - mg.lo + 1;   // 辅助数组前 leftLen 个属于左段
-    const iRel = mg.i - mg.lo, jRel = mg.j - mg.lo;
-    $("aux").innerHTML = mg.aux.map((v, r) => {
-      const isL = r < leftLen;
-      let cls = "acell " + (isL ? "L" : "R");
-      // 已取用：左段 r < iRel，右段 r < jRel
-      if (isL && r < iRel) cls += " used";
-      if (!isL && r < jRel) cls += " used";
-      // 当前正在比较的两个元素
-      if (mg.phase === "compare" && mg.cmp && (r === mg.cmp[0] || r === mg.cmp[1])) cls += " cur";
-      if (mg.phase === "write" && r === mg.writeAux) cls += " cur";
-      // 指针标记
-      let ptr = "";
-      if (isL && r === iRel && mg.i <= mg.mid) ptr = `<span class="ptr i">i</span>`;
-      else if (!isL && r === jRel && mg.j <= mg.hi) ptr = `<span class="ptr j">j</span>`;
-      else ptr = `<span class="ptr"></span>`;
-      return `<div class="${cls}">${ptr}<div class="box">${v}</div><div class="ix">${mg.lo + r}</div></div>`;
-    }).join("");
+    const total = mg.hi - mg.lo + 1;
+    const cells = [];
+    for (let r = 0; r < total; r++) {
+      const o = mg.aux[r];
+      if (o) {
+        let cls = "acell " + (o.from === "L" ? "L" : "R");
+        // 刚放入的（收集阶段最后一个）高亮
+        if ((mg.phase === "pick") && r === mg.aux.length - 1) cls += " cur";
+        // 还原阶段：正在写回的那个高亮
+        if (mg.phase === "restore" && r === mg.restoreIdx) cls += " cur";
+        if ((mg.phase === "restore" && r < mg.restoreIdx) || mg.phase === "done") cls += " used";
+        cells.push(`<div class="${cls}"><div class="box">${o.v}</div><div class="ix">${r + 1}</div></div>`);
+      } else {
+        cells.push(`<div class="acell empty"><div class="box"></div><div class="ix">${r + 1}</div></div>`);
+      }
+    }
+    $("aux").innerHTML = cells.join("");
   } else {
     auxwrap.style.display = "none";
   }
