@@ -356,20 +356,24 @@ function buildSVG() {
   let edgesSvg = "";
   EDGES.forEach(({ u, v, id }) => {
     const a = NODES[u], b = NODES[v];
-    const key = u < v ? u + "-" + v : v + "-" + u;
+    const lo = Math.min(u, v), hi = Math.max(u, v);
+    const key = lo + "-" + hi;
     const total = pairCount[key]; const seen = (pairSeen[key] = (pairSeen[key] || 0) + 1);
-    // 计算弧度：多条平行边分散偏移
+    // 平行边分散偏移量（同一对顶点的所有边，无论方向，共用一套编号）
     const offIdx = seen - 1 - (total - 1) / 2;
-    const curve = offIdx * 34;
+    const curve = offIdx * 36;
+    // 规范法向：始终按 lo→hi 计算，与当前边实际方向无关，
+    // 这样反向边（u→v 与 v→u）会靠 offIdx 正负分到弧线两侧，而非重叠。
+    const pa = NODES[lo], pb = NODES[hi];
+    const ndx = pb.x - pa.x, ndy = pb.y - pa.y, nlen = Math.hypot(ndx, ndy) || 1;
+    const nx = -ndy / nlen, ny = ndx / nlen;
     const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
-    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
-    const nx = -dy / len, ny = dx / len;   // 法向
     const cxp = mx + nx * curve, cyp = my + ny * curve;
-    // 端点收缩到圆边
-    const ax = a.x + (cxp - a.x) / Math.hypot(cxp - a.x, cyp - a.y) * R;
-    const ay = a.y + (cyp - a.y) / Math.hypot(cxp - a.x, cyp - a.y) * R;
-    const bx = b.x + (cxp - b.x) / Math.hypot(cxp - b.x, cyp - b.y) * R;
-    const by = b.y + (cyp - b.y) / Math.hypot(cxp - b.x, cyp - b.y) * R;
+    // 端点收缩到圆边缘（指向弯曲控制点的方向）
+    const da = Math.hypot(cxp - a.x, cyp - a.y) || 1;
+    const db = Math.hypot(cxp - b.x, cyp - b.y) || 1;
+    const ax = a.x + (cxp - a.x) / da * R, ay = a.y + (cyp - a.y) / da * R;
+    const bx = b.x + (cxp - b.x) / db * R, by = b.y + (cyp - b.y) / db * R;
     const d = `M ${ax} ${ay} Q ${cxp} ${cyp} ${bx} ${by}`;
     const marker = graphType === "directed" ? ` marker-end="url(#arrow)"` : "";
     edgesSvg += `<path class="edge" id="e-${id}" d="${d}"${marker}/>`;
