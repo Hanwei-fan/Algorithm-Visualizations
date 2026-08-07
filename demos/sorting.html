@@ -160,7 +160,8 @@
   <button class="tab" data-algo="selection">选择排序</button>
   <button class="tab" data-algo="insertion">插入排序</button>
   <button class="tab" data-algo="quick">快速排序</button>
-  <button class="tab" data-algo="merge">归并排序</button>
+  <button class="tab" data-algo="mergeTD">归并·自顶向下</button>
+  <button class="tab" data-algo="mergeBU">归并·自底向上</button>
 </div>
 
 <div class="controls">
@@ -253,17 +254,30 @@ const CFG = {
       "    quicksort(lo,i-1); quicksort(i+1,hi)",
     ],
   },
-  merge: {
-    subtitle: "归并排序：分治——把数组对半拆到最小，再两两有序合并。",
-    meta: "时间复杂度 <b>O(n log n)</b>（各种情况） · 空间 <b>O(n)</b> · <b>稳定</b>",
-    note: "递归地把区间对半拆分，直到长度为 1；再把两个有序子区间合并成一个有序区间（借助辅助数组），逐层向上合并。",
+  mergeTD: {
+    subtitle: "归并排序·自顶向下（递归）：把区间对半拆到最小，再回溯时两两有序合并。",
+    meta: "时间复杂度 <b>O(n log n)</b>（各种情况） · 空间 <b>O(n)</b> · <b>稳定</b> · 递归实现",
+    note: "递归地把区间对半拆分（先拆左半、再拆右半），直到长度为 1；然后在回溯时把两个有序子区间合并成一个有序区间（借助辅助数组），逐层向上合并。",
     code: [
       "mergesort(lo, hi):",
       "    if lo >= hi: return",
       "    mid = (lo+hi)/2",
-      "    mergesort(lo, mid)",
-      "    mergesort(mid+1, hi)",
-      "    merge(lo, mid, hi)  // 合并两个有序段",
+      "    mergesort(lo, mid)      // 递归左半",
+      "    mergesort(mid+1, hi)    // 递归右半",
+      "    merge(lo, mid, hi)      // 合并两个有序段",
+    ],
+  },
+  mergeBU: {
+    subtitle: "归并排序·自底向上（二路归并）：不用递归，按子段长度 1,2,4,8… 逐层两两合并。",
+    meta: "时间复杂度 <b>O(n log n)</b>（各种情况） · 空间 <b>O(n)</b> · <b>稳定</b> · 迭代实现，无递归栈",
+    note: "把每个元素看作长度为 1 的有序段。第一轮两两合并成长度 2 的有序段，第二轮合并成长度 4……子段长度 width 每轮翻倍，直到覆盖整个数组。末尾不足一对的段直接保留。",
+    code: [
+      "for width = 1; width < n; width *= 2:",
+      "    for lo = 0; lo < n; lo += 2*width:",
+      "        mid = lo + width - 1",
+      "        hi  = min(lo + 2*width - 1, n-1)",
+      "        if mid < hi:",
+      "            merge(lo, mid, hi)  // 合并相邻两段",
     ],
   },
 };
@@ -373,34 +387,60 @@ function genQuick(a) {
   return g.out;
 }
 
-function genMerge(a) {
+// 合并 [lo,mid] 与 [mid+1,hi]，产生分步快照。line5 = 合并伪代码行
+function mergeSteps(g, a, tmp, lo, mid, hi, mergeLine) {
+  let i = lo, j = mid + 1, k = lo;
+  for (let t = lo; t <= hi; t++) tmp[t] = a[t];
+  g.push(a, { range: [lo, hi], line: mergeLine, desc: `合并两个有序段 [${lo},${mid}] 与 [${mid+1},${hi}]` });
+  while (i <= mid && j <= hi) {
+    g.incCmp();
+    g.push(a, { compare: [i, j], range: [lo, hi], line: mergeLine, desc: `比较左段 ${tmp[i]} 与右段 ${tmp[j]}` });
+    if (tmp[i] <= tmp[j]) a[k++] = tmp[i++]; else a[k++] = tmp[j++];
+    g.incSwp();
+    g.push(a, { swap: [k - 1], range: [lo, hi], line: mergeLine, desc: `取较小者写回 a[${k-1}] = ${a[k-1]}` });
+  }
+  while (i <= mid) { a[k++] = tmp[i++]; g.incSwp(); g.push(a, { swap: [k - 1], range: [lo, hi], line: mergeLine, desc: `左段剩余写回 a[${k-1}] = ${a[k-1]}` }); }
+  while (j <= hi) { a[k++] = tmp[j++]; g.incSwp(); g.push(a, { swap: [k - 1], range: [lo, hi], line: mergeLine, desc: `右段剩余写回 a[${k-1}] = ${a[k-1]}` }); }
+  g.push(a, { range: [lo, hi], line: mergeLine, desc: `区间 [${lo},${hi}] 合并完成。` });
+}
+
+// 自顶向下（递归）
+function genMergeTD(a) {
   const g = makeGen(); a = [...a]; const tmp = [...a];
-  g.push(a, { line: 0, desc: "开始归并排序（分治）。" });
+  g.push(a, { line: 0, desc: "开始归并排序（自顶向下·递归拆分）。" });
   (function ms(lo, hi) {
     if (lo >= hi) return;
     const mid = (lo + hi) >> 1;
     g.push(a, { range: [lo, hi], line: 2, desc: `拆分区间 [${lo},${hi}]，中点 ${mid}` });
     ms(lo, mid); ms(mid + 1, hi);
-    // 合并
-    let i = lo, j = mid + 1, k = lo;
-    for (let t = lo; t <= hi; t++) tmp[t] = a[t];
-    g.push(a, { range: [lo, hi], line: 5, desc: `合并两个有序段 [${lo},${mid}] 与 [${mid+1},${hi}]` });
-    while (i <= mid && j <= hi) {
-      g.incCmp();
-      g.push(a, { compare: [i, j], range: [lo, hi], line: 5, desc: `比较左段 ${tmp[i]} 与右段 ${tmp[j]}` });
-      if (tmp[i] <= tmp[j]) a[k++] = tmp[i++]; else a[k++] = tmp[j++];
-      g.incSwp();
-      g.push(a, { swap: [k - 1], range: [lo, hi], line: 5, desc: `取较小者写回 a[${k-1}] = ${a[k-1]}` });
-    }
-    while (i <= mid) { a[k++] = tmp[i++]; g.incSwp(); g.push(a, { swap: [k - 1], range: [lo, hi], line: 5, desc: `左段剩余写回 a[${k-1}] = ${a[k-1]}` }); }
-    while (j <= hi) { a[k++] = tmp[j++]; g.incSwp(); g.push(a, { swap: [k - 1], range: [lo, hi], line: 5, desc: `右段剩余写回 a[${k-1}] = ${a[k-1]}` }); }
-    g.push(a, { range: [lo, hi], line: 5, desc: `区间 [${lo},${hi}] 合并完成。` });
+    mergeSteps(g, a, tmp, lo, mid, hi, 5);
   })(0, a.length - 1);
   g.push(a, { sorted: a.map((_, k) => k), desc: "排序完成！" });
   return g.out;
 }
 
-const GEN = { bubble: genBubble, selection: genSelection, insertion: genInsertion, quick: genQuick, merge: genMerge };
+// 自底向上（二路归并，迭代）
+function genMergeBU(a) {
+  const g = makeGen(); a = [...a]; const tmp = [...a]; const n = a.length;
+  g.push(a, { line: 0, desc: "开始归并排序（自底向上·迭代）。每个元素是长度 1 的有序段。" });
+  for (let width = 1; width < n; width *= 2) {
+    g.push(a, { line: 0, desc: `本轮子段长度 width = ${width}，两两合并成长度 ${width * 2} 的有序段。` });
+    for (let lo = 0; lo < n; lo += 2 * width) {
+      const mid = lo + width - 1;
+      const hi = Math.min(lo + 2 * width - 1, n - 1);
+      if (mid < hi) {
+        mergeSteps(g, a, tmp, lo, mid, hi, 5);
+      } else {
+        // 末尾不足一对，直接保留
+        g.push(a, { range: [lo, hi], line: 3, desc: `区间 [${lo},${hi}] 右侧无配对段，本轮保留不动。` });
+      }
+    }
+  }
+  g.push(a, { sorted: a.map((_, k) => k), desc: "排序完成！" });
+  return g.out;
+}
+
+const GEN = { bubble: genBubble, selection: genSelection, insertion: genInsertion, quick: genQuick, mergeTD: genMergeTD, mergeBU: genMergeBU };
 
 // ---------- 渲染 ----------
 function renderCode(lines) {
