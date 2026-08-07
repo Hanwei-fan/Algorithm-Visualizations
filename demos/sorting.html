@@ -107,6 +107,26 @@
   .bar.pivot { background: linear-gradient(180deg, #a06bff, rgba(160,107,255,.3)); border-color: #a06bff; box-shadow: 0 0 14px rgba(160,107,255,.6); }
   .bar.sorted { background: linear-gradient(180deg, var(--green), rgba(0,255,156,.25)); border-color: var(--green); box-shadow: 0 0 10px rgba(0,255,156,.4); }
   .bar.range { border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,240,255,.3) inset; }
+  .bar.hole {
+    background: transparent; border: 2px dashed var(--magenta);
+    box-shadow: none; opacity: .7;
+  }
+  .bar.hole .v { visibility: hidden; }
+  .bars { position: relative; }
+  .held {
+    position: absolute; top: -6px; transform: translateX(-50%);
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    font-family: "SF Mono", Menlo, monospace; transition: left .18s;
+    pointer-events: none; z-index: 5;
+  }
+  .held .keybar {
+    width: 30px; border-radius: 4px;
+    background: linear-gradient(180deg, var(--magenta), rgba(255,43,214,.35));
+    border: 1px solid var(--magenta); box-shadow: 0 0 16px rgba(255,43,214,.7);
+    display: flex; align-items: flex-start; justify-content: center;
+  }
+  .held .keybar span { font-size: 11px; font-weight: 700; color: #fff; margin-top: 2px; }
+  .held .tip { font-size: 10px; color: var(--magenta); letter-spacing: 1px; }
   .tlegend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--muted); }
   .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
   .tlegend .dot { width: 12px; height: 12px; border-radius: 3px; }
@@ -303,22 +323,28 @@ function genSelection(a) {
 
 function genInsertion(a) {
   const g = makeGen(); a = [...a]; const n = a.length;
-  g.push(a, { sorted: [0], line: 0, desc: "开始插入排序，a[0] 视为已排序。" });
+  g.push(a, { sorted: [0], line: 0, desc: "开始插入排序，a[0] 视为已排序（绿色）。" });
   for (let i = 1; i < n; i++) {
     const key = a[i]; let j = i - 1;
-    g.push(a, { compare: [i], sorted: rangeArr(0, i - 1), line: 1, desc: `取出待插入值 key = a[${i}] = ${key}` });
+    // 抽出 key：位置 i 空出（虚线槽），key 悬浮在上方
+    g.push(a, { hole: i, held: key, sorted: rangeArr(0, i - 1), line: 1,
+      desc: `抽出 a[${i}] = ${key} 作为待插入值 key，位置 ${i} 空出。` });
     while (j >= 0 && a[j] > key) {
       g.incCmp();
-      g.push(a, { compare: [j], sorted: rangeArr(0, i - 1), line: 2, desc: `a[${j}]=${a[j]} > ${key}，需要后移` });
+      g.push(a, { compare: [j], hole: j + 1, held: key, sorted: rangeArr(0, i - 1), line: 2,
+        desc: `比较 a[${j}] = ${a[j]} 与 key = ${key}：${a[j]} > ${key}，需右移。` });
       a[j + 1] = a[j]; g.incSwp();
-      g.push(a, { swap: [j + 1], sorted: rangeArr(0, i - 1), line: 3, desc: `a[${j}] 后移到 a[${j+1}]` });
+      g.push(a, { swap: [j + 1], hole: j, held: key, sorted: rangeArr(0, i - 1), line: 3,
+        desc: `a[${j}] 右移填入位置 ${j+1}，空位左移到 ${j}。` });
       j--;
     }
-    if (j >= 0) { g.incCmp(); g.push(a, { compare: [j], sorted: rangeArr(0, i - 1), line: 2, desc: `a[${j}]=${a[j]} ≤ ${key}，停止后移` }); }
+    if (j >= 0) { g.incCmp(); g.push(a, { compare: [j], hole: j + 1, held: key, sorted: rangeArr(0, i - 1), line: 2,
+      desc: `比较 a[${j}] = ${a[j]} 与 key = ${key}：${a[j]} ≤ ${key}，停止右移。` }); }
     a[j + 1] = key;
-    g.push(a, { swap: [j + 1], sorted: rangeArr(0, i), line: 4, desc: `把 key=${key} 插入到位置 ${j+1}` });
+    g.push(a, { swap: [j + 1], hole: -1, held: null, sorted: rangeArr(0, i), line: 4,
+      desc: `把 key = ${key} 放入空位 ${j+1}，前 ${i+1} 个已有序。` });
   }
-  g.push(a, { sorted: a.map((_, k) => k), desc: "排序完成！" });
+  g.push(a, { sorted: a.map((_, k) => k), hole: -1, held: null, desc: "排序完成！" });
   return g.out;
   function rangeArr(l, r) { const t = []; for (let k = l; k <= r; k++) t.push(k); return t; }
 }
@@ -389,8 +415,14 @@ function draw(k) {
   const s = steps[k];
   const maxV = Math.max(...s.arr, 1);
   const cset = new Set(s.compare), sw = new Set(s.swap), sorted = new Set(s.sorted);
-  $("bars").innerHTML = s.arr.map((v, i) => {
+  const hole = (s.hole != null) ? s.hole : -1;
+  const bars = $("bars");
+  bars.innerHTML = s.arr.map((v, i) => {
     let cls = "bar";
+    if (i === hole) {
+      cls += " hole";
+      return `<div class="${cls}" style="height:${20 + (v / maxV) * 260}px"><span class="v">${v}</span></div>`;
+    }
     if (s.range && (i < s.range[0] || i > s.range[1])) {} else if (s.range) cls += " range";
     if (sorted.has(i)) cls += " sorted";
     if (i === s.pivot) cls += " pivot";
@@ -399,6 +431,19 @@ function draw(k) {
     const h = 20 + (v / maxV) * 260;
     return `<div class="${cls}" style="height:${h}px"><span class="v">${v}</span></div>`;
   }).join("");
+
+  // 悬浮的待插入 key：定位在当前空位正上方
+  if (s.held != null && hole >= 0) {
+    const n = s.arr.length;
+    const leftPct = (hole + 0.5) / n * 100;
+    const kh = 20 + (s.held / maxV) * 260;
+    const held = document.createElement("div");
+    held.className = "held";
+    held.style.left = leftPct + "%";
+    held.innerHTML = `<div class="tip">key</div><div class="keybar" style="height:${kh}px"><span>${s.held}</span></div>`;
+    bars.appendChild(held);
+  }
+
   setLine(s.line);
   $("cmpCount").textContent = s.cmp;
   $("swapCount").textContent = s.swp;
