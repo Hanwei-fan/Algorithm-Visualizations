@@ -89,7 +89,7 @@
     box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
   }
   /* 柱状图 */
-  .bars { display: flex; align-items: flex-end; gap: 4px; height: 300px; padding-top: 20px; }
+  .bars { display: flex; align-items: flex-end; gap: 4px; height: 300px; padding-top: 20px; margin-bottom: 26px; }
   .bar {
     flex: 1; border-radius: 4px 4px 0 0; position: relative;
     background: linear-gradient(180deg, rgba(0,240,255,0.55), rgba(0,240,255,0.12));
@@ -141,6 +141,14 @@
     box-shadow: 0 0 14px rgba(0,240,255,.4), 0 0 14px rgba(0,240,255,.25) inset;
     transition: left .18s, width .18s;
   }
+  .ijptr {
+    position: absolute; bottom: -20px; transform: translateX(-50%); z-index: 4;
+    font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700;
+    pointer-events: none; letter-spacing: .5px;
+  }
+  .ijptr.i { color: var(--cyan); text-shadow: 0 0 8px rgba(0,240,255,.7); }
+  .ijptr.j { color: #a06bff; text-shadow: 0 0 8px rgba(160,107,255,.7); }
+  .ijptr.ij { color: var(--yellow); text-shadow: 0 0 8px rgba(255,212,0,.7); }
   .range-frame .rlabel {
     position: absolute; top: -20px; left: 50%; transform: translateX(-50%);
     font-family: "SF Mono", Menlo, monospace; font-size: 11px; color: var(--cyan);
@@ -224,8 +232,8 @@
       <span><i class="dot" style="background:#ff2bd6"></i>交换/移动</span>
       <span><i class="dot" style="background:#a06bff"></i>基准 (pivot)</span>
       <span><i class="dot" style="background:#00ff9c"></i>已就位</span>
-      <span><i class="dot" style="background:#00f0ff"></i>归并·左段</span>
-      <span><i class="dot" style="background:#a06bff"></i>归并·右段</span>
+      <span><i class="dot" style="background:#00f0ff"></i>归并·左段 / 快排指针 i</span>
+      <span><i class="dot" style="background:#a06bff"></i>归并·右段 / 快排指针 j</span>
     </div>
   </section>
   <section class="card">
@@ -280,16 +288,18 @@ const CFG = {
     ],
   },
   quick: {
-    subtitle: "快速排序：选基准，把小于它的放左边、大于它的放右边，再递归两侧。",
+    subtitle: "快速排序：首元素为基准，对撞双指针一右一左扫描并交换，最后基准归位。",
     meta: "时间复杂度 平均 <b>O(n log n)</b>，最坏 <b>O(n²)</b> · 空间 <b>O(log n)</b> · <b>不稳定</b>",
-    note: "本演示取区间末元素为基准 (pivot)，用双指针分区：小于基准的换到左侧，最后把基准放到分界点，再递归左右子区间。",
+    note: "取区间首元素为基准 pivot。i 从左、j 从右对撞：先让 j 从后向前找第一个 < 基准的元素，再让 i 从前向后找第一个 > 基准的元素，交换二者。重复直到 i 与 j 相遇，把基准交换到相遇位置——此时左侧都 ≤ 基准、右侧都 ≥ 基准，再递归两侧。",
     code: [
       "quicksort(lo, hi):",
       "    if lo >= hi: return",
-      "    pivot = a[hi]; i = lo",
-      "    for j = lo to hi-1:",
-      "        if a[j] < pivot: swap(a[i],a[j]); i++",
-      "    swap(a[i], a[hi])   // 基准归位",
+      "    pivot = a[lo]; i = lo; j = hi",
+      "    while i < j:",
+      "        while i<j and a[j] >= pivot: j--   // 右→左找小的",
+      "        while i<j and a[i] <= pivot: i++   // 左→右找大的",
+      "        if i<j: swap(a[i], a[j])",
+      "    swap(a[lo], a[i])   // 基准归位到相遇点",
       "    quicksort(lo,i-1); quicksort(i+1,hi)",
     ],
   },
@@ -406,22 +416,50 @@ function genInsertion(a) {
 
 function genQuick(a) {
   const g = makeGen(); a = [...a]; const done = new Set();
-  g.push(a, { line: 0, desc: "开始快速排序。" });
+  g.push(a, { line: 0, desc: "开始快速排序（首元素为基准，对撞指针分区）。" });
   (function qs(lo, hi) {
-    if (lo >= hi) { if (lo === hi) { done.add(lo); g.push(a, { sorted: [...done], line: 1, desc: `区间 [${lo},${hi}] 只有一个元素，已就位。` }); } return; }
-    const pivot = a[hi]; let i = lo;
-    g.push(a, { pivot: hi, range: [lo, hi], sorted: [...done], line: 2, desc: `选基准 pivot = a[${hi}] = ${pivot}，分区区间 [${lo},${hi}]` });
-    for (let j = lo; j < hi; j++) {
-      g.incCmp();
-      g.push(a, { compare: [j], pivot: hi, range: [lo, hi], sorted: [...done], line: 3, desc: `比较 a[${j}]=${a[j]} 与基准 ${pivot}` });
-      if (a[j] < pivot) {
-        if (i !== j) { [a[i], a[j]] = [a[j], a[i]]; g.incSwp(); g.push(a, { swap: [i, j], pivot: hi, range: [lo, hi], sorted: [...done], line: 4, desc: `a[${j}] < 基准，交换到左侧位置 ${i}` }); }
+    if (lo > hi) return;
+    if (lo === hi) { done.add(lo); g.push(a, { sorted: [...done], range: [lo, hi], line: 1, desc: `区间 [${lo},${hi}] 只有一个元素，已就位。` }); return; }
+    const pivot = a[lo];   // 首元素为基准
+    let i = lo, j = hi;
+    g.push(a, { pivot: lo, range: [lo, hi], sorted: [...done], line: 2,
+      desc: `选基准 pivot = a[${lo}] = ${pivot}。i=${i} 从左、j=${j} 从右对撞扫描。` });
+    while (i < j) {
+      // 从右向左找第一个 < 基准的元素
+      while (i < j && a[j] >= pivot) {
+        g.incCmp();
+        g.push(a, { compare: [j], pivot: lo, ptrI: i, ptrJ: j, range: [lo, hi], sorted: [...done], line: 4,
+          desc: `j 左移：a[${j}]=${a[j]} ≥ ${pivot}，继续向前找更小的。` });
+        j--;
+      }
+      if (i < j) {
+        g.incCmp();
+        g.push(a, { compare: [j], pivot: lo, ptrI: i, ptrJ: j, range: [lo, hi], sorted: [...done], line: 4,
+          desc: `j 停下：a[${j}]=${a[j]} < ${pivot}，找到一个应在左侧的元素。` });
+      }
+      // 从左向右找第一个 > 基准的元素
+      while (i < j && a[i] <= pivot) {
+        g.incCmp();
+        g.push(a, { compare: [i], pivot: lo, ptrI: i, ptrJ: j, range: [lo, hi], sorted: [...done], line: 5,
+          desc: `i 右移：a[${i}]=${a[i]} ≤ ${pivot}，继续向后找更大的。` });
         i++;
       }
+      if (i < j) {
+        g.incCmp();
+        g.push(a, { compare: [i], pivot: lo, ptrI: i, ptrJ: j, range: [lo, hi], sorted: [...done], line: 5,
+          desc: `i 停下：a[${i}]=${a[i]} > ${pivot}，找到一个应在右侧的元素。` });
+      }
+      if (i < j) {
+        [a[i], a[j]] = [a[j], a[i]]; g.incSwp();
+        g.push(a, { swap: [i, j], pivot: lo, ptrI: i, ptrJ: j, range: [lo, hi], sorted: [...done], line: 6,
+          desc: `交换 a[${i}] 与 a[${j}]，让小的到左、大的到右。` });
+      }
     }
-    [a[i], a[hi]] = [a[hi], a[i]]; g.incSwp();
+    // i == j：基准归位到相遇点
+    if (lo !== i) { [a[lo], a[i]] = [a[i], a[lo]]; g.incSwp(); }
     done.add(i);
-    g.push(a, { swap: [i, hi], sorted: [...done], line: 5, desc: `基准归位到 ${i}，左侧都比它小、右侧都比它大。` });
+    g.push(a, { swap: (lo !== i ? [lo, i] : [i]), pivot: -1, ptrI: i, ptrJ: j, range: [lo, hi], sorted: [...done], line: 7,
+      desc: `i、j 在位置 ${i} 相遇，把基准 ${pivot} 交换到此处归位。左侧都 ≤ 它、右侧都 ≥ 它。` });
     qs(lo, i - 1); qs(i + 1, hi);
   })(0, a.length - 1);
   g.push(a, { sorted: a.map((_, k) => k), desc: "排序完成！" });
@@ -598,6 +636,22 @@ function draw(k) {
       frame.innerHTML = `<span class="rlabel">处理区间 [${lo}, ${hi}]</span>`;
       bars.appendChild(frame);
     }
+  }
+
+  // 快排对撞指针 i / j 标记（在对应柱子下方）
+  if (s.ptrI != null || s.ptrJ != null) {
+    const barEls = bars.querySelectorAll(".bar");
+    const addPtr = (idx, txt, kind) => {
+      const el = barEls[idx];
+      if (!el) return;
+      const p = document.createElement("div");
+      p.className = "ijptr " + kind;
+      p.textContent = txt;
+      p.style.left = (el.offsetLeft + el.offsetWidth / 2) + "px";
+      bars.appendChild(p);
+    };
+    if (s.ptrI === s.ptrJ) addPtr(s.ptrI, "i,j", "ij");
+    else { if (s.ptrI != null) addPtr(s.ptrI, "i", "i"); if (s.ptrJ != null) addPtr(s.ptrJ, "j", "j"); }
   }
 
   setLine(s.line);
