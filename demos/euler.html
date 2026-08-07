@@ -132,6 +132,12 @@
   <button class="subtab" data-type="directed">有向图</button>
 </div>
 
+<div class="subtabs">
+  <span class="sublabel">生成目标：</span>
+  <button class="subtab kind active" data-kind="circuit">欧拉图（回路）</button>
+  <button class="subtab kind" data-kind="path">半欧拉图（路径）</button>
+</div>
+
 <div class="controls">
   <div class="speed">
     <label for="speedInput">速度</label>
@@ -458,9 +464,11 @@ function stepOnce() { if (idx < steps.length - 1) { idx++; draw(idx); return tru
 function play() { stop(); const spd = parseInt($("speedInput").value, 10); timer = setInterval(() => { if (!stepOnce()) stop(); }, 1550 - spd); }
 function stop() { if (timer) { clearInterval(timer); timer = null; } }
 
+let wantKind = "circuit";   // circuit=欧拉图（回路） / path=半欧拉图（路径）
+
 function regenerate() {
   stop();
-  const wantCircuit = Math.random() < 0.5;
+  const wantCircuit = wantKind === "circuit";
   const g = graphType === "undirected" ? genUndirected(wantCircuit) : genDirected(wantCircuit);
   NODES = g.nodes; EDGES = g.edges;
   $("note").innerHTML = graphType === "undirected"
@@ -471,11 +479,18 @@ function regenerate() {
 
 function applyType(t) {
   graphType = t; stop();
-  document.querySelectorAll(".subtab").forEach(s => s.classList.toggle("active", s.dataset.type === t));
+  document.querySelectorAll(".subtab[data-type]").forEach(s => s.classList.toggle("active", s.dataset.type === t));
   regenerate();
 }
 
-document.querySelectorAll(".subtab").forEach(s => s.onclick = () => applyType(s.dataset.type));
+function applyKind(kind) {
+  wantKind = kind; stop();
+  document.querySelectorAll(".subtab[data-kind]").forEach(s => s.classList.toggle("active", s.dataset.kind === kind));
+  regenerate();
+}
+
+document.querySelectorAll(".subtab[data-type]").forEach(s => s.onclick = () => applyType(s.dataset.type));
+document.querySelectorAll(".subtab[data-kind]").forEach(s => s.onclick = () => applyKind(s.dataset.kind));
 $("playBtn").onclick = () => { if (idx >= steps.length - 1 || idx === 0) prepare(); play(); };
 $("stepBtn").onclick = () => { stop(); stepOnce(); };
 $("resetBtn").onclick = () => { stop(); prepare(); };
