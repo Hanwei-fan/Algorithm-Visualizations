@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>欧拉图遍历演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .subtabs { display: flex; align-items: center; gap: 10px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .sublabel { font-size: 12px; color: var(--muted); letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace; }
+  .subtab {
+    padding: 8px 18px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 14px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .subtab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .subtab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; padding: 16px 30px; }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 130px; accent-color: var(--magenta); }
+  .btn {
+    padding: 10px 20px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 14px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  svg { width: 100%; height: auto; display: block; }
+  .edge { stroke: #4a4478; stroke-width: 2.5; fill: none; transition: all .2s; }
+  .edge.used { stroke: var(--green); stroke-width: 4; filter: drop-shadow(0 0 6px rgba(0,255,156,.7)); }
+  .edge.current { stroke: var(--magenta); stroke-width: 5; filter: drop-shadow(0 0 8px rgba(255,43,214,.9)); }
+  .elabel { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 11px; }
+  .gnode circle { fill: rgba(0,240,255,0.06); stroke: var(--border); stroke-width: 2; transition: all .2s; }
+  .gnode text.lbl { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; }
+  .gnode text.deg { font-family: "SF Mono", Menlo, monospace; font-size: 11px; font-weight: 700; fill: var(--yellow); }
+  .gnode.start circle { fill: rgba(0,255,156,0.2); stroke: var(--green); filter: drop-shadow(0 0 8px rgba(0,255,156,.5)); }
+  .gnode.end circle { fill: rgba(255,212,0,0.2); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.5)); }
+  .gnode.cur circle { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 12px rgba(255,43,214,.8)); }
+  .gnode.cur text.lbl { fill: #fff; }
+  .gnode.odd circle { stroke: var(--magenta); stroke-dasharray: 4 3; }
+  /* 右栏 */
+  .panelbox { margin-bottom: 16px; }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .verdict {
+    padding: 12px 14px; border-radius: 6px; border: 1px solid var(--border);
+    background: rgba(0,240,255,0.05); font-size: 14px; line-height: 1.7;
+  }
+  .verdict .big { font-size: 16px; font-weight: 700; color: var(--green); }
+  .verdict .big.semi { color: var(--yellow); }
+  .verdict .big.none { color: var(--magenta); }
+  .verdict code { color: var(--cyan); font-family: "SF Mono", Menlo, monospace; }
+  .path { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-height: 40px; }
+  .path .node {
+    width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--green); border-radius: 6px; background: rgba(0,255,156,0.12);
+    color: var(--green); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 15px;
+    box-shadow: 0 0 8px rgba(0,255,156,.3);
+  }
+  .path .arrow { color: var(--muted); font-size: 14px; }
+  .stats { display: flex; gap: 24px; font-size: 14px; align-items: baseline; margin-bottom: 12px; }
+  .stats b { font-size: 20px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(255,212,0,.6); }
+  .status { margin-top: 6px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .tlegend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tlegend .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .tlegend .bar { width: 18px; height: 4px; border-radius: 2px; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>欧拉图遍历演示</h1>
+  <p id="subtitle">欧拉路径 / 欧拉回路：一笔画走遍每条边恰好一次。用 Hierholzer 算法求解。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="subtabs">
+  <span class="sublabel">图类型：</span>
+  <button class="subtab active" data-type="undirected">无向图</button>
+  <button class="subtab" data-type="directed">有向图</button>
+</div>
+
+<div class="controls">
+  <div class="speed">
+    <label for="speedInput">速度</label>
+    <input id="speedInput" type="range" min="150" max="1400" value="700" step="50">
+  </div>
+  <button class="btn" id="playBtn">开始一笔画</button>
+  <button class="btn secondary" id="stepBtn">单步</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="btn secondary" id="randBtn">随机生成</button>
+</div>
+
+<main>
+  <section class="card">
+    <svg id="graph" viewBox="0 0 640 440" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="tlegend">
+      <span><i class="dot" style="background:#00ff9c"></i>起点</span>
+      <span><i class="dot" style="background:#ffd400"></i>终点</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>当前所在</span>
+      <span><i class="bar" style="background:#ff2bd6"></i>正在走的边</span>
+      <span><i class="bar" style="background:#00ff9c"></i>已走过的边</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="panelbox">
+      <p class="plabel">图的性质</p>
+      <div class="verdict" id="verdict"></div>
+    </div>
+    <div class="stats">
+      已走边数：<b id="usedCount">0</b>
+      <span>总边数：<b id="totalEdges">0</b></span>
+    </div>
+    <div class="panelbox">
+      <p class="plabel">当前一笔画路径</p>
+      <div class="path" id="path"></div>
+    </div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+/* ── 判定回顾 ──
+  无向图（连通）：所有顶点偶度 → 欧拉回路（欧拉图）；恰好 2 个奇度顶点 → 欧拉路径（半欧拉图），起点终点为这两个奇度点。
+  有向图（连通）：所有顶点入度=出度 → 欧拉回路；恰好一点出度-入度=1（起点）、一点入度-出度=1（终点），其余相等 → 欧拉路径。
+*/
+
+let graphType = "undirected";   // undirected / directed
+let NODES = {};                 // id -> {x,y}
+let EDGES = [];                 // {u,v,id}  无向: 无序对; 有向: u->v
+let steps = [], idx = 0, timer = null;
+let curPath = [];               // 顶点序列
+let eulerInfo = null;           // { kind, startV, endV, degText }
+
+// ---------- 工具 ----------
+function circleLayout(n) {
+  const nodes = {}, cx = 320, cy = 210, R = 165;
+  for (let i = 0; i < n; i++) {
+    const ang = -Math.PI / 2 + (2 * Math.PI * i) / n;
+    nodes[i] = { x: Math.round(cx + R * Math.cos(ang)), y: Math.round(cy + R * Math.sin(ang)) };
+  }
+  return nodes;
+}
+function shuffle(arr) { for (let i = arr.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; } return arr; }
+
+// ---------- 随机生成（无向） ----------
+// 策略：先造连通图（生成树+随机边），再修复奇度顶点：把奇度点两两配对加边。
+// wantCircuit=true 目标欧拉回路（全偶度）；false 目标半欧拉（留 2 个奇度点）。
+function genUndirected(wantCircuit) {
+  const n = 5 + Math.floor(Math.random() * 3);   // 5~7 点
+  const nodes = circleLayout(n);
+  const edges = [];
+  const addE = (u, v) => edges.push({ u, v });
+  // 随机生成树保证连通（order[k] 连到前面已加入的某点）
+  const order = shuffle([...Array(n).keys()]);
+  for (let k = 1; k < n; k++) addE(order[k], order[Math.floor(Math.random() * k)]);
+  // 随机加边
+  const extra = 1 + Math.floor(Math.random() * n);
+  for (let e = 0; e < extra; e++) { const u = Math.floor(Math.random() * n), v = Math.floor(Math.random() * n); if (u !== v) addE(u, v); }
+  // 计算度数，找奇度点
+  const fixParity = () => {
+    const deg = Array(n).fill(0);
+    edges.forEach(({ u, v }) => { deg[u]++; deg[v]++; });
+    return deg.map((d, i) => [d, i]).filter(([d]) => d % 2 === 1).map(([, i]) => i);
+  };
+  let odd = fixParity();
+  // 把奇度点两两配对加边 → 全部变偶
+  for (let i = 0; i + 1 < odd.length; i += 2) addE(odd[i], odd[i + 1]);
+  // 此时应为全偶度（欧拉回路）。若要半欧拉，则随机删一条边的“偶性”——加一条边制造正好 2 个奇点
+  if (!wantCircuit) {
+    let u = Math.floor(Math.random() * n), v = Math.floor(Math.random() * n);
+    while (u === v) v = Math.floor(Math.random() * n);
+    addE(u, v);   // 使 u,v 变奇度 → 恰好 2 个奇度点
+  }
+  edges.forEach((e, i) => e.id = i);
+  return { nodes, edges };
+}
+
+// ---------- 随机生成（有向） ----------
+// 先造弱连通有向图，再平衡每个点的 出度-入度：diff>0 的点向 diff<0 的点补边。
+function genDirected(wantCircuit) {
+  const n = 5 + Math.floor(Math.random() * 3);
+  const nodes = circleLayout(n);
+  const edges = [];
+  const addE = (u, v) => edges.push({ u, v });
+  const order = shuffle([...Array(n).keys()]);
+  // 有向生成树（父→子），再随机加有向边
+  for (let k = 1; k < n; k++) { const p = order[Math.floor(Math.random() * k)]; addE(p, order[k]); }
+  const extra = 1 + Math.floor(Math.random() * n);
+  for (let e = 0; e < extra; e++) { const u = Math.floor(Math.random() * n), v = Math.floor(Math.random() * n); if (u !== v) addE(u, v); }
+  // 平衡入出度：使每点 out==in
+  const balance = () => {
+    const outd = Array(n).fill(0), ind = Array(n).fill(0);
+    edges.forEach(({ u, v }) => { outd[u]++; ind[v]++; });
+    return outd.map((o, i) => o - ind[i]);   // diff[i] = out-in
+  };
+  let diff = balance();
+  const pos = [], neg = [];
+  diff.forEach((d, i) => { for (let t = 0; t < d; t++) pos.push(i); for (let t = 0; t < -d; t++) neg.push(i); });
+  // pos（出多）→ neg（入多）补边，使全部平衡（欧拉回路）
+  for (let i = 0; i < pos.length && i < neg.length; i++) addE(neg[i], pos[i]);
+  // 半欧拉：额外加一条边制造 start(out-in=+1) 与 end(in-out=+1)
+  if (!wantCircuit) {
+    let u = Math.floor(Math.random() * n), v = Math.floor(Math.random() * n);
+    while (u === v) v = Math.floor(Math.random() * n);
+    addE(u, v);
+  }
+  edges.forEach((e, i) => e.id = i);
+  return { nodes, edges };
+}
+
+// ---------- 判定欧拉性质 ----------
+function analyze() {
+  const n = Object.keys(NODES).length;
+  if (graphType === "undirected") {
+    const deg = Array(n).fill(0);
+    EDGES.forEach(({ u, v }) => { deg[u]++; deg[v]++; });
+    const odd = deg.map((d, i) => [d, i]).filter(([d]) => d % 2 === 1).map(([, i]) => i);
+    const degText = deg.map((d, i) => `${i}:${d}`).join("  ");
+    if (odd.length === 0) return { kind: "circuit", startV: firstWithEdge(), odd, degText };
+    if (odd.length === 2) return { kind: "path", startV: odd[0], endV: odd[1], odd, degText };
+    return { kind: "none", odd, degText };
+  } else {
+    const outd = Array(n).fill(0), ind = Array(n).fill(0);
+    EDGES.forEach(({ u, v }) => { outd[u]++; ind[v]++; });
+    const diff = outd.map((o, i) => o - ind[i]);
+    const degText = diff.map((d, i) => `${i}:出${outd[i]}入${ind[i]}`).join("  ");
+    const plus = diff.map((d, i) => [d, i]).filter(([d]) => d === 1).map(([, i]) => i);
+    const minus = diff.map((d, i) => [d, i]).filter(([d]) => d === -1).map(([, i]) => i);
+    const others = diff.filter(d => d !== 0 && d !== 1 && d !== -1);
+    if (diff.every(d => d === 0)) return { kind: "circuit", startV: firstWithEdge(), degText };
+    if (plus.length === 1 && minus.length === 1 && others.length === 0)
+      return { kind: "path", startV: plus[0], endV: minus[0], degText };
+    return { kind: "none", degText };
+  }
+}
+function firstWithEdge() {
+  const used = new Set();
+  EDGES.forEach(({ u, v }) => { used.add(u); used.add(v); });
+  return used.size ? Math.min(...used) : 0;
+}
+
+// ---------- Hierholzer 求欧拉路径/回路，生成分步 ----------
+function genEulerSteps(startV) {
+  const n = Object.keys(NODES).length;
+  const adj = {}; for (let i = 0; i < n; i++) adj[i] = [];
+  EDGES.forEach(({ u, v, id }) => {
+    if (graphType === "undirected") { adj[u].push({ to: v, eid: id }); adj[v].push({ to: u, eid: id }); }
+    else { adj[u].push({ to: v, eid: id }); }
+  });
+  const usedEdge = new Set();
+  const ptr = Array(n).fill(0);
+  const stack = [startV];
+  const circuit = [];
+  while (stack.length) {
+    const v = stack[stack.length - 1];
+    while (ptr[v] < adj[v].length && usedEdge.has(adj[v][ptr[v]].eid)) ptr[v]++;
+    if (ptr[v] < adj[v].length) {
+      const e = adj[v][ptr[v]];
+      usedEdge.add(e.eid);
+      stack.push(e.to);
+    } else {
+      circuit.push(stack.pop());
+    }
+  }
+  circuit.reverse();
+
+  // 按最终欧拉路径顺序逐边点亮，生成动画步骤
+  const steps = [];
+  const usedForAnim = new Set();
+  const path = [circuit[0]];
+  steps.push({ path: [...path], edgeId: -1, cur: circuit[0], desc: `从起点 ${circuit[0]} 出发。` });
+  for (let k = 1; k < circuit.length; k++) {
+    const a = circuit[k - 1], b = circuit[k];
+    let eid = -1;
+    for (const e of adj[a]) { if (e.to === b && !usedForAnim.has(e.eid)) { eid = e.eid; break; } }
+    usedForAnim.add(eid);
+    path.push(b);
+    steps.push({ path: [...path], edgeId: eid, cur: b, from: a, to: b,
+      desc: `走第 ${k} 条边：${a} ${graphType === "directed" ? "→" : "—"} ${b}，到达顶点 ${b}。` });
+  }
+  const isCircuit = circuit.length > 1 && circuit[0] === circuit[circuit.length - 1];
+  steps.push({ path: [...path], edgeId: -1, cur: circuit[circuit.length - 1], done: true,
+    desc: `一笔画完成！共经过 ${EDGES.length} 条边。${isCircuit ? "起点=终点 → 欧拉回路。" : "起点≠终点 → 欧拉路径。"}` });
+  return steps;
+}
+
+// ---------- SVG 绘制 ----------
+// 平行边（同一对顶点多条）用不同弧度区分
+function buildSVG() {
+  const svg = $("graph");
+  const R = 22;
+  // 统计每对顶点的边，用于弧度偏移
+  const pairCount = {}, pairSeen = {};
+  EDGES.forEach(({ u, v }) => { const key = u < v ? u + "-" + v : v + "-" + u; pairCount[key] = (pairCount[key] || 0) + 1; });
+  const defs = `<defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L9,3 L0,6 Z" fill="#6b64a0"/></marker>
+    <marker id="arrowUsed" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L9,3 L0,6 Z" fill="#00ff9c"/></marker>
+    <marker id="arrowCur" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L9,3 L0,6 Z" fill="#ff2bd6"/></marker>
+  </defs>`;
+  let edgesSvg = "";
+  EDGES.forEach(({ u, v, id }) => {
+    const a = NODES[u], b = NODES[v];
+    const key = u < v ? u + "-" + v : v + "-" + u;
+    const total = pairCount[key]; const seen = (pairSeen[key] = (pairSeen[key] || 0) + 1);
+    // 计算弧度：多条平行边分散偏移
+    const offIdx = seen - 1 - (total - 1) / 2;
+    const curve = offIdx * 34;
+    const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;   // 法向
+    const cxp = mx + nx * curve, cyp = my + ny * curve;
+    // 端点收缩到圆边
+    const ax = a.x + (cxp - a.x) / Math.hypot(cxp - a.x, cyp - a.y) * R;
+    const ay = a.y + (cyp - a.y) / Math.hypot(cxp - a.x, cyp - a.y) * R;
+    const bx = b.x + (cxp - b.x) / Math.hypot(cxp - b.x, cyp - b.y) * R;
+    const by = b.y + (cyp - b.y) / Math.hypot(cxp - b.x, cyp - b.y) * R;
+    const d = `M ${ax} ${ay} Q ${cxp} ${cyp} ${bx} ${by}`;
+    const marker = graphType === "directed" ? ` marker-end="url(#arrow)"` : "";
+    edgesSvg += `<path class="edge" id="e-${id}" d="${d}"${marker}/>`;
+  });
+  let nodesSvg = "";
+  for (const k in NODES) {
+    const nd = NODES[k];
+    nodesSvg += `<g class="gnode" id="node-${k}"><circle cx="${nd.x}" cy="${nd.y}" r="${R}"/><text class="lbl" x="${nd.x}" y="${nd.y+5}" text-anchor="middle">${k}</text></g>`;
+  }
+  svg.innerHTML = defs + edgesSvg + nodesSvg;
+}
+
+// ---------- 判定面板 ----------
+function renderVerdict() {
+  const info = eulerInfo;
+  const typeName = graphType === "undirected" ? "无向图" : "有向图";
+  let html = "";
+  if (info.kind === "circuit") {
+    html = `<div class="big">欧拉图（存在欧拉回路）</div>` +
+      (graphType === "undirected" ? "所有顶点度数均为偶数。" : "所有顶点入度 = 出度。") +
+      `<br>可从任意顶点出发，一笔画走遍每条边并回到起点。`;
+  } else if (info.kind === "path") {
+    html = `<div class="big semi">半欧拉图（存在欧拉路径）</div>` +
+      (graphType === "undirected"
+        ? `恰好 2 个奇度顶点：<code>${info.startV}</code> 和 <code>${info.endV}</code>，它们是路径起点/终点。`
+        : `顶点 <code>${info.startV}</code> 出度-入度=1（起点）、<code>${info.endV}</code> 入度-出度=1（终点）。`) +
+      `<br>只能从其中一个奇度点出发一笔画到另一个。`;
+  } else {
+    html = `<div class="big none">既非欧拉图也非半欧拉图</div>不满足一笔画条件。`;
+  }
+  html += `<br><span style="color:var(--muted)">${typeName}度数：${info.degText}</span>`;
+  $("verdict").innerHTML = html;
+}
+
+// ---------- 绘制某一步 ----------
+function draw(k) {
+  const s = steps[k];
+  // 边着色
+  document.querySelectorAll(".edge").forEach(e => e.classList.remove("used", "current"));
+  const usedEids = new Set();
+  for (let t = 1; t <= k; t++) { if (steps[t].edgeId >= 0) usedEids.add(steps[t].edgeId); }
+  usedEids.forEach(eid => { const e = $("e-" + eid); if (e) { e.classList.add("used"); if (graphType === "directed") e.setAttribute("marker-end", "url(#arrowUsed)"); } });
+  if (s.edgeId >= 0) { const e = $("e-" + s.edgeId); if (e) { e.classList.remove("used"); e.classList.add("current"); if (graphType === "directed") e.setAttribute("marker-end", "url(#arrowCur)"); } }
+  // 未走的有向边恢复默认箭头
+  EDGES.forEach(({ id }) => { if (!usedEids.has(id) && id !== s.edgeId && graphType === "directed") { const e = $("e-" + id); if (e) e.setAttribute("marker-end", "url(#arrow)"); } });
+
+  // 节点着色
+  document.querySelectorAll(".gnode").forEach(g => g.className.baseVal = "gnode");
+  if (eulerInfo.kind === "path") {
+    const se = $("node-" + eulerInfo.startV); if (se) se.classList.add("start");
+    const ee = $("node-" + eulerInfo.endV); if (ee) ee.classList.add("end");
+  } else if (eulerInfo.kind === "circuit") {
+    const se = $("node-" + steps[0].cur); if (se) se.classList.add("start");
+  }
+  const cur = $("node-" + s.cur); if (cur) cur.classList.add("cur");
+
+  // 路径序列
+  $("path").innerHTML = s.path.map((v, i) =>
+    (i ? `<span class="arrow">${graphType === "directed" ? "→" : "—"}</span>` : "") + `<span class="node">${v}</span>`).join("");
+  $("usedCount").textContent = usedEids.size;
+  $("status").textContent = s.desc;
+}
+
+// ---------- 控制 ----------
+function prepare() {
+  eulerInfo = analyze();
+  buildSVG();
+  renderVerdict();
+  $("totalEdges").textContent = EDGES.length;
+  if (eulerInfo.kind === "none") {
+    steps = [{ path: [], edgeId: -1, cur: -1, desc: "该图不满足一笔画条件，点击“随机生成”换一个欧拉/半欧拉图。" }];
+    idx = 0;
+    document.querySelectorAll(".gnode").forEach(g => g.className.baseVal = "gnode");
+    $("path").innerHTML = ""; $("usedCount").textContent = 0; $("status").textContent = steps[0].desc;
+    return;
+  }
+  steps = genEulerSteps(eulerInfo.startV);
+  idx = 0;
+  draw(0);
+}
+function stepOnce() { if (idx < steps.length - 1) { idx++; draw(idx); return true; } return false; }
+function play() { stop(); const spd = parseInt($("speedInput").value, 10); timer = setInterval(() => { if (!stepOnce()) stop(); }, 1550 - spd); }
+function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+function regenerate() {
+  stop();
+  const wantCircuit = Math.random() < 0.5;
+  const g = graphType === "undirected" ? genUndirected(wantCircuit) : genDirected(wantCircuit);
+  NODES = g.nodes; EDGES = g.edges;
+  $("note").innerHTML = graphType === "undirected"
+    ? "无向图一笔画判定：连通且<code>奇度顶点数为 0</code> → 欧拉回路；<code>奇度顶点数为 2</code> → 欧拉路径（从一个奇度点到另一个）。"
+    : "有向图一笔画判定：连通且<code>每点入度=出度</code> → 欧拉回路；恰好一点<code>出度-入度=1</code>（起点）、一点<code>入度-出度=1</code>（终点）→ 欧拉路径。";
+  prepare();
+}
+
+function applyType(t) {
+  graphType = t; stop();
+  document.querySelectorAll(".subtab").forEach(s => s.classList.toggle("active", s.dataset.type === t));
+  regenerate();
+}
+
+document.querySelectorAll(".subtab").forEach(s => s.onclick = () => applyType(s.dataset.type));
+$("playBtn").onclick = () => { if (idx >= steps.length - 1 || idx === 0) prepare(); play(); };
+$("stepBtn").onclick = () => { stop(); stepOnce(); };
+$("resetBtn").onclick = () => { stop(); prepare(); };
+$("randBtn").onclick = () => regenerate();
+
+applyType("undirected");
+</script>
+</body>
+</html>
