@@ -59,6 +59,15 @@
     background: var(--cyan); color: #05060f; border-color: var(--cyan);
     box-shadow: 0 0 18px rgba(0,240,255,.6); font-weight: 700;
   }
+  .subtabs { display: flex; align-items: center; gap: 10px; padding: 10px 30px 0; flex-wrap: wrap; }
+  .sublabel { font-size: 12px; color: var(--muted); letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace; }
+  .subtab {
+    padding: 6px 14px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(160,107,255,0.06); color: #c9b3ff; font-size: 13px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .subtab:hover { border-color: #a06bff; box-shadow: 0 0 10px rgba(160,107,255,.35); }
+  .subtab.active { background: #a06bff; color: #05060f; border-color: #a06bff; font-weight: 700; box-shadow: 0 0 12px rgba(160,107,255,.5); }
   .controls { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; padding: 18px 30px; }
   .field { display: flex; flex-direction: column; gap: 5px; }
   .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
@@ -205,8 +214,13 @@
   <button class="tab" data-algo="selection">选择排序</button>
   <button class="tab" data-algo="insertion">插入排序</button>
   <button class="tab" data-algo="quick">快速排序</button>
-  <button class="tab" data-algo="mergeTD">归并·自顶向下</button>
-  <button class="tab" data-algo="mergeBU">归并·自底向上</button>
+  <button class="tab" data-algo="merge">归并排序</button>
+</div>
+
+<div class="subtabs" id="mergeSub" style="display:none">
+  <span class="sublabel">实现方式：</span>
+  <button class="subtab active" data-merge="mergeTD">自顶向下（递归）</button>
+  <button class="subtab" data-merge="mergeBU">自底向上（迭代）</button>
 </div>
 
 <div class="controls">
@@ -698,13 +712,28 @@ function play() {
 }
 function stop() { if (timer) { clearInterval(timer); timer = null; } }
 
-function applyAlgo(a) {
-  algo = a; stop();
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.algo === a));
+let mergeMode = "mergeTD";   // 归并的默认实现：自顶向下
+
+// tabId 是主标签的 data-algo（bubble/…/quick/merge）
+function applyAlgo(tabId) {
+  stop();
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.algo === tabId));
+  if (tabId === "merge") {
+    $("mergeSub").style.display = "flex";
+    algo = mergeMode;   // 实际算法由子选项决定
+    document.querySelectorAll(".subtab").forEach(s => s.classList.toggle("active", s.dataset.merge === mergeMode));
+  } else {
+    $("mergeSub").style.display = "none";
+    algo = tabId;
+  }
   prepare();
 }
 
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => applyAlgo(t.dataset.algo));
+document.querySelectorAll(".subtab").forEach(s => s.onclick = () => {
+  mergeMode = s.dataset.merge;
+  applyAlgo("merge");
+});
 $("playBtn").onclick = () => { if (idx >= steps.length - 1 || idx === 0) prepare(); play(); };
 $("stepBtn").onclick = () => { stop(); stepOnce(); };
 $("resetBtn").onclick = () => { stop(); prepare(); };
