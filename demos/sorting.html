@@ -545,8 +545,11 @@ function genMergeBU(a) {
 const GEN = { bubble: genBubble, selection: genSelection, insertion: genInsertion, quick: genQuick, mergeTD: genMergeTD, mergeBU: genMergeBU };
 
 // ---------- 渲染 ----------
+function escHtml(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
 function renderCode(lines) {
-  $("code").innerHTML = lines.map((l, i) => `<div class="line" data-line="${i}">${l}</div>`).join("");
+  $("code").innerHTML = lines.map((l, i) => `<div class="line" data-line="${i}">${escHtml(l)}</div>`).join("");
 }
 function setLine(line) {
   $("code").querySelectorAll(".line").forEach(l => l.classList.remove("active"));
