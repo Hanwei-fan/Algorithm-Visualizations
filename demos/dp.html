@@ -136,11 +136,6 @@
 </header>
 <a class="back" href="../index.html">← 返回门户</a>
 
-<div class="subtabs">
-  <span class="sublabel">类别：</span>
-  <button class="subtab kind active" data-kind="seq">序列 DP</button>
-  <button class="subtab kind" data-kind="knap">背包 DP</button>
-</div>
 <div class="subtabs" id="algoTabs"></div>
 
 <div class="controls">
@@ -267,6 +262,23 @@ function renderTable(grid, marks = {}, opt = {}) {
   $("seqArea").innerHTML = "";
 }
 
+// LCS 专用：在表格上方展示两个原序列，高亮当前对比的字符
+// ci/cj 为当前对比的下标(0-based)，match=true 表示相等
+function renderTwoSeq(ci, cj, match) {
+  const rowHtml = (label, arr, cur, color) => {
+    let s = `<div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:6px"><span class="sublabel" style="min-width:52px;text-align:right">${label}</span><div class="seq" style="margin:0">`;
+    arr.forEach((v, i) => {
+      const cls = i === cur ? (match ? "pick" : "cur") : "";
+      s += `<div class="cell ${cls}"><div class="v">${v}</div><div class="ix">${i}</div></div>`;
+    });
+    s += '</div></div>';
+    return s;
+  };
+  $("seqArea").innerHTML =
+    rowHtml("序列 A", A, ci, "cyan") +
+    rowHtml("序列 B", B, cj, "cyan");
+}
+
 // ======== 各 DP：构建 steps ========
 let A = [], B = [], CAP = 10, WT = [], VAL = [], CNT = [];
 
@@ -337,21 +349,24 @@ function buildLCS() {
   const seen = new Set();
   for (let i = 0; i <= n; i++) seen.add(i + ",0");     // 第 0 列是 base
   for (let j = 0; j <= m; j++) seen.add("0," + j);     // 第 0 行是 base
-  // snap 时快照：未推导的格子置 null（留空）
-  const snap = (marks, desc, ans) => {
+  // snap 时快照：未推导的格子置 null（留空）；ci/cj 为当前对比下标(0-based)，match 是否相等
+  const snap = (marks, desc, ans, ci = -1, cj = -1, match = false) => {
     const grid = dp.map((row, i) => row.map((v, j) => seen.has(i + "," + j) ? v : null));
-    list.push({ render: () => renderTable(grid, marks, { rowHead, colHead }), desc, ans });
+    list.push({ render: () => { renderTable(grid, marks, { rowHead, colHead }); renderTwoSeq(ci, cj, match); }, desc, ans });
   };
   snap({}, `dp[i][j] = A 前 i 个与 B 前 j 个字符的 LCS 长度。第 0 行/列（空串）全为 0，其余逐格推导。`, 0);
   for (let i = 1; i <= n; i++) {
     for (let j = 1; j <= m; j++) {
-      if (A[i - 1] === B[j - 1]) dp[i][j] = dp[i - 1][j - 1] + 1;
+      const ci = i - 1, cj = j - 1, match = A[ci] === B[cj];
+      // 先只对比、还没填 dp[i][j] 时，高亮当前两个字符
+      snap({ [i + "," + j]: "cur" }, `对比 A[${ci}]=${A[ci]} 与 B[${cj}]=${B[cj]}：${match ? "相等 ✓" : "不相等 ✗"}。`, "-", ci, cj, match);
+      if (match) dp[i][j] = dp[i - 1][j - 1] + 1;
       else dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
       seen.add(i + "," + j);
-      if (A[i - 1] === B[j - 1]) {
-        snap({ [i + "," + j]: "cur", [(i-1) + "," + (j-1)]: "src" }, `A[${i-1}]=${A[i-1]} == B[${j-1}]=${B[j-1]}：dp[${i}][${j}] = dp[${i-1}][${j-1}]+1 = ${dp[i][j]}（左上角+1）。`, dp[i][j]);
+      if (match) {
+        snap({ [i + "," + j]: "cur", [(i-1) + "," + (j-1)]: "src" }, `A[${ci}]=${A[ci]} == B[${cj}]=${B[cj]}：dp[${i}][${j}] = dp[${i-1}][${j-1}]+1 = ${dp[i][j]}（左上角+1）。`, dp[i][j], ci, cj, true);
       } else {
-        snap({ [i + "," + j]: "cur", [(i-1) + "," + j]: "src", [i + "," + (j-1)]: "src" }, `A[${i-1}]=${A[i-1]} ≠ B[${j-1}]=${B[j-1]}：dp[${i}][${j}] = max(上 ${dp[i-1][j]}, 左 ${dp[i][j-1]}) = ${dp[i][j]}。`, dp[i][j]);
+        snap({ [i + "," + j]: "cur", [(i-1) + "," + j]: "src", [i + "," + (j-1)]: "src" }, `A[${ci}]=${A[ci]} ≠ B[${cj}]=${B[cj]}：dp[${i}][${j}] = max(上 ${dp[i-1][j]}, 左 ${dp[i][j-1]}) = ${dp[i][j]}。`, dp[i][j], ci, cj, false);
       }
     }
   }
