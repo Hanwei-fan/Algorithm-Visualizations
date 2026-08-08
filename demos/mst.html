@@ -81,6 +81,8 @@
   .edge.cand { stroke: var(--yellow); stroke-width: 4; filter: drop-shadow(0 0 6px rgba(255,212,0,.7)); }
   .edge.tree { stroke: var(--green); stroke-width: 4.5; filter: drop-shadow(0 0 6px rgba(0,255,156,.6)); }
   .edge.reject { stroke: #ff5555; stroke-width: 3; stroke-dasharray: 5 4; filter: drop-shadow(0 0 5px rgba(255,85,85,.6)); }
+  .edge.relax { stroke: #4ea3ff; stroke-width: 4; filter: drop-shadow(0 0 6px rgba(78,163,255,.7)); }
+  .keylbl { font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; fill: var(--yellow); }
   .ew { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; }
   .ew-bg { fill: #0b0a18; }
   .gnode circle { fill: rgba(0,240,255,0.06); stroke: var(--border); stroke-width: 2; transition: all .2s; }
@@ -146,7 +148,8 @@
     <div class="tlegend">
       <span><i class="dot" style="background:#00ff9c"></i>已在生成树中</span>
       <span><i class="dot" style="background:#ff2bd6"></i>当前处理</span>
-      <span><i class="bar" style="background:#ffd400"></i>候选/正在考察的边</span>
+      <span style="color:var(--yellow)">点旁数字 = key(树到该点最短边权)</span>
+      <span><i class="bar" style="background:#4ea3ff"></i>正在松弛的边</span>
       <span><i class="bar" style="background:#00ff9c"></i>已选入树的边</span>
       <span><i class="bar" style="background:#ff5555"></i>被丢弃的边(成环)</span>
     </div>
@@ -199,33 +202,50 @@ function randomGraph() {
 
 function edgeLabel(e) { return `${e.u}-${e.v}(${e.w})`; }
 
-// ---------- Prim：从 0 号点开始，每次选一条“一端在树内、一端在树外”的最小边 ----------
+// ---------- Prim（key 数组版）：每个树外顶点维护 key = 树到它的最小边权 ----------
+// 每轮：选 key 最小的树外顶点入树，再用它松弛邻居的 key。
 function genPrim() {
   const n = Object.keys(NODES).length;
+  const INF = Infinity;
   const inTree = Array(n).fill(false);
-  const treeEdges = [];   // 选中的边 id
+  const key = Array(n).fill(INF);     // 树到各顶点的当前最短边权
+  const keyEdge = Array(n).fill(-1);  // 达成该 key 的边 id
+  const treeEdges = [];
   let total = 0;
   const out = [];
+  // 每步都带上 key 快照，供节点旁标注
   const snap = (o) => out.push(Object.assign({
-    inTree: [...inTree], treeEdges: [...treeEdges], candEid: -1, rejectEid: -1, cur: -1, total, aux: [], algo: "prim"
+    inTree: [...inTree], key: [...key], treeEdges: [...treeEdges],
+    candEid: -1, rejectEid: -1, relaxEid: -1, cur: -1, total, aux: [], algo: "prim"
   }, o));
+  // 邻接
+  const adj = {}; for (let i = 0; i < n; i++) adj[i] = [];
+  EDGES.forEach(({ u, v, w, id }) => { adj[u].push({ to: v, w, id }); adj[v].push({ to: u, w, id }); });
 
-  inTree[0] = true;
-  snap({ cur: 0, desc: `Prim：从顶点 0 开始，把它加入生成树。` });
+  key[0] = 0;
+  snap({ desc: `Prim：初始化 key[]（树到各点的最短边权），起点 0 的 key=0，其余为 ∞。` });
 
-  for (let cnt = 0; cnt < n - 1; cnt++) {
-    // 找所有横跨边（一端在树、一端不在），高亮候选，选最小
-    let best = null;
-    const crossing = EDGES.filter(e => inTree[e.u] !== inTree[e.v]).sort((a, b) => a.w - b.w);
-    if (crossing.length === 0) break;   // 不连通（理论上不会）
-    snap({ desc: `考察所有“横跨边”（一端在树内、一端在树外），共 ${crossing.length} 条，选权最小的。`,
-      aux: crossing.map(e => ({ label: edgeLabel(e), cls: "cand" })) });
-    best = crossing[0];
-    const outV = inTree[best.u] ? best.v : best.u;
-    snap({ candEid: best.id, cur: outV, desc: `最小横跨边是 ${edgeLabel(best)}，选它，把顶点 ${outV} 加入生成树。`,
-      aux: crossing.map(e => ({ label: edgeLabel(e), cls: e.id === best.id ? "tree" : "cand" })) });
-    inTree[outV] = true; treeEdges.push(best.id); total += best.w;
-    snap({ cur: outV, desc: `顶点 ${outV} 已入树，当前树权值和 = ${total}。` });
+  for (let cnt = 0; cnt < n; cnt++) {
+    // 选 key 最小的树外顶点
+    let u = -1, best = INF;
+    for (let i = 0; i < n; i++) if (!inTree[i] && key[i] < best) { best = key[i]; u = i; }
+    if (u === -1) break;
+    inTree[u] = true;
+    if (keyEdge[u] >= 0) { treeEdges.push(keyEdge[u]); total += key[u]; }
+    snap({ cur: u, candEid: keyEdge[u], desc: keyEdge[u] >= 0
+      ? `在树外顶点里选 key 最小的 ${u}（key=${key[u]}），经边 ${edgeLabel(EDGES[keyEdge[u]])} 并入树。树权值和=${total}。`
+      : `选起点 ${u} 加入生成树。` });
+    // 用 u 松弛树外邻居
+    for (const { to: v, w, id } of adj[u]) {
+      if (inTree[v]) continue;
+      const before = key[v] === INF ? "∞" : key[v];
+      if (w < key[v]) {
+        key[v] = w; keyEdge[v] = id;
+        snap({ cur: u, relaxEid: id, desc: `松弛顶点 ${v}：经 ${u} 只需权 ${w} < 原 key(${before})，更新 key[${v}]=${w}。` });
+      } else {
+        snap({ cur: u, relaxEid: id, desc: `检查顶点 ${v}：经 ${u} 的边权 ${w} ≥ 原 key(${before})，key[${v}] 不变。` });
+      }
+    }
   }
   snap({ desc: `完成！最小生成树含 ${treeEdges.length} 条边，总权值 = ${total}。` });
   return out;
@@ -296,7 +316,7 @@ function buildSVG() {
     labels += `<rect class="ew-bg" x="${lx - 9}" y="${ly - 9}" width="18" height="16" rx="3"/><text class="ew" x="${lx}" y="${ly + 3}" text-anchor="middle">${w}</text>`;
   });
   let nodesSvg = "";
-  for (const k in NODES) { const nd = NODES[k]; nodesSvg += `<g class="gnode" id="node-${k}"><circle cx="${nd.x}" cy="${nd.y}" r="${R}"/><text class="lbl" x="${nd.x}" y="${nd.y+5}" text-anchor="middle">${k}</text></g>`; }
+  for (const k in NODES) { const nd = NODES[k]; nodesSvg += `<g class="gnode" id="node-${k}"><circle cx="${nd.x}" cy="${nd.y}" r="${R}"/><text class="lbl" x="${nd.x}" y="${nd.y+5}" text-anchor="middle">${k}</text><text class="keylbl" id="key-${k}" x="${nd.x}" y="${nd.y-27}" text-anchor="middle"></text></g>`; }
   svg.innerHTML = edgesSvg + labels + nodesSvg;
 }
 
@@ -304,10 +324,20 @@ function buildSVG() {
 function draw(k) {
   const s = steps[k];
   const n = Object.keys(NODES).length;
-  document.querySelectorAll(".edge").forEach(e => e.classList.remove("cand", "tree", "reject"));
+  document.querySelectorAll(".edge").forEach(e => e.classList.remove("cand", "tree", "reject", "relax"));
   s.treeEdges.forEach(eid => { const e = $("e-" + eid); if (e) e.classList.add("tree"); });
   if (s.candEid >= 0) { const e = $("e-" + s.candEid); if (e) { e.classList.remove("tree"); e.classList.add("cand"); } }
   if (s.rejectEid >= 0) { const e = $("e-" + s.rejectEid); if (e) e.classList.add("reject"); }
+  if (s.relaxEid >= 0) { const e = $("e-" + s.relaxEid); if (e && !e.classList.contains("tree")) e.classList.add("relax"); }
+  // Prim：在每个顶点旁标注 key（树到它的最短边权）
+  for (let i = 0; i < n; i++) {
+    const kl = $("key-" + i);
+    if (!kl) continue;
+    if (s.algo === "prim" && s.key) {
+      const kv = s.key[i];
+      kl.textContent = s.inTree[i] ? "" : (kv === Infinity ? "∞" : kv);
+    } else kl.textContent = "";
+  }
   // 节点
   document.querySelectorAll(".gnode").forEach(g => g.className.baseVal = "gnode");
   if (algo === "prim") {
