@@ -45,16 +45,6 @@
 - **交互式**：大多支持「自动播放 / 单步 / 重置」和速度调节，部分支持手动操作与随机生成数据。
 - **教学导向**：同步高亮伪代码、数据结构（栈/队列/调用栈）状态、以及每一步的文字说明。
 
-## 本地运行
-
-```bash
-git clone https://github.com/<用户名>/<仓库名>.git
-cd <仓库名>
-# 直接用浏览器打开 index.html，或起一个本地静态服务器：
-python3 -m http.server 8000
-# 然后访问 http://localhost:8000
-```
-
 ## 添加新演示
 
 1. 在 `demos/` 下新建 `your-demo.html`（可复用现有演示的赛博朋克配色变量），页内「返回门户」链接写 `../index.html`。
@@ -67,6 +57,3 @@ python3 -m http.server 8000
 
 原生 HTML / CSS / JavaScript，图形部分使用内联 SVG。无框架、无打包工具。
 
-## License
-
-[MIT](LICENSE)
