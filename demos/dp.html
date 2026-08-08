@@ -220,7 +220,7 @@ function stepOnce() { if (!running) return false; if (idx < steps.length - 1) { 
 function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; lockOps(false); }
 function playAll() { if (!running) return; stopTimer(); const spd = 980 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; applyStep(idx); } else endRun(); }, spd); }
 function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
-function lockOps(v) { ["randBtn"].forEach(id => $(id).disabled = v); document.querySelectorAll(".subtab").forEach(b => b.style.pointerEvents = v ? "none" : ""); }
+function lockOps(v) { /* 演算中不锁算法切换标签，允许随时切换（切换会重置演算） */ }
 
 // ======== 渲染工具 ========
 // 一维序列：arr 值，marks[i]=class
