@@ -6,7 +6,7 @@
 
 ## 在线预览
 
-启用 GitHub Pages 后访问：`https://<用户名>.github.io/<仓库名>/`
+访问：`https://hanwei-fan.github.io/Algorithm-Visualizations/`
 
 或克隆到本地后，用浏览器打开 `index.html` 即可（无需任何构建或服务器）。
 
