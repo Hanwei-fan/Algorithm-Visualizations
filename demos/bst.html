@@ -126,6 +126,11 @@
   <button class="btn ghost" id="inorderBtn">中序遍历</button>
   <button class="btn ghost" id="randBtn">随机生成</button>
   <button class="btn ghost" id="clearBtn">清空</button>
+</div>
+
+<div class="controls" style="padding-top:0">
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
   <div class="speed">
     <label for="speedInput">速度</label>
     <input id="speedInput" type="range" min="150" max="1200" value="600" step="50">
@@ -158,13 +163,14 @@
 
 <script>
 const $ = id => document.getElementById(id);
-const sleep = ms => new Promise(r => setTimeout(r, ms));
-const speed = () => 1300 - parseInt($("speedInput").value, 10);
 
 // 树结点
 let root = null;   // {val, left, right, x, y, id}
 let nextId = 1;
-let busy = false;
+
+// 单步引擎：steps[i] = { marks, desc, mutate, seq }
+//   marks: id->class；mutate(): 执行本步对树的实际改动（在绘制前调用）；seq: 中序序列快照
+let steps = [], idx = 0, timer = null, running = false;
 
 function makeNode(val) { return { val, left: null, right: null, x: 0, y: 0, id: nextId++ }; }
 
@@ -215,123 +221,206 @@ function render(marks = {}) {
 }
 
 function setStatus(t) { $("status").textContent = t; }
-function lock(v) { busy = v; document.querySelectorAll(".btn").forEach(b => b.disabled = v); }
 
-// ---- 插入（带路径动画）----
-async function insert(val, animate = true) {
+// ======== 单步引擎 ========
+// 每个操作构建 steps[]，然后交给引擎播放（单步 / 自动）
+function loadSteps(list) {
+  steps = list; idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  lockOps(true);           // 演算期间禁用操作按钮，只允许单步/播放
+  applyStep(0);
+}
+// 应用第 idx 步：执行其 mutate（改树），再按 marks 渲染
+function applyStep(i) {
+  const s = steps[i];
+  if (s.mutate) s.mutate();
+  render(s.marks || {});
+  if (s.seq !== undefined) $("sequence").innerHTML = s.seq.map(v => `<div class="chip">${v}</div>`).join("");
+  setStatus(s.desc);
+}
+function stepForward() {
+  if (!running) return false;
+  if (idx < steps.length - 1) { idx++; applyStep(idx); }
+  if (idx >= steps.length - 1) endRun();
+  return true;
+}
+function endRun() {
+  running = false; stopTimer();
+  $("stepBtn").disabled = true; $("playBtn").disabled = true;
+  lockOps(false);
+}
+function playAll() {
+  if (!running) return;
+  stopTimer();
+  const spd = 1300 - parseInt($("speedInput").value, 10);
+  timer = setInterval(() => {
+    if (idx < steps.length - 1) { idx++; applyStep(idx); }
+    else { endRun(); }
+  }, spd);
+}
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+function lockOps(v) { ["insertBtn", "findBtn", "deleteBtn", "inorderBtn", "randBtn", "clearBtn"].forEach(id => $(id).disabled = v); }
+
+// ======== 各操作：构建 steps ========
+
+// 插入：从根逐层比较下探，到空位创建新节点
+function buildInsert(val) {
+  const list = [];
   if (root === null) {
-    root = makeNode(val);
-    if (animate) { render({ [root.id]: "newn" }); setStatus(`插入 ${val} 作为根节点。`); await sleep(speed()); render(); }
-    return;
+    list.push({ marksSnap: {}, desc: `空树，插入 ${val} 作为根节点。`,
+      mutate: () => { root = makeNode(val); }, markNew: () => root && root.id });
+    return buildFromSnaps(list);
   }
   let cur = root, path = [];
   while (true) {
+    const node = cur, curPath = [...path, cur.id];
+    list.push({
+      marksSnap: { path: [...curPath.slice(0, -1)], cur: cur.id },
+      desc: `比较 ${val} 与 ${cur.val}：` + (val === cur.val ? "相等，已存在" : val < cur.val ? "更小 → 往左子树" : "更大 → 往右子树"),
+    });
+    if (val === cur.val) {
+      list.push({ marksSnap: { path: curPath, found: cur.id }, desc: `${val} 已存在，BST 不插入重复值。` });
+      return buildFromSnaps(list);
+    }
     path.push(cur.id);
-    if (animate) { const mk = {}; path.forEach(id => mk[id] = "path"); mk[cur.id] = "cur"; render(mk); setStatus(`比较 ${val} 与 ${cur.val}：${val < cur.val ? "更小，向左" : val > cur.val ? "更大，向右" : "已存在"}`); await sleep(speed()); }
-    if (val === cur.val) { setStatus(`${val} 已存在，BST 不插入重复值。`); if (animate) { await sleep(speed()); render(); } return; }
     if (val < cur.val) {
-      if (cur.left === null) { cur.left = makeNode(val); break; }
+      if (cur.left === null) {
+        list.push({ marksSnap: { path: [...path], newFrom: node.id, side: "left", val }, desc: `${node.val} 的左孩子为空，把 ${val} 插入这里。`,
+          mutate: () => { node.left = makeNode(val); }, markNew: () => node.left && node.left.id });
+        return buildFromSnaps(list);
+      }
       cur = cur.left;
     } else {
-      if (cur.right === null) { cur.right = makeNode(val); break; }
+      if (cur.right === null) {
+        list.push({ marksSnap: { path: [...path], newFrom: node.id, side: "right", val }, desc: `${node.val} 的右孩子为空，把 ${val} 插入这里。`,
+          mutate: () => { node.right = makeNode(val); }, markNew: () => node.right && node.right.id });
+        return buildFromSnaps(list);
+      }
       cur = cur.right;
     }
   }
-  if (animate) {
-    const newNode = (val < cur.val ? cur.left : cur.right);
-    const mk = {}; path.forEach(id => mk[id] = "path"); mk[newNode.id] = "newn";
-    render(mk); setStatus(`插入 ${val} 作为 ${cur.val} 的${val < cur.val ? "左" : "右"}孩子。`);
-    await sleep(speed()); render();
-  }
 }
 
-// ---- 查找 ----
-async function find(val) {
+// 查找
+function buildFind(val) {
+  const list = [];
   let cur = root, path = [];
   while (cur) {
+    const node = cur, curPath = [...path, cur.id];
+    const hit = val === cur.val;
+    list.push({
+      marksSnap: hit ? { path: path, found: cur.id } : { path: path, cur: cur.id },
+      desc: `比较 ${val} 与 ${cur.val}` + (hit ? " → ✓ 命中！" : val < cur.val ? "：更小，向左找" : "：更大，向右找"),
+    });
+    if (hit) return buildFromSnaps(list);
     path.push(cur.id);
-    const mk = {}; path.forEach(id => mk[id] = "path"); mk[cur.id] = "cur";
-    render(mk); setStatus(`比较 ${val} 与 ${cur.val}` + (val === cur.val ? " → 命中！" : val < cur.val ? "：更小，向左找" : "：更大，向右找"));
-    await sleep(speed());
-    if (val === cur.val) { mk[cur.id] = "found"; render(mk); setStatus(`✓ 找到 ${val}。`); return; }
     cur = val < cur.val ? cur.left : cur.right;
   }
-  render(); setStatus(`✗ 未找到 ${val}。`);
+  list.push({ marksSnap: { path }, desc: `✗ 未找到 ${val}（走到空位）。` });
+  return buildFromSnaps(list);
 }
 
-// ---- 删除（三种情况）----
-async function remove(val) {
-  // 先定位
+// 删除（含三种情况）
+function buildDelete(val) {
+  const list = [];
   let cur = root, parent = null, path = [];
   while (cur && cur.val !== val) {
-    path.push(cur.id);
-    const mk = {}; path.forEach(id => mk[id] = "path"); mk[cur.id] = "cur";
-    render(mk); setStatus(`查找待删节点 ${val}：比较 ${cur.val}`); await sleep(speed());
-    parent = cur; cur = val < cur.val ? cur.left : cur.right;
+    const node = cur;
+    list.push({ marksSnap: { path: [...path], cur: cur.id }, desc: `查找待删节点 ${val}：比较 ${cur.val}，往${val < cur.val ? "左" : "右"}。` });
+    path.push(cur.id); parent = cur; cur = val < cur.val ? cur.left : cur.right;
   }
-  if (!cur) { render(); setStatus(`✗ ${val} 不存在，无法删除。`); return; }
-  const mk = {}; path.forEach(id => mk[id] = "path"); mk[cur.id] = "cur";
-  render(mk); setStatus(`找到待删节点 ${val}。`); await sleep(speed());
+  if (!cur) { list.push({ marksSnap: { path }, desc: `✗ ${val} 不存在，无法删除。` }); return buildFromSnaps(list); }
+  const target = cur, tParent = parent, tPath = [...path];
+  list.push({ marksSnap: { path: tPath, cur: target.id }, desc: `找到待删节点 ${val}。` });
 
-  // 情况 3：两个孩子 → 找右子树最小值（中序后继）
-  if (cur.left && cur.right) {
-    let succParent = cur, succ = cur.right;
-    while (succ.left) { succParent = succ; succ = succ.left; }
-    const mk2 = { [cur.id]: "cur", [succ.id]: "succ" };
-    render(mk2); setStatus(`节点 ${val} 有两个孩子：用右子树最小值（中序后继）${succ.val} 替换它。`); await sleep(speed() * 1.2);
-    cur.val = succ.val;   // 值替换
-    render({ [cur.id]: "found", [succ.id]: "succ" }); setStatus(`把 ${succ.val} 复制到待删位置，接下来删除原后继 ${succ.val}。`); await sleep(speed() * 1.2);
-    // 删除 succ（succ 至多有右孩子）
-    if (succParent.left === succ) succParent.left = succ.right; else succParent.right = succ.right;
-    render(); setStatus(`删除完成。`); return;
+  if (target.left && target.right) {
+    // 情况3：找右子树最小值（中序后继）
+    let sp = target, s = target.right, spath = [target.right.id];
+    list.push({ marksSnap: { path: tPath, cur: target.id, succ: target.right.id }, desc: `节点 ${val} 有两个孩子。到右子树找最小值（中序后继）。` });
+    while (s.left) { sp = s; s = s.left; spath.push(s.id); list.push({ marksSnap: { path: tPath, cur: target.id, succ: s.id }, desc: `一路向左找最小：当前 ${s.val}。` }); }
+    const succ = s, succParent = sp;
+    list.push({ marksSnap: { path: tPath, found: target.id, succ: succ.id }, desc: `后继是 ${succ.val}，把它的值复制到待删位置。`,
+      mutate: () => { target.val = succ.val; } });
+    list.push({ marksSnap: { path: tPath, succ: succ.id }, desc: `删除原后继节点 ${succ.val}（它至多有右孩子）。`,
+      mutate: () => { if (succParent.left === succ) succParent.left = succ.right; else succParent.right = succ.right; } });
+    list.push({ marksSnap: {}, desc: `删除完成。` });
+    return buildFromSnaps(list);
   }
-  // 情况 1/2：至多一个孩子
-  const child = cur.left || cur.right;
-  if (!parent) { root = child; }
-  else if (parent.left === cur) parent.left = child;
-  else parent.right = child;
-  render();
-  setStatus(child ? `节点 ${val} 只有一个孩子，用孩子 ${child.val} 顶替。` : `节点 ${val} 是叶子，直接删除。`);
+  // 情况1/2：至多一个孩子
+  const child = target.left || target.right;
+  list.push({
+    marksSnap: { cur: target.id }, desc: child ? `节点 ${val} 只有一个孩子，用孩子 ${child.val} 顶替。` : `节点 ${val} 是叶子，直接删除。`,
+    mutate: () => { if (!tParent) root = child; else if (tParent.left === target) tParent.left = child; else tParent.right = child; },
+  });
+  list.push({ marksSnap: {}, desc: `删除完成。` });
+  return buildFromSnaps(list);
 }
 
-// ---- 中序遍历 ----
-async function inorder() {
-  const seq = [];
+// 中序遍历
+function buildInorder() {
   const order = [];
   (function go(nd) { if (!nd) return; go(nd.left); order.push(nd); go(nd.right); })(root);
-  $("sequence").innerHTML = "";
-  for (const nd of order) {
-    render({ [nd.id]: "cur" });
-    seq.push(nd.val);
-    $("sequence").innerHTML = seq.map(v => `<div class="chip">${v}</div>`).join("");
-    setStatus(`中序访问 ${nd.val}`);
-    await sleep(speed() * 0.8);
-  }
-  render();
-  setStatus(`中序遍历完成，得到升序序列：${seq.join(" ")}`);
+  if (order.length === 0) return [{ marks: {}, desc: "空树，无可遍历节点。" }];
+  const list = [];
+  const seq = [];
+  order.forEach(nd => { seq.push(nd.val); list.push({ marks: { [nd.id]: "cur" }, seq: [...seq], desc: `中序访问 ${nd.val}` }); });
+  list.push({ marks: {}, seq: [...seq], desc: `中序遍历完成，升序序列：${seq.join(" ")}` });
+  return list;
 }
 
-// ---- 控制 ----
+// 把 marksSnap（{path:[ids], cur, found, succ, ...}）转成 render 需要的 id->class
+function buildFromSnaps(list) {
+  return list.map(s => {
+    if (s.marks) return s;
+    const snap = s.marksSnap || {};
+    const marks = {};
+    (snap.path || []).forEach(id => marks[id] = "path");
+    if (snap.cur != null) marks[snap.cur] = "cur";
+    if (snap.found != null) marks[snap.found] = "found";
+    if (snap.succ != null) marks[snap.succ] = "succ";
+    const out = { marks, desc: s.desc };
+    if (s.mutate) {
+      // 新插入节点在 mutate 后才存在，用 markNew 延迟取 id
+      out.mutate = () => { s.mutate(); if (s.markNew) { const nid = s.markNew(); if (nid != null) marks[nid] = "newn"; } };
+    }
+    return out;
+  });
+}
+// ======== 交互 ========
 function readVal() { const v = parseInt($("valInput").value, 10); if (isNaN(v)) { setStatus("请输入一个整数值。"); return null; } return v; }
-async function guard(fn) { if (busy) return; lock(true); try { await fn(); } finally { lock(false); } }
+function opGuard() { return running ? false : true; }   // 演算进行中不接受新操作
 
-$("insertBtn").onclick = () => { const v = readVal(); if (v === null) return; guard(() => insert(v)); $("valInput").value = ""; };
-$("findBtn").onclick = () => { const v = readVal(); if (v === null) return; guard(() => find(v)); };
-$("deleteBtn").onclick = () => { const v = readVal(); if (v === null) return; guard(() => remove(v)); $("valInput").value = ""; };
-$("inorderBtn").onclick = () => guard(inorder);
-$("clearBtn").onclick = () => { if (busy) return; root = null; $("sequence").innerHTML = ""; render(); setStatus("已清空。"); };
-$("randBtn").onclick = () => guard(async () => {
+$("insertBtn").onclick = () => { if (!opGuard()) return; const v = readVal(); if (v === null) return; loadSteps(buildInsert(v)); $("valInput").value = ""; };
+$("findBtn").onclick = () => { if (!opGuard()) return; const v = readVal(); if (v === null) return; if (root === null) { setStatus("空树，无可查找节点。"); return; } loadSteps(buildFind(v)); };
+$("deleteBtn").onclick = () => { if (!opGuard()) return; const v = readVal(); if (v === null) return; if (root === null) { setStatus("空树，无可删除节点。"); return; } loadSteps(buildDelete(v)); $("valInput").value = ""; };
+$("inorderBtn").onclick = () => { if (!opGuard()) return; loadSteps(buildInorder()); };
+$("clearBtn").onclick = () => { if (running) return; root = null; $("sequence").innerHTML = ""; render(); setStatus("已清空。"); };
+$("randBtn").onclick = () => {
+  if (running) return;
   root = null; $("sequence").innerHTML = "";
   const n = 6 + Math.floor(Math.random() * 4);
   const vals = new Set();
   while (vals.size < n) vals.add(1 + Math.floor(Math.random() * 99));
-  for (const v of vals) await insert(v, false);
-  render(); setStatus(`随机生成了含 ${vals.size} 个节点的 BST。`);
-});
+  vals.forEach(v => insertSilently(v));
+  render(); setStatus(`随机生成了含 ${vals.size} 个节点的 BST。可对它做插入/查找/删除。`);
+};
+$("stepBtn").onclick = () => { stopTimer(); stepForward(); };
+$("playBtn").onclick = () => playAll();
 $("valInput").addEventListener("keydown", e => { if (e.key === "Enter") $("insertBtn").click(); });
 
+// 无动画插入（随机生成用）
+function insertSilently(val) {
+  if (root === null) { root = makeNode(val); return; }
+  let cur = root;
+  while (true) {
+    if (val === cur.val) return;
+    if (val < cur.val) { if (!cur.left) { cur.left = makeNode(val); return; } cur = cur.left; }
+    else { if (!cur.right) { cur.right = makeNode(val); return; } cur = cur.right; }
+  }
+}
+
 render();
-setStatus("空树。输入数值后点“插入”，或点“随机生成”。");
+setStatus("空树。输入数值后点“插入”，或点“随机生成”。用「单步 ▶」逐步、或「自动播放」连续演示。");
 </script>
 </body>
 </html>
