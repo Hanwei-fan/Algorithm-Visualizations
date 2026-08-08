@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>最短路径演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .subtabs { display: flex; align-items: center; gap: 10px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .sublabel { font-size: 12px; color: var(--muted); letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace; }
+  .subtab {
+    padding: 8px 18px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 14px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .subtab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .subtab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field select {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 130px; accent-color: var(--magenta); }
+  .btn {
+    padding: 10px 18px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 14px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  svg { width: 100%; height: auto; display: block; }
+  .edge { stroke: #4a4478; stroke-width: 2.5; fill: none; transition: all .2s; }
+  .edge.relax { stroke: var(--yellow); stroke-width: 4; filter: drop-shadow(0 0 6px rgba(255,212,0,.7)); }
+  .edge.tree { stroke: var(--green); stroke-width: 4; filter: drop-shadow(0 0 6px rgba(0,255,156,.6)); }
+  .ew { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; }
+  .ew-bg { fill: #0b0a18; }
+  .gnode circle { fill: rgba(0,240,255,0.06); stroke: var(--border); stroke-width: 2; transition: all .2s; }
+  .gnode text.lbl { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; }
+  .gnode text.dv { font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; fill: var(--cyan); }
+  .gnode.frontier circle { fill: rgba(255,212,0,0.16); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.5)); }
+  .gnode.cur circle { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 12px rgba(255,43,214,.8)); }
+  .gnode.cur text.lbl { fill: #fff; }
+  .gnode.done circle { fill: rgba(0,255,156,0.18); stroke: var(--green); }
+  .gnode.src circle { stroke-width: 3.5; stroke: var(--green); }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .disttab { width: 100%; border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 13px; margin-bottom: 16px; }
+  .disttab th, .disttab td { border: 1px solid var(--border); padding: 6px 8px; text-align: center; }
+  .disttab th { color: var(--cyan); font-weight: 700; }
+  .disttab td.d { color: var(--yellow); font-weight: 700; }
+  .disttab tr.done td { background: rgba(0,255,156,0.08); }
+  .disttab tr.cur td { background: rgba(255,43,214,0.12); }
+  .pq { display: flex; flex-wrap: wrap; gap: 8px; min-height: 40px; margin-bottom: 12px; }
+  .pq .chip {
+    padding: 6px 10px; border: 1px solid var(--yellow); border-radius: 6px; background: rgba(255,212,0,0.12);
+    color: var(--yellow); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 13px;
+  }
+  .pq .chip.head { border-color: var(--magenta); background: rgba(255,43,214,0.15); color: var(--magenta); box-shadow: 0 0 10px rgba(255,43,214,.4); }
+  .stats { display: flex; gap: 20px; font-size: 13px; align-items: baseline; margin-bottom: 8px; }
+  .status { margin-top: 6px; font-size: 14.5px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .tlegend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tlegend .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .tlegend .bar { width: 18px; height: 4px; border-radius: 2px; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>最短路径演示 (Dijkstra)</h1>
+  <p>从源点出发，每次选出 dist 最小的未确定顶点，用它松弛邻居，直到全部确定。仅适用于非负权图。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="subtabs">
+  <span class="sublabel">图类型：</span>
+  <button class="subtab active" data-type="undirected">无向图</button>
+  <button class="subtab" data-type="directed">有向图</button>
+</div>
+
+<div class="controls">
+  <div class="field">
+    <label for="srcSel">源点</label>
+    <select id="srcSel"></select>
+  </div>
+  <div class="speed">
+    <label for="speedInput">速度</label>
+    <input id="speedInput" type="range" min="150" max="1400" value="700" step="50">
+  </div>
+  <button class="btn" id="playBtn">开始</button>
+  <button class="btn secondary" id="stepBtn">单步</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="btn secondary" id="randBtn">随机生成</button>
+</div>
+
+<main>
+  <section class="card">
+    <svg id="graph" viewBox="0 0 640 440" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="tlegend">
+      <span><i class="dot" style="background:#00ff9c"></i>源点/已确定</span>
+      <span><i class="dot" style="background:#ffd400"></i>在优先队列(可更新)</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>当前确定的点</span>
+      <span><i class="bar" style="background:#ffd400"></i>正在松弛的边</span>
+      <span><i class="bar" style="background:#00ff9c"></i>最短路径树边</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel">dist 距离数组</div>
+    <table class="disttab" id="disttab"></table>
+    <div class="plabel">优先队列（按 dist 取最小）</div>
+    <div class="pq" id="pq"></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note">
+  Dijkstra 核心：维护 <code>dist[]</code>（源到各点当前最短估计）。每轮从未确定顶点里取 dist 最小者 u 标记为“已确定”，再对 u 的每条边 (u,v,w) 做<code>松弛</code>：若 dist[u]+w &lt; dist[v] 则更新 dist[v]。
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let graphType = "undirected";
+let NODES = {}, EDGES = [];       // EDGES: {u,v,w,id}
+let steps = [], idx = 0, timer = null;
+
+const INF = Infinity;
+function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function circleLayout(n) {
+  const nodes = {}, cx = 320, cy = 210, R = 165;
+  for (let i = 0; i < n; i++) { const ang = -Math.PI / 2 + 2 * Math.PI * i / n; nodes[i] = { x: Math.round(cx + R * Math.cos(ang)), y: Math.round(cy + R * Math.sin(ang)) }; }
+  return nodes;
+}
+
+// 随机连通带权图
+function randomGraph() {
+  const n = 5 + Math.floor(Math.random() * 3);   // 5~7
+  const nodes = circleLayout(n);
+  const edges = [];
+  const seen = new Set();
+  const addE = (u, v) => {
+    const key = graphType === "undirected" ? (Math.min(u, v) + "-" + Math.max(u, v)) : (u + "-" + v);
+    if (u === v || seen.has(key)) return false;
+    seen.add(key); edges.push({ u, v, w: 1 + Math.floor(Math.random() * 9) }); return true;
+  };
+  const order = shuffle([...Array(n).keys()]);
+  for (let k = 1; k < n; k++) { const p = order[Math.floor(Math.random() * k)]; graphType === "undirected" ? addE(p, order[k]) : (Math.random() < 0.5 ? addE(p, order[k]) : addE(order[k], p)); }
+  const extra = n + Math.floor(Math.random() * n);
+  for (let e = 0; e < extra; e++) addE(Math.floor(Math.random() * n), Math.floor(Math.random() * n));
+  edges.forEach((e, i) => e.id = i);
+  return { nodes, edges };
+}
+
+// Dijkstra 分步
+function genSteps(src) {
+  const n = Object.keys(NODES).length;
+  const adj = {}; for (let i = 0; i < n; i++) adj[i] = [];
+  EDGES.forEach(({ u, v, w, id }) => {
+    adj[u].push({ to: v, w, id });
+    if (graphType === "undirected") adj[v].push({ to: u, w, id });
+  });
+  const dist = Array(n).fill(INF), done = Array(n).fill(false), prevEdge = Array(n).fill(-1);
+  dist[src] = 0;
+  const out = [];
+  const snap = (o) => out.push(Object.assign({
+    dist: [...dist], done: [...done], treeEdges: treeEdgesNow(), cur: -1, frontier: pqNow(), relaxEid: -1, desc: ""
+  }, o));
+  function pqNow() { return [...Array(n).keys()].filter(i => !done[i] && dist[i] < INF).sort((a, b) => dist[a] - dist[b] || a - b); }
+  function treeEdgesNow() { return prevEdge.filter(e => e >= 0); }
+
+  snap({ desc: `初始化：dist[${src}]=0，其余为 ∞。源点 ${src} 加入优先队列。` });
+
+  for (let iter = 0; iter < n; iter++) {
+    // 取未确定中 dist 最小
+    let u = -1, best = INF;
+    for (let i = 0; i < n; i++) if (!done[i] && dist[i] < best) { best = dist[i]; u = i; }
+    if (u === -1) break;   // 剩余不可达
+    done[u] = true;
+    snap({ cur: u, desc: `从优先队列取出 dist 最小的顶点 ${u}（dist=${dist[u]}），标记为已确定。` });
+    for (const { to: v, w, id } of adj[u]) {
+      if (done[v]) continue;
+      const nd = dist[u] + w;
+      if (nd < dist[v]) {
+        const old = dist[v] === INF ? "∞" : dist[v];
+        dist[v] = nd; prevEdge[v] = id;
+        snap({ cur: u, relaxEid: id, desc: `松弛边 ${u}→${v}(权${w})：dist[${u}]+${w}=${nd} < ${old}，更新 dist[${v}]=${nd}。` });
+      } else {
+        snap({ cur: u, relaxEid: id, desc: `检查边 ${u}→${v}(权${w})：dist[${u}]+${w}=${nd} ≥ dist[${v}]=${dist[v]}，不更新。` });
+      }
+    }
+  }
+  const reached = dist.filter(d => d < INF).length;
+  snap({ desc: `完成！已求出源点到 ${reached} 个可达顶点的最短距离。绿色边构成最短路径树。` });
+  return out;
+}
+
+// ---------- SVG ----------
+function buildSVG() {
+  const svg = $("graph"), R = 22;
+  const pairCount = {}, pairSeen = {};
+  EDGES.forEach(({ u, v }) => { const k = Math.min(u, v) + "-" + Math.max(u, v); pairCount[k] = (pairCount[k] || 0) + 1; });
+  const defs = `<defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L9,3 L0,6 Z" fill="#6b64a0"/></marker>
+    <marker id="arrowY" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L9,3 L0,6 Z" fill="#ffd400"/></marker>
+    <marker id="arrowG" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L9,3 L0,6 Z" fill="#00ff9c"/></marker>
+  </defs>`;
+  let edgesSvg = "", labels = "";
+  EDGES.forEach(({ u, v, w, id }) => {
+    const a = NODES[u], b = NODES[v];
+    const lo = Math.min(u, v), hi = Math.max(u, v), key = lo + "-" + hi;
+    const total = pairCount[key], seen = (pairSeen[key] = (pairSeen[key] || 0) + 1);
+    const offIdx = seen - 1 - (total - 1) / 2, curve = offIdx * 36;
+    const pa = NODES[lo], pb = NODES[hi], ndx = pb.x - pa.x, ndy = pb.y - pa.y, nlen = Math.hypot(ndx, ndy) || 1;
+    const nx = -ndy / nlen, ny = ndx / nlen, mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+    const cxp = mx + nx * curve, cyp = my + ny * curve;
+    const da = Math.hypot(cxp - a.x, cyp - a.y) || 1, db = Math.hypot(cxp - b.x, cyp - b.y) || 1;
+    const ax = a.x + (cxp - a.x) / da * R, ay = a.y + (cyp - a.y) / da * R;
+    const bx = b.x + (cxp - b.x) / db * R, by = b.y + (cyp - b.y) / db * R;
+    const marker = graphType === "directed" ? ` marker-end="url(#arrow)"` : "";
+    edgesSvg += `<path class="edge" id="e-${id}" d="M ${ax} ${ay} Q ${cxp} ${cyp} ${bx} ${by}"${marker}/>`;
+    // 权重标签在弧中点
+    const lx = 0.25 * ax + 0.5 * cxp + 0.25 * bx, ly = 0.25 * ay + 0.5 * cyp + 0.25 * by;
+    labels += `<rect class="ew-bg" x="${lx - 9}" y="${ly - 9}" width="18" height="16" rx="3"/><text class="ew" id="ew-${id}" x="${lx}" y="${ly + 3}" text-anchor="middle">${w}</text>`;
+  });
+  let nodesSvg = "";
+  for (const k in NODES) { const nd = NODES[k]; nodesSvg += `<g class="gnode" id="node-${k}"><circle cx="${nd.x}" cy="${nd.y}" r="${R}"/><text class="lbl" x="${nd.x}" y="${nd.y+5}" text-anchor="middle">${k}</text><text class="dv" x="${nd.x}" y="${nd.y-27}" text-anchor="middle" id="dv-${k}"></text></g>`; }
+  svg.innerHTML = defs + edgesSvg + labels + nodesSvg;
+}
+
+// ---------- 绘制 ----------
+function draw(k) {
+  const s = steps[k];
+  const n = Object.keys(NODES).length;
+  document.querySelectorAll(".edge").forEach(e => { e.classList.remove("relax", "tree"); if (graphType === "directed") e.setAttribute("marker-end", "url(#arrow)"); });
+  // 最短路径树边
+  s.treeEdges.forEach(eid => { const e = $("e-" + eid); if (e) { e.classList.add("tree"); if (graphType === "directed") e.setAttribute("marker-end", "url(#arrowG)"); } });
+  // 正在松弛的边
+  if (s.relaxEid >= 0) { const e = $("e-" + s.relaxEid); if (e) { e.classList.remove("tree"); e.classList.add("relax"); if (graphType === "directed") e.setAttribute("marker-end", "url(#arrowY)"); } }
+  // 节点
+  document.querySelectorAll(".gnode").forEach(g => g.className.baseVal = "gnode");
+  const src = parseInt($("srcSel").value, 10);
+  for (let i = 0; i < n; i++) {
+    const el = $("node-" + i);
+    if (s.done[i]) el.classList.add("done");
+    else if (s.frontier.includes(i)) el.classList.add("frontier");
+    $("dv-" + i).textContent = s.dist[i] === INF ? "∞" : s.dist[i];
+  }
+  if (s.cur >= 0) { const c = $("node-" + s.cur); c.classList.remove("done", "frontier"); c.classList.add("cur"); }
+  $("node-" + src).classList.add("src");
+
+  // dist 表
+  let rows = `<tr><th>顶点</th>${[...Array(n).keys()].map(i => `<th>${i}</th>`).join("")}</tr>`;
+  rows += `<tr><td>dist</td>${[...Array(n).keys()].map(i => `<td class="d">${s.dist[i] === INF ? "∞" : s.dist[i]}</td>`).join("")}</tr>`;
+  rows += `<tr><td>状态</td>${[...Array(n).keys()].map(i => `<td>${s.done[i] ? "✓定" : s.frontier.includes(i) ? "队" : "-"}</td>`).join("")}</tr>`;
+  $("disttab").innerHTML = rows;
+  // 优先队列
+  $("pq").innerHTML = s.frontier.length
+    ? s.frontier.map((v, i) => `<div class="chip${i === 0 ? " head" : ""}">${v}(${s.dist[v]})</div>`).join("")
+    : '<span style="color:var(--muted);font-family:monospace">（空）</span>';
+  $("status").textContent = s.desc;
+}
+
+// ---------- 控制 ----------
+function populateSrc() {
+  const sel = $("srcSel"); sel.innerHTML = "";
+  Object.keys(NODES).map(Number).sort((a, b) => a - b).forEach(k => { const o = document.createElement("option"); o.value = k; o.textContent = "顶点 " + k; sel.appendChild(o); });
+  sel.value = "0";
+}
+function prepare() { steps = genSteps(parseInt($("srcSel").value, 10)); idx = 0; draw(0); }
+function stepOnce() { if (idx < steps.length - 1) { idx++; draw(idx); return true; } return false; }
+function play() { stop(); const spd = parseInt($("speedInput").value, 10); timer = setInterval(() => { if (!stepOnce()) stop(); }, 1550 - spd); }
+function stop() { if (timer) { clearInterval(timer); timer = null; } }
+function regenerate() { stop(); const g = randomGraph(); NODES = g.nodes; EDGES = g.edges; buildSVG(); populateSrc(); prepare(); }
+function applyType(t) { graphType = t; stop(); document.querySelectorAll(".subtab").forEach(s => s.classList.toggle("active", s.dataset.type === t)); regenerate(); }
+
+document.querySelectorAll(".subtab").forEach(s => s.onclick = () => applyType(s.dataset.type));
+$("srcSel").onchange = () => { stop(); prepare(); };
+$("playBtn").onclick = () => { if (idx >= steps.length - 1 || idx === 0) prepare(); play(); };
+$("stepBtn").onclick = () => { stop(); stepOnce(); };
+$("resetBtn").onclick = () => { stop(); prepare(); };
+$("randBtn").onclick = () => regenerate();
+
+applyType("undirected");
+</script>
+</body>
+</html>
