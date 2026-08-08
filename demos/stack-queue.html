@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>栈与队列演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .subtabs { display: flex; align-items: center; gap: 10px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .sublabel { font-size: 12px; color: var(--muted); letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace; }
+  .subtab {
+    padding: 8px 20px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 14px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .subtab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .subtab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 90px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .btn {
+    padding: 9px 16px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.ghost { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.ghost:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  /* 容器可视化区 */
+  .viz { min-height: 340px; display: flex; align-items: center; justify-content: center; position: relative; }
+  /* 栈：竖直，栈顶在上 */
+  .stack { display: flex; flex-direction: column-reverse; align-items: center; gap: 6px; position: relative; padding-bottom: 30px; }
+  .stack-base { position: absolute; bottom: 12px; width: 180px; height: 4px; background: var(--border); border-radius: 2px; }
+  /* 队列：水平，队首在左 */
+  .queue { display: flex; flex-direction: row; align-items: center; gap: 6px; }
+  .cell {
+    width: 150px; height: 42px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--cyan); border-radius: 6px; background: rgba(0,240,255,0.1);
+    color: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 17px;
+    box-shadow: 0 0 10px rgba(0,240,255,.2); transition: all .2s; position: relative;
+  }
+  .queue .cell { width: 56px; height: 56px; }
+  .cell.enter { animation: pop .35s ease; border-color: var(--green); background: rgba(0,255,156,0.18); box-shadow: 0 0 16px rgba(0,255,156,.6); }
+  .cell.leave { border-color: var(--magenta); background: rgba(255,43,214,0.2); box-shadow: 0 0 16px rgba(255,43,214,.7); }
+  .cell.peek { border-color: var(--yellow); background: rgba(255,212,0,0.2); box-shadow: 0 0 16px rgba(255,212,0,.6); }
+  @keyframes pop { 0% { transform: scale(.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  .tagptr {
+    position: absolute; font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700;
+    color: var(--magenta); text-shadow: 0 0 8px rgba(255,43,214,.7); white-space: nowrap;
+  }
+  .stack .cell .tagptr { right: -84px; top: 50%; transform: translateY(-50%); }
+  .queue .cell .tagptr.top { left: 50%; top: -22px; transform: translateX(-50%); }
+  .queue .cell .tagptr.bottom { left: 50%; bottom: -22px; transform: translateX(-50%); }
+  .empty-hint { color: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 14px; }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .pseudocode {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: #8fb8c9; margin: 0 0 16px;
+  }
+  .pseudocode .line { padding: 2px 8px; border-radius: 3px; white-space: pre-wrap; }
+  .pseudocode .line.active { background: linear-gradient(90deg, rgba(255,43,214,.9), rgba(0,240,255,.6)); color: #fff; box-shadow: 0 0 14px rgba(255,43,214,.5); }
+  .stats { display: flex; gap: 24px; font-size: 14px; align-items: baseline; margin-bottom: 12px; }
+  .stats b { font-size: 20px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(255,212,0,.6); }
+  .status { margin-top: 6px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>栈与队列演示</h1>
+  <p id="subtitle"></p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="subtabs">
+  <span class="sublabel">数据结构：</span>
+  <button class="subtab active" data-ds="stack">栈 Stack (LIFO)</button>
+  <button class="subtab" data-ds="queue">队列 Queue (FIFO)</button>
+</div>
+
+<div class="controls">
+  <div class="field">
+    <label for="valInput" id="valLabel">入栈值</label>
+    <input id="valInput" type="number" placeholder="值">
+  </div>
+  <button class="btn cy" id="pushBtn">入栈</button>
+  <button class="btn" id="popBtn">出栈</button>
+  <button class="btn ghost" id="peekBtn">查看栈顶</button>
+  <button class="btn ghost" id="clearBtn">清空</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="viz" id="viz"></div>
+  </section>
+  <section class="card">
+    <div class="plabel">操作代码</div>
+    <div class="pseudocode" id="code"></div>
+    <div class="stats">
+      元素个数：<b id="sizeCount">0</b>
+      <span>容量上限：<b id="capCount">8</b></span>
+    </div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+const CAP = 8;   // 容量上限，用于演示“溢出”
+let ds = "stack";
+let items = [];   // 栈：栈底→栈顶；队列：队首→队尾
+let busy = false;
+
+const CFG = {
+  stack: {
+    subtitle: "栈 Stack：后进先出 (LIFO)。只能在栈顶插入(push)和删除(pop)。",
+    valLabel: "入栈值",
+    note: "栈的一端封闭，只在<code>栈顶</code>操作：push 压入栈顶，pop 弹出栈顶。像一摞盘子，最后放上的最先取走。",
+    push: ["push(x):", "    if 满: 溢出(overflow)", "    top++", "    s[top] = x"],
+    pop: ["pop():", "    if 空: 下溢(underflow)", "    x = s[top]", "    top--; return x"],
+    peek: ["top():", "    if 空: return null", "    return s[top]  // 不删除"],
+  },
+  queue: {
+    subtitle: "队列 Queue：先进先出 (FIFO)。队尾入队(enqueue)，队首出队(dequeue)。",
+    valLabel: "入队值",
+    note: "队列两端操作：<code>队尾</code>入队、<code>队首</code>出队。像排队，先来的先服务。",
+    push: ["enqueue(x):", "    if 满: 溢出(overflow)", "    rear++", "    q[rear] = x"],
+    pop: ["dequeue():", "    if 空: 下溢(underflow)", "    x = q[front]", "    front++; return x"],
+    peek: ["front():", "    if 空: return null", "    return q[front]  // 不删除"],
+  },
+};
+
+function renderCode(lines, activeLines) {
+  $("code").innerHTML = lines.map((l, i) =>
+    `<div class="line${activeLines && activeLines.includes(i) ? " active" : ""}">${escHtml(l)}</div>`).join("");
+}
+function escHtml(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+// 渲染容器；mark: {idx, cls}
+function render(mark) {
+  const viz = $("viz");
+  if (items.length === 0) {
+    viz.innerHTML = `<div class="empty-hint">（${ds === "stack" ? "栈" : "队列"}为空）</div>`;
+    $("sizeCount").textContent = 0;
+    return;
+  }
+  const wrapCls = ds === "stack" ? "stack" : "queue";
+  let html = `<div class="${wrapCls}">`;
+  if (ds === "stack") html += `<div class="stack-base"></div>`;
+  items.forEach((v, i) => {
+    let cls = "cell";
+    if (mark && mark.idx === i) cls += " " + mark.cls;
+    let ptr = "";
+    if (ds === "stack") {
+      if (i === items.length - 1) ptr = `<span class="tagptr">← 栈顶 top</span>`;
+      else if (i === 0) ptr = `<span class="tagptr" style="color:var(--muted);text-shadow:none">← 栈底</span>`;
+    } else {
+      if (i === 0) ptr = `<span class="tagptr top">队首 front</span>`;
+      if (i === items.length - 1) ptr += `<span class="tagptr bottom">队尾 rear</span>`;
+    }
+    html += `<div class="${cls}">${v}${ptr}</div>`;
+  });
+  html += `</div>`;
+  viz.innerHTML = html;
+  $("sizeCount").textContent = items.length;
+}
+
+function setStatus(t) { $("status").textContent = t; }
+function lock(v) { busy = v; document.querySelectorAll(".btn, .subtab").forEach(b => b.disabled = v); }
+
+async function doPush() {
+  if (busy) return;
+  const raw = $("valInput").value;
+  const v = parseInt(raw, 10);
+  if (isNaN(v)) { setStatus("请输入一个整数值。"); return; }
+  if (items.length >= CAP) { renderCode(CFG[ds].push, [1]); setStatus(`⚠ 已达容量上限 ${CAP}，溢出(overflow)！无法继续${ds === "stack" ? "入栈" : "入队"}。`); return; }
+  lock(true);
+  renderCode(CFG[ds].push, [2, 3]);
+  items.push(v);   // 两者都追加到末端（栈顶 / 队尾）
+  render({ idx: items.length - 1, cls: "enter" });
+  setStatus(ds === "stack" ? `push(${v})：压入栈顶。` : `enqueue(${v})：加入队尾。`);
+  $("valInput").value = "";
+  await sleep(400);
+  render();
+  lock(false);
+}
+
+async function doPop() {
+  if (busy) return;
+  if (items.length === 0) { renderCode(CFG[ds].pop, [1]); setStatus(`⚠ ${ds === "stack" ? "栈" : "队列"}为空，下溢(underflow)！无可删除元素。`); return; }
+  lock(true);
+  // 栈删栈顶(末端)，队列删队首(首端)
+  const idx = ds === "stack" ? items.length - 1 : 0;
+  renderCode(CFG[ds].pop, [2, 3]);
+  render({ idx, cls: "leave" });
+  const v = items[idx];
+  setStatus(ds === "stack" ? `pop()：弹出栈顶 ${v}。` : `dequeue()：移出队首 ${v}。`);
+  await sleep(500);
+  if (ds === "stack") items.pop(); else items.shift();
+  render();
+  lock(false);
+}
+
+async function doPeek() {
+  if (busy) return;
+  if (items.length === 0) { renderCode(CFG[ds].peek, [1]); setStatus(`${ds === "stack" ? "栈" : "队列"}为空。`); return; }
+  lock(true);
+  const idx = ds === "stack" ? items.length - 1 : 0;
+  renderCode(CFG[ds].peek, [2]);
+  render({ idx, cls: "peek" });
+  setStatus(ds === "stack" ? `top()：栈顶元素是 ${items[idx]}（不删除）。` : `front()：队首元素是 ${items[idx]}（不删除）。`);
+  await sleep(650);
+  render();
+  lock(false);
+}
+
+function applyDS(d) {
+  ds = d; items = []; busy = false;
+  document.querySelectorAll(".subtab").forEach(s => s.classList.toggle("active", s.dataset.ds === d));
+  const cfg = CFG[d];
+  $("subtitle").textContent = cfg.subtitle;
+  $("valLabel").textContent = cfg.valLabel;
+  $("note").innerHTML = cfg.note;
+  $("capCount").textContent = CAP;
+  $("pushBtn").textContent = d === "stack" ? "入栈 push" : "入队 enqueue";
+  $("popBtn").textContent = d === "stack" ? "出栈 pop" : "出队 dequeue";
+  $("peekBtn").textContent = d === "stack" ? "查看栈顶" : "查看队首";
+  renderCode(cfg.push);
+  render();
+  setStatus(`已切换到${d === "stack" ? "栈 Stack" : "队列 Queue"}，试试${d === "stack" ? "入栈/出栈" : "入队/出队"}。`);
+}
+
+document.querySelectorAll(".subtab").forEach(s => s.onclick = () => { if (!busy) applyDS(s.dataset.ds); });
+$("pushBtn").onclick = doPush;
+$("popBtn").onclick = doPop;
+$("peekBtn").onclick = doPeek;
+$("clearBtn").onclick = () => { if (busy) return; items = []; render(); setStatus("已清空。"); };
+$("valInput").addEventListener("keydown", e => { if (e.key === "Enter") doPush(); });
+
+applyDS("stack");
+</script>
+</body>
+</html>
