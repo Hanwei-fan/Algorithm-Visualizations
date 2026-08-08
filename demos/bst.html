@@ -224,11 +224,20 @@ function setStatus(t) { $("status").textContent = t; }
 
 // ======== 单步引擎 ========
 // 每个操作构建 steps[]，然后交给引擎播放（单步 / 自动）
-function loadSteps(list) {
+function loadSteps(list, auto = false) {
   steps = list; idx = 0; running = true;
-  $("stepBtn").disabled = false; $("playBtn").disabled = false;
-  lockOps(true);           // 演算期间禁用操作按钮，只允许单步/播放
+  lockOps(true);           // 演算期间禁用操作按钮
   applyStep(0);
+  if (auto) {
+    // 自动模式：不启用单步/播放按钮，直接连续播放到底
+    $("stepBtn").disabled = true; $("playBtn").disabled = true;
+    if (steps.length <= 1) { endRun(); return; }
+    playAll();
+  } else {
+    // 单步模式：启用单步与自动播放按钮
+    $("stepBtn").disabled = false; $("playBtn").disabled = false;
+    if (steps.length <= 1) endRun();
+  }
 }
 // 应用第 idx 步：执行其 mutate（改树），再按 marks 渲染
 function applyStep(i) {
@@ -390,7 +399,7 @@ function buildFromSnaps(list) {
 function readVal() { const v = parseInt($("valInput").value, 10); if (isNaN(v)) { setStatus("请输入一个整数值。"); return null; } return v; }
 function opGuard() { return running ? false : true; }   // 演算进行中不接受新操作
 
-$("insertBtn").onclick = () => { if (!opGuard()) return; const v = readVal(); if (v === null) return; loadSteps(buildInsert(v)); $("valInput").value = ""; };
+$("insertBtn").onclick = () => { if (!opGuard()) return; const v = readVal(); if (v === null) return; loadSteps(buildInsert(v), true); $("valInput").value = ""; };
 $("findBtn").onclick = () => { if (!opGuard()) return; const v = readVal(); if (v === null) return; if (root === null) { setStatus("空树，无可查找节点。"); return; } loadSteps(buildFind(v)); };
 $("deleteBtn").onclick = () => { if (!opGuard()) return; const v = readVal(); if (v === null) return; if (root === null) { setStatus("空树，无可删除节点。"); return; } loadSteps(buildDelete(v)); $("valInput").value = ""; };
 $("inorderBtn").onclick = () => { if (!opGuard()) return; loadSteps(buildInorder()); };
