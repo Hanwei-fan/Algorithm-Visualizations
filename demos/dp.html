@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>动态规划演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .subtabs { display: flex; align-items: center; gap: 10px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .sublabel { font-size: 12px; color: var(--muted); letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace; }
+  .subtab {
+    padding: 8px 16px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 13px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .subtab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .subtab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .subtab.kind { border-radius: 4px; background: rgba(160,107,255,0.06); color: #c9b3ff; }
+  .subtab.kind:hover { border-color: #a06bff; box-shadow: 0 0 10px rgba(160,107,255,.35); }
+  .subtab.kind.active { background: #a06bff; color: #05060f; border-color: #a06bff; box-shadow: 0 0 12px rgba(160,107,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 16px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  /* DP 表 */
+  table.dp { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; margin: 0 auto; }
+  table.dp th { color: var(--cyan); font-size: 12px; font-weight: 700; padding: 4px 8px; }
+  table.dp td.rh { color: var(--cyan); font-size: 12px; font-weight: 700; padding: 4px 8px; text-align: right; }
+  table.dp td.cell {
+    width: 44px; height: 40px; text-align: center; border: 1px solid var(--border);
+    font-size: 15px; font-weight: 700; color: var(--text); background: rgba(0,240,255,0.03);
+    transition: all .15s;
+  }
+  table.dp td.cell.filled { background: rgba(0,240,255,0.08); }
+  table.dp td.cell.cur { background: var(--yellow); color: #120e00; box-shadow: 0 0 14px rgba(255,212,0,.7) inset; transform: scale(1.08); }
+  table.dp td.cell.src { background: rgba(255,43,214,0.28); color: #fff; box-shadow: 0 0 10px rgba(255,43,214,.5) inset; }
+  table.dp td.cell.best { background: rgba(0,255,156,0.25); color: var(--green); box-shadow: 0 0 12px rgba(0,255,156,.5) inset; }
+  /* 一维序列展示 */
+  .seq { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px; }
+  .seq .cell {
+    min-width: 40px; height: 44px; padding: 0 6px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 6px; background: rgba(0,240,255,0.04);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .seq .cell .v { font-size: 16px; font-weight: 700; }
+  .seq .cell .ix { font-size: 10px; color: var(--muted); }
+  .seq .cell.cur { border-color: var(--yellow); background: rgba(255,212,0,0.18); box-shadow: 0 0 12px rgba(255,212,0,.5); }
+  .seq .cell.src { border-color: var(--magenta); background: rgba(255,43,214,0.18); }
+  .seq .cell.pick { border-color: var(--green); background: rgba(0,255,156,0.18); color: var(--green); }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: #8fb8c9; margin: 0 0 16px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .stats { display: flex; gap: 22px; font-size: 14px; align-items: baseline; margin-bottom: 10px; }
+  .stats b { font-size: 20px; color: var(--green); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .status { margin-top: 8px; font-size: 14.5px; min-height: 44px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+  .tlegend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--muted); justify-content: center; }
+  .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tlegend .dot { width: 12px; height: 12px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>动态规划演示</h1>
+  <p id="subtitle"></p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="subtabs">
+  <span class="sublabel">类别：</span>
+  <button class="subtab kind active" data-kind="seq">序列 DP</button>
+  <button class="subtab kind" data-kind="knap">背包 DP</button>
+</div>
+<div class="subtabs" id="algoTabs"></div>
+
+<div class="controls">
+  <div class="field" id="dataField">
+    <label id="dataLabel">序列</label>
+    <input id="dataInput" type="text" style="width:260px">
+  </div>
+  <div class="field" id="data2Field" style="display:none">
+    <label id="data2Label">序列 B</label>
+    <input id="data2Input" type="text" style="width:180px">
+  </div>
+  <div class="field" id="capField" style="display:none">
+    <label>容量 W</label>
+    <input id="capInput" type="number" style="width:80px" value="10">
+  </div>
+  <div class="speed">
+    <label for="speedInput">速度</label>
+    <input id="speedInput" type="range" min="80" max="900" value="450" step="40">
+  </div>
+  <button class="btn" id="playBtn">自动播放</button>
+  <button class="btn secondary" id="stepBtn">单步 ▶</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="btn secondary" id="randBtn">随机</button>
+</div>
+
+<main>
+  <section class="card">
+    <div id="seqArea"></div>
+    <div id="tableArea"></div>
+    <div class="tlegend">
+      <span><i class="dot" style="background:#ffd400"></i>正在计算</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>转移来源</span>
+      <span><i class="dot" style="background:#00ff9c"></i>最优答案</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel">状态转移方程</div>
+    <div class="formula" id="formula"></div>
+    <div class="stats">当前答案：<b id="ans">-</b></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let kind = "seq";        // seq / knap
+let algo = "lis";        // 具体算法
+let steps = [], idx = 0, timer = null, running = false;
+
+const ALGOS = {
+  seq: [
+    { id: "lis", name: "最长上升子序列 LIS" },
+    { id: "lcs", name: "最长公共子序列 LCS" },
+    { id: "mss", name: "最大子段和" },
+  ],
+  knap: [
+    { id: "knap01", name: "01 背包" },
+    { id: "knapfull", name: "完全背包" },
+    { id: "knapmulti", name: "多重背包" },
+  ],
+};
+
+function parseNums(s) { return s.split(/[,，\s]+/).map(x => parseInt(x, 10)).filter(x => !isNaN(x)); }
+
+// ======== 单步引擎 ========
+function loadSteps(list) {
+  steps = list; idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  lockOps(true);
+  applyStep(0);
+  if (steps.length <= 1) endRun();
+}
+function applyStep(i) {
+  const s = steps[i];
+  if (s.render) s.render();
+  $("status").innerHTML = s.desc;
+  if (s.ans !== undefined) $("ans").textContent = s.ans;
+}
+function stepOnce() { if (!running) return false; if (idx < steps.length - 1) { idx++; applyStep(idx); } if (idx >= steps.length - 1) endRun(); return true; }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; lockOps(false); }
+function playAll() { if (!running) return; stopTimer(); const spd = 980 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; applyStep(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+function lockOps(v) { ["randBtn"].forEach(id => $(id).disabled = v); document.querySelectorAll(".subtab").forEach(b => b.style.pointerEvents = v ? "none" : ""); }
+
+// ======== 渲染工具 ========
+// 一维序列：arr 值，marks[i]=class
+function renderSeq(arr, marks = {}, dpRow) {
+  let html = '<div class="seq">';
+  arr.forEach((v, i) => {
+    html += `<div class="cell ${marks[i] || ""}"><div class="v">${v}</div><div class="ix">${i}</div></div>`;
+  });
+  html += '</div>';
+  if (dpRow) {
+    html += '<div class="plabel" style="text-align:center">dp 数组</div><div class="seq">';
+    dpRow.vals.forEach((v, i) => {
+      html += `<div class="cell ${dpRow.marks[i] || ""}"><div class="v">${v === -Infinity ? "-∞" : v}</div><div class="ix">${i}</div></div>`;
+    });
+    html += '</div>';
+  }
+  $("seqArea").innerHTML = html;
+  $("tableArea").innerHTML = "";
+}
+// 二维表：grid[r][c]，marks["r,c"]=class，rowHead/colHead 标签
+function renderTable(grid, marks = {}, opt = {}) {
+  const rows = grid.length, cols = grid[0].length;
+  let html = '<table class="dp"><tr><th></th>';
+  for (let c = 0; c < cols; c++) html += `<th>${opt.colHead ? opt.colHead[c] : c}</th>`;
+  html += '</tr>';
+  for (let r = 0; r < rows; r++) {
+    html += `<tr><td class="rh">${opt.rowHead ? opt.rowHead[r] : r}</td>`;
+    for (let c = 0; c < cols; c++) {
+      const cls = marks[r + "," + c] || "";
+      const v = grid[r][c];
+      html += `<td class="cell ${cls}">${v === -Infinity ? "-∞" : v}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</table>';
+  $("tableArea").innerHTML = html;
+  $("seqArea").innerHTML = "";
+}
+
+// ======== 各 DP：构建 steps ========
+let A = [], B = [], CAP = 10, WT = [], VAL = [], CNT = [];
+
+// ---- LIS：dp[i]=以 a[i] 结尾的最长上升子序列长度 ----
+function buildLIS() {
+  const n = A.length, dp = Array(n).fill(1), list = [];
+  const snap = (marks, dpMarks, desc, ans) => list.push({
+    render: () => renderSeq(A, marks, { vals: [...dp], marks: dpMarks }), desc, ans });
+  snap({}, {}, "dp[i] = 以 a[i] 结尾的最长上升子序列长度，初始都为 1。", 1);
+  for (let i = 0; i < n; i++) {
+    snap({ [i]: "cur" }, { [i]: "cur" }, `计算 dp[${i}]（以 ${A[i]} 结尾）。先假设为 1（只有自己）。`, Math.max(...dp));
+    for (let j = 0; j < i; j++) {
+      if (A[j] < A[i]) {
+        const can = dp[j] + 1;
+        if (can > dp[i]) {
+          dp[i] = can;
+          snap({ [i]: "cur", [j]: "src" }, { [i]: "cur", [j]: "src" }, `a[${j}]=${A[j]} < a[${i}]=${A[i]}，可接在其后：dp[${i}] = dp[${j}]+1 = ${can}，更新。`, Math.max(...dp));
+        } else {
+          snap({ [i]: "cur", [j]: "src" }, { [i]: "cur", [j]: "src" }, `a[${j}]=${A[j]} < a[${i}]，但 dp[${j}]+1=${can} ≤ dp[${i}]=${dp[i]}，不更新。`, Math.max(...dp));
+        }
+      }
+    }
+    snap({ [i]: "cur" }, { [i]: "filled" }, `dp[${i}] = ${dp[i]}。`, Math.max(...dp));
+  }
+  const best = Math.max(...dp), bi = dp.indexOf(best);
+  snap({ [bi]: "pick" }, { [bi]: "best" }, `完成！最长上升子序列长度 = max(dp) = <b>${best}</b>。`, best);
+  return list;
+}
+
+// ---- 最大子段和：dp[i]=以 a[i] 结尾的最大子段和 ----
+function buildMSS() {
+  const n = A.length, dp = Array(n).fill(0), list = [];
+  const snap = (marks, dpMarks, desc, ans) => list.push({
+    render: () => renderSeq(A, marks, { vals: dp.map(x => x === 0 && dp.indexOf(x) > 0 ? x : x), marks: dpMarks }), desc, ans });
+  dp[0] = A[0];
+  let best = A[0], bi = 0;
+  snap({ 0: "cur" }, { 0: "cur" }, `dp[i] = 以 a[i] 结尾的最大子段和。dp[0] = a[0] = ${A[0]}。`, best);
+  for (let i = 1; i < n; i++) {
+    const keep = dp[i - 1] + A[i], fresh = A[i];
+    if (keep > fresh) { dp[i] = keep;
+      snap({ [i]: "cur", [i - 1]: "src" }, { [i]: "cur", [i - 1]: "src" }, `dp[${i}] = max(dp[${i-1}]+a[${i}], a[${i}]) = max(${keep}, ${fresh}) = ${keep}（接上前段）。`, Math.max(best, dp[i]));
+    } else { dp[i] = fresh;
+      snap({ [i]: "cur" }, { [i]: "cur" }, `dp[${i}] = max(dp[${i-1}]+a[${i}], a[${i}]) = max(${keep}, ${fresh}) = ${fresh}（另起新段）。`, Math.max(best, dp[i]));
+    }
+    if (dp[i] > best) { best = dp[i]; bi = i; }
+    snap({ [i]: "cur" }, { [i]: "filled" }, `dp[${i}] = ${dp[i]}，当前最大子段和 = ${best}。`, best);
+  }
+  snap({ [bi]: "pick" }, { [bi]: "best" }, `完成！最大子段和 = max(dp) = <b>${best}</b>。`, best);
+  return list;
+}
+
+// ---- LCS：dp[i][j]=A前i个与B前j个的最长公共子序列 ----
+function buildLCS() {
+  const n = A.length, m = B.length, list = [];
+  const dp = Array.from({ length: n + 1 }, () => Array(m + 1).fill(0));
+  const rowHead = ["ε", ...A], colHead = ["ε", ...B];
+  const snap = (marks, desc, ans) => list.push({ render: () => renderTable(dp, marks, { rowHead, colHead }), desc, ans });
+  snap({}, `dp[i][j] = A 前 i 个与 B 前 j 个字符的 LCS 长度。第 0 行/列（空串）全为 0。`, 0);
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      if (A[i - 1] === B[j - 1]) {
+        dp[i][j] = dp[i - 1][j - 1] + 1;
+        snap({ [i + "," + j]: "cur", [(i-1) + "," + (j-1)]: "src" }, `A[${i-1}]=${A[i-1]} == B[${j-1}]=${B[j-1]}：dp[${i}][${j}] = dp[${i-1}][${j-1}]+1 = ${dp[i][j]}（左上角+1）。`, dp[i][j]);
+      } else {
+        const up = dp[i - 1][j], left = dp[i][j - 1];
+        dp[i][j] = Math.max(up, left);
+        snap({ [i + "," + j]: "cur", [(i-1) + "," + j]: "src", [i + "," + (j-1)]: "src" }, `A[${i-1}]=${A[i-1]} ≠ B[${j-1}]=${B[j-1]}：dp[${i}][${j}] = max(上 ${up}, 左 ${left}) = ${dp[i][j]}。`, dp[i][j]);
+      }
+    }
+  }
+  snap({ [n + "," + m]: "best" }, `完成！LCS 长度 = dp[${n}][${m}] = <b>${dp[n][m]}</b>。`, dp[n][m]);
+  return list;
+}
+
+// ---- 背包：01 / 完全 / 多重，二维 dp[i][w] ----
+function buildKnap(mode) {
+  const n = WT.length, W = CAP, list = [];
+  const dp = Array.from({ length: n + 1 }, () => Array(W + 1).fill(0));
+  const rowHead = ["无物品", ...WT.map((w, i) => `#${i+1}(w${w},v${VAL[i]}${mode==="multi"?",×"+CNT[i]:""})`)];
+  const colHead = [...Array(W + 1).keys()];
+  const snap = (marks, desc, ans) => list.push({ render: () => renderTable(dp, marks, { rowHead, colHead }), desc, ans });
+  const modeName = mode === "01" ? "01背包(每物品最多1个)" : mode === "full" ? "完全背包(每物品无限个)" : "多重背包(每物品限量)";
+  snap({}, `${modeName}：dp[i][w] = 前 i 件物品、容量 w 时的最大价值。第 0 行全为 0。`, 0);
+  for (let i = 1; i <= n; i++) {
+    const w = WT[i - 1], v = VAL[i - 1];
+    for (let cap = 0; cap <= W; cap++) {
+      const notTake = dp[i - 1][cap];   // 不选第 i 件（来自上一行同列）
+      if (cap < w) {
+        dp[i][cap] = notTake;
+        snap({ [i + "," + cap]: "cur", [(i-1) + "," + cap]: "src" }, `容量 ${cap} &lt; 物品${i}重量 ${w}，放不下 → dp[${i}][${cap}] = dp[${i-1}][${cap}] = ${dp[i][cap]}。`, dp[n][W] || 0);
+      } else if (mode === "01") {
+        const take = dp[i - 1][cap - w] + v;
+        dp[i][cap] = Math.max(notTake, take);
+        snap({ [i + "," + cap]: "cur", [(i-1) + "," + cap]: "src", [(i-1) + "," + (cap-w)]: "src" },
+          `dp[${i}][${cap}] = max(不选 ${notTake}, 选 dp[${i-1}][${cap-w}]+${v}=${take}) = ${dp[i][cap]}。`, dp[n][W] || 0);
+      } else if (mode === "full") {
+        const take = dp[i][cap - w] + v;   // 完全背包：从本行转移，可重复取
+        dp[i][cap] = Math.max(notTake, take);
+        snap({ [i + "," + cap]: "cur", [(i-1) + "," + cap]: "src", [i + "," + (cap-w)]: "src" },
+          `完全背包 dp[${i}][${cap}] = max(不选 ${notTake}, 再放一个 dp[${i}][${cap-w}]+${v}=${take}) = ${dp[i][cap]}。`, dp[n][W] || 0);
+      } else {
+        // 多重背包：枚举取 0~min(cnt, cap/w) 个
+        const lim = CNT[i - 1], maxK = Math.min(lim, Math.floor(cap / w));
+        let best = notTake, bestK = 0;
+        for (let kk = 1; kk <= maxK; kk++) { const cand = dp[i - 1][cap - kk * w] + kk * v; if (cand > best) { best = cand; bestK = kk; } }
+        dp[i][cap] = best;
+        snap({ [i + "," + cap]: "cur", [(i-1) + "," + cap]: "src" },
+          `多重背包 dp[${i}][${cap}]：枚举取 0~${maxK} 个物品${i}，最优取 ${bestK} 个 → ${best}。`, dp[n][W] || 0);
+      }
+    }
+  }
+  snap({ [n + "," + W]: "best" }, `完成！最大价值 = dp[${n}][${W}] = <b>${dp[n][W]}</b>。`, dp[n][W]);
+  return list;
+}
+
+// ======== 配置与交互 ========
+const CFG = {
+  lis: { subtitle: "最长上升子序列 (LIS)：找出最长的、严格递增的子序列长度。", formula: "dp[i] = 1 + max{ dp[j] | j&lt;i 且 a[j]&lt;a[i] }<br>答案 = <b>max</b>(dp[i])",
+    note: "dp[i] 表示<code>以 a[i] 结尾</code>的最长上升子序列长度。枚举前面每个 j，若 a[j]&lt;a[i] 则可接在其后。" },
+  mss: { subtitle: "最大子段和：找出连续子数组的最大和。", formula: "dp[i] = max( dp[i-1] + a[i], a[i] )<br>答案 = <b>max</b>(dp[i])",
+    note: "dp[i] 表示<code>以 a[i] 结尾</code>的最大子段和。要么接在前一段后面，要么从 a[i] 另起一段。" },
+  lcs: { subtitle: "最长公共子序列 (LCS)：两序列公共子序列的最大长度。", formula: "若 A[i]=B[j]: dp[i][j] = dp[i-1][j-1] + 1<br>否则: dp[i][j] = max( dp[i-1][j], dp[i][j-1] )",
+    note: "字符相等则来自<code>左上角+1</code>；不等则取<code>上方</code>或<code>左方</code>的较大值。" },
+  knap01: { subtitle: "01 背包：每件物品最多取 1 个，求容量内最大价值。", formula: "dp[i][w] = max( dp[i-1][w],  dp[i-1][w-wᵢ] + vᵢ )",
+    note: "每件物品<code>选或不选</code>。选则从上一行、扣掉重量的列转移。" },
+  knapfull: { subtitle: "完全背包：每件物品可取无限个。", formula: "dp[i][w] = max( dp[i-1][w],  dp[i][w-wᵢ] + vᵢ )",
+    note: "与 01 背包的区别：选物品 i 时从<code>本行</code> dp[i][w-wᵢ] 转移（可重复取）。" },
+  knapmulti: { subtitle: "多重背包：每件物品有数量上限。", formula: "dp[i][w] = max{ dp[i-1][w-k·wᵢ] + k·vᵢ | 0 ≤ k ≤ min(cᵢ, w/wᵢ) }",
+    note: "每件物品最多取 cᵢ 个，枚举取 <code>k</code> 个中的最优。" },
+};
+
+function initAlgoTabs() {
+  const tabs = $("algoTabs");
+  tabs.innerHTML = '<span class="sublabel">算法：</span>' +
+    ALGOS[kind].map(a => `<button class="subtab" data-algo="${a.id}">${a.name}</button>`).join("");
+  tabs.querySelectorAll(".subtab").forEach(b => b.onclick = () => applyAlgo(b.dataset.algo));
+}
+
+function defaultData() {
+  if (algo === "lis") { $("dataInput").value = "3, 1, 4, 1, 5, 9, 2, 6"; }
+  else if (algo === "mss") { $("dataInput").value = "-2, 1, -3, 4, -1, 2, 1, -5, 4"; }
+  else if (algo === "lcs") { $("dataInput").value = "1, 3, 4, 5, 6, 7, 7, 8"; $("data2Input").value = "3, 5, 7, 4, 8, 6, 7, 8, 2"; }
+  else { $("dataInput").value = ""; }
+}
+
+function readInputs() {
+  if (kind === "seq") {
+    A = parseNums($("dataInput").value).slice(0, 12);
+    if (algo === "lcs") B = parseNums($("data2Input").value).slice(0, 12);
+  } else {
+    // 背包：dataInput 存 "重量:价值[:数量]" 用逗号分隔
+    const items = $("dataInput").value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
+    WT = []; VAL = []; CNT = [];
+    items.forEach(it => { const p = it.split(/[:：]/).map(x => parseInt(x, 10)); if (!isNaN(p[0]) && !isNaN(p[1])) { WT.push(p[0]); VAL.push(p[1]); CNT.push(isNaN(p[2]) ? 3 : p[2]); } });
+    CAP = parseInt($("capInput").value, 10) || 10;
+  }
+}
+
+function buildSteps() {
+  if (algo === "lis") return buildLIS();
+  if (algo === "mss") return buildMSS();
+  if (algo === "lcs") return buildLCS();
+  if (algo === "knap01") return buildKnap("01");
+  if (algo === "knapfull") return buildKnap("full");
+  return buildKnap("multi");
+}
+
+function prepare() {
+  stopTimer(); running = false;
+  $("stepBtn").disabled = true; $("playBtn").disabled = true; lockOps(false);
+  readInputs();
+  // 输入非法保护
+  if (kind === "seq" && A.length === 0) { $("status").textContent = "请输入序列。"; $("seqArea").innerHTML = ""; $("tableArea").innerHTML = ""; return; }
+  if (algo === "lcs" && B.length === 0) { $("status").textContent = "请输入两个序列。"; return; }
+  if (kind === "knap" && WT.length === 0) { $("status").textContent = "请输入物品（格式：重量:价值 或 重量:价值:数量，逗号分隔）。"; $("seqArea").innerHTML = ""; $("tableArea").innerHTML = ""; return; }
+  loadSteps(buildSteps());
+}
+
+function applyKind(k) {
+  kind = k;
+  document.querySelectorAll(".subtab.kind").forEach(b => b.classList.toggle("active", b.dataset.kind === k));
+  initAlgoTabs();
+  applyAlgo(ALGOS[k][0].id);
+}
+
+function applyAlgo(a) {
+  algo = a; stopTimer(); running = false;
+  $("algoTabs").querySelectorAll(".subtab").forEach(b => b.classList.toggle("active", b.dataset.algo === a));
+  const cfg = CFG[a];
+  $("subtitle").textContent = cfg.subtitle;
+  $("formula").innerHTML = cfg.formula;
+  $("note").innerHTML = cfg.note;
+  // 输入区切换
+  const isKnap = kind === "knap";
+  $("data2Field").style.display = (a === "lcs") ? "flex" : "none";
+  $("capField").style.display = isKnap ? "flex" : "none";
+  $("dataLabel").textContent = isKnap ? "物品（重量:价值[:数量]，逗号分隔）" : (a === "lcs" ? "序列 A" : "序列");
+  $("dataInput").style.width = isKnap ? "320px" : (a === "lcs" ? "180px" : "260px");
+  // 默认数据
+  if (isKnap) { $("dataInput").value = a === "knapmulti" ? "2:3:2, 3:4:3, 4:5:1, 5:6:2" : "2:3, 3:4, 4:5, 5:6"; $("capInput").value = 10; }
+  else defaultData();
+  prepare();
+}
+
+function randomize() {
+  if (kind === "seq") {
+    const n = 6 + Math.floor(Math.random() * 4);
+    if (algo === "mss") $("dataInput").value = Array.from({ length: n }, () => Math.floor(Math.random() * 21) - 10).join(", ");
+    else $("dataInput").value = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * 20)).join(", ");
+    if (algo === "lcs") $("data2Input").value = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * 9)).join(", ");
+  } else {
+    const n = 3 + Math.floor(Math.random() * 2);
+    const items = Array.from({ length: n }, () => {
+      const w = 2 + Math.floor(Math.random() * 5), v = 2 + Math.floor(Math.random() * 8);
+      return algo === "knapmulti" ? `${w}:${v}:${1 + Math.floor(Math.random() * 3)}` : `${w}:${v}`;
+    });
+    $("dataInput").value = items.join(", ");
+    $("capInput").value = 8 + Math.floor(Math.random() * 6);
+  }
+  prepare();
+}
+
+document.querySelectorAll(".subtab.kind").forEach(b => b.onclick = () => applyKind(b.dataset.kind));
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) prepare(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("resetBtn").onclick = () => prepare();
+$("randBtn").onclick = () => randomize();
+
+initAlgoTabs();
+applyAlgo("lis");
+</script>
+</body>
+</html>
