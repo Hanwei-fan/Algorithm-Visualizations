@@ -174,8 +174,10 @@ const SECTIONS = [
   {
     id: "advanced", icon: "🧩", title: "递归与动态规划", desc: "分治 · 记忆化 · 状态转移",
     items: [
-      { icon: "🧩", tag: "DP", title: "经典 DP", file: "dp.html", ready: true,
-        desc: "序列DP(LIS/LCS/最大子段和) + 背包DP(01/完全/多重)，DP 表逐格填充、转移方程高亮、来源标注，单步/自动。" },
+      { icon: "📈", tag: "DP", title: "序列 DP", file: "dp.html?kind=seq", ready: true,
+        desc: "最长上升子序列 LIS / 最长公共子序列 LCS / 最大子段和，DP 表逐格填充、转移方程高亮、来源标注，单步/自动。" },
+      { icon: "🎒", tag: "DP", title: "背包 DP", file: "dp.html?kind=knap", ready: true,
+        desc: "01 背包 / 完全背包 / 多重背包，二维 DP 表逐格填充、转移来源标注，可调容量，单步/自动。" },
     ],
   },
 ];

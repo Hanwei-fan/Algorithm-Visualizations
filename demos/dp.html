@@ -493,8 +493,9 @@ $("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
 $("resetBtn").onclick = () => prepare();
 $("randBtn").onclick = () => randomize();
 
-initAlgoTabs();
-applyAlgo("lis");
+// 支持通过 URL 参数 ?kind=seq|knap 指定初始类别（门户拆成两张卡片用）
+const initKind = new URLSearchParams(location.search).get("kind") === "knap" ? "knap" : "seq";
+applyKind(initKind);
 </script>
 </body>
 </html>
