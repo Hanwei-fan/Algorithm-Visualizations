@@ -238,7 +238,8 @@ function renderSeq(arr, marks = {}, dpRow) {
   if (dpRow) {
     html += '<div class="plabel" style="text-align:center">dp 数组</div><div class="seq">';
     dpRow.vals.forEach((v, i) => {
-      html += `<div class="cell ${dpRow.marks[i] || ""}"><div class="v">${v === -Infinity ? "-∞" : v}</div><div class="ix">${i}</div></div>`;
+      const disp = v === null || v === undefined ? "" : (v === -Infinity ? "-∞" : v);
+      html += `<div class="cell ${dpRow.marks[i] || ""}"><div class="v">${disp}</div><div class="ix">${i}</div></div>`;
     });
     html += '</div>';
   }
@@ -256,7 +257,8 @@ function renderTable(grid, marks = {}, opt = {}) {
     for (let c = 0; c < cols; c++) {
       const cls = marks[r + "," + c] || "";
       const v = grid[r][c];
-      html += `<td class="cell ${cls}">${v === -Infinity ? "-∞" : v}</td>`;
+      const disp = v === null || v === undefined ? "" : (v === -Infinity ? "-∞" : v);
+      html += `<td class="cell ${cls}">${disp}</td>`;
     }
     html += '</tr>';
   }
@@ -271,23 +273,29 @@ let A = [], B = [], CAP = 10, WT = [], VAL = [], CNT = [];
 // ---- LIS：dp[i]=以 a[i] 结尾的最长上升子序列长度 ----
 function buildLIS() {
   const n = A.length, dp = Array(n).fill(1), list = [];
-  const snap = (marks, dpMarks, desc, ans) => list.push({
-    render: () => renderSeq(A, marks, { vals: [...dp], marks: dpMarks }), desc, ans });
-  snap({}, {}, "dp[i] = 以 a[i] 结尾的最长上升子序列长度，初始都为 1。", 1);
+  const seen = new Set();   // 已推导出的 dp 下标
+  // snap 时快照：仅显示已推导的格子，未算的留空(null)
+  const snap = (marks, dpMarks, desc, ans) => {
+    const vals = dp.map((v, i) => seen.has(i) ? v : null);
+    list.push({ render: () => renderSeq(A, marks, { vals, marks: dpMarks }), desc, ans });
+  };
+  const curMax = () => { const arr = [...seen].map(i => dp[i]); return arr.length ? Math.max(...arr) : 0; };
+  snap({}, {}, "dp[i] = 以 a[i] 结尾的最长上升子序列长度。逐个推导，未算出的格子留空。", 0);
   for (let i = 0; i < n; i++) {
-    snap({ [i]: "cur" }, { [i]: "cur" }, `计算 dp[${i}]（以 ${A[i]} 结尾）。先假设为 1（只有自己）。`, Math.max(...dp));
+    seen.add(i);   // 开始计算 dp[i]，基准值 1
+    snap({ [i]: "cur" }, { [i]: "cur" }, `计算 dp[${i}]（以 ${A[i]} 结尾）。先假设为 1（只有自己）。`, curMax());
     for (let j = 0; j < i; j++) {
       if (A[j] < A[i]) {
         const can = dp[j] + 1;
         if (can > dp[i]) {
           dp[i] = can;
-          snap({ [i]: "cur", [j]: "src" }, { [i]: "cur", [j]: "src" }, `a[${j}]=${A[j]} < a[${i}]=${A[i]}，可接在其后：dp[${i}] = dp[${j}]+1 = ${can}，更新。`, Math.max(...dp));
+          snap({ [i]: "cur", [j]: "src" }, { [i]: "cur", [j]: "src" }, `a[${j}]=${A[j]} < a[${i}]=${A[i]}，可接在其后：dp[${i}] = dp[${j}]+1 = ${can}，更新。`, curMax());
         } else {
-          snap({ [i]: "cur", [j]: "src" }, { [i]: "cur", [j]: "src" }, `a[${j}]=${A[j]} < a[${i}]，但 dp[${j}]+1=${can} ≤ dp[${i}]=${dp[i]}，不更新。`, Math.max(...dp));
+          snap({ [i]: "cur", [j]: "src" }, { [i]: "cur", [j]: "src" }, `a[${j}]=${A[j]} < a[${i}]，但 dp[${j}]+1=${can} ≤ dp[${i}]=${dp[i]}，不更新。`, curMax());
         }
       }
     }
-    snap({ [i]: "cur" }, { [i]: "filled" }, `dp[${i}] = ${dp[i]}。`, Math.max(...dp));
+    snap({ [i]: "cur" }, { [i]: "filled" }, `dp[${i}] = ${dp[i]}。`, curMax());
   }
   const best = Math.max(...dp), bi = dp.indexOf(best);
   snap({ [bi]: "pick" }, { [bi]: "best" }, `完成！最长上升子序列长度 = max(dp) = <b>${best}</b>。`, best);
@@ -297,16 +305,21 @@ function buildLIS() {
 // ---- 最大子段和：dp[i]=以 a[i] 结尾的最大子段和 ----
 function buildMSS() {
   const n = A.length, dp = Array(n).fill(0), list = [];
-  const snap = (marks, dpMarks, desc, ans) => list.push({
-    render: () => renderSeq(A, marks, { vals: dp.map(x => x === 0 && dp.indexOf(x) > 0 ? x : x), marks: dpMarks }), desc, ans });
-  dp[0] = A[0];
+  const seen = new Set();
+  const snap = (marks, dpMarks, desc, ans) => {
+    const vals = dp.map((v, i) => seen.has(i) ? v : null);
+    list.push({ render: () => renderSeq(A, marks, { vals, marks: dpMarks }), desc, ans });
+  };
+  dp[0] = A[0]; seen.add(0);
   let best = A[0], bi = 0;
   snap({ 0: "cur" }, { 0: "cur" }, `dp[i] = 以 a[i] 结尾的最大子段和。dp[0] = a[0] = ${A[0]}。`, best);
   for (let i = 1; i < n; i++) {
     const keep = dp[i - 1] + A[i], fresh = A[i];
-    if (keep > fresh) { dp[i] = keep;
+    if (keep > fresh) dp[i] = keep; else dp[i] = fresh;
+    seen.add(i);
+    if (keep > fresh) {
       snap({ [i]: "cur", [i - 1]: "src" }, { [i]: "cur", [i - 1]: "src" }, `dp[${i}] = max(dp[${i-1}]+a[${i}], a[${i}]) = max(${keep}, ${fresh}) = ${keep}（接上前段）。`, Math.max(best, dp[i]));
-    } else { dp[i] = fresh;
+    } else {
       snap({ [i]: "cur" }, { [i]: "cur" }, `dp[${i}] = max(dp[${i-1}]+a[${i}], a[${i}]) = max(${keep}, ${fresh}) = ${fresh}（另起新段）。`, Math.max(best, dp[i]));
     }
     if (dp[i] > best) { best = dp[i]; bi = i; }
@@ -321,17 +334,24 @@ function buildLCS() {
   const n = A.length, m = B.length, list = [];
   const dp = Array.from({ length: n + 1 }, () => Array(m + 1).fill(0));
   const rowHead = ["ε", ...A], colHead = ["ε", ...B];
-  const snap = (marks, desc, ans) => list.push({ render: () => renderTable(dp, marks, { rowHead, colHead }), desc, ans });
-  snap({}, `dp[i][j] = A 前 i 个与 B 前 j 个字符的 LCS 长度。第 0 行/列（空串）全为 0。`, 0);
+  const seen = new Set();
+  for (let i = 0; i <= n; i++) seen.add(i + ",0");     // 第 0 列是 base
+  for (let j = 0; j <= m; j++) seen.add("0," + j);     // 第 0 行是 base
+  // snap 时快照：未推导的格子置 null（留空）
+  const snap = (marks, desc, ans) => {
+    const grid = dp.map((row, i) => row.map((v, j) => seen.has(i + "," + j) ? v : null));
+    list.push({ render: () => renderTable(grid, marks, { rowHead, colHead }), desc, ans });
+  };
+  snap({}, `dp[i][j] = A 前 i 个与 B 前 j 个字符的 LCS 长度。第 0 行/列（空串）全为 0，其余逐格推导。`, 0);
   for (let i = 1; i <= n; i++) {
     for (let j = 1; j <= m; j++) {
+      if (A[i - 1] === B[j - 1]) dp[i][j] = dp[i - 1][j - 1] + 1;
+      else dp[i][j] = Math.max(dp[i - 1][j], dp[i][j - 1]);
+      seen.add(i + "," + j);
       if (A[i - 1] === B[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1] + 1;
         snap({ [i + "," + j]: "cur", [(i-1) + "," + (j-1)]: "src" }, `A[${i-1}]=${A[i-1]} == B[${j-1}]=${B[j-1]}：dp[${i}][${j}] = dp[${i-1}][${j-1}]+1 = ${dp[i][j]}（左上角+1）。`, dp[i][j]);
       } else {
-        const up = dp[i - 1][j], left = dp[i][j - 1];
-        dp[i][j] = Math.max(up, left);
-        snap({ [i + "," + j]: "cur", [(i-1) + "," + j]: "src", [i + "," + (j-1)]: "src" }, `A[${i-1}]=${A[i-1]} ≠ B[${j-1}]=${B[j-1]}：dp[${i}][${j}] = max(上 ${up}, 左 ${left}) = ${dp[i][j]}。`, dp[i][j]);
+        snap({ [i + "," + j]: "cur", [(i-1) + "," + j]: "src", [i + "," + (j-1)]: "src" }, `A[${i-1}]=${A[i-1]} ≠ B[${j-1}]=${B[j-1]}：dp[${i}][${j}] = max(上 ${dp[i-1][j]}, 左 ${dp[i][j-1]}) = ${dp[i][j]}。`, dp[i][j]);
       }
     }
   }
@@ -345,35 +365,45 @@ function buildKnap(mode) {
   const dp = Array.from({ length: n + 1 }, () => Array(W + 1).fill(0));
   const rowHead = ["无物品", ...WT.map((w, i) => `#${i+1}(w${w},v${VAL[i]}${mode==="multi"?",×"+CNT[i]:""})`)];
   const colHead = [...Array(W + 1).keys()];
-  const snap = (marks, desc, ans) => list.push({ render: () => renderTable(dp, marks, { rowHead, colHead }), desc, ans });
+  const seen = new Set();
+  for (let cap = 0; cap <= W; cap++) seen.add("0," + cap);   // 第 0 行是 base
+  // snap 时快照：未推导的格子置 null（留空）；答案显示为“已算区域”的当前值，未算完显示 -
+  const snap = (marks, desc, ans) => {
+    const grid = dp.map((row, i) => row.map((v, cap) => seen.has(i + "," + cap) ? v : null));
+    list.push({ render: () => renderTable(grid, marks, { rowHead, colHead }), desc, ans });
+  };
   const modeName = mode === "01" ? "01背包(每物品最多1个)" : mode === "full" ? "完全背包(每物品无限个)" : "多重背包(每物品限量)";
-  snap({}, `${modeName}：dp[i][w] = 前 i 件物品、容量 w 时的最大价值。第 0 行全为 0。`, 0);
+  snap({}, `${modeName}：dp[i][w] = 前 i 件物品、容量 w 时的最大价值。第 0 行全为 0，其余逐格推导。`, "-");
   for (let i = 1; i <= n; i++) {
     const w = WT[i - 1], v = VAL[i - 1];
     for (let cap = 0; cap <= W; cap++) {
       const notTake = dp[i - 1][cap];   // 不选第 i 件（来自上一行同列）
+      let desc, marks;
       if (cap < w) {
         dp[i][cap] = notTake;
-        snap({ [i + "," + cap]: "cur", [(i-1) + "," + cap]: "src" }, `容量 ${cap} &lt; 物品${i}重量 ${w}，放不下 → dp[${i}][${cap}] = dp[${i-1}][${cap}] = ${dp[i][cap]}。`, dp[n][W] || 0);
+        marks = { [i + "," + cap]: "cur", [(i-1) + "," + cap]: "src" };
+        desc = `容量 ${cap} &lt; 物品${i}重量 ${w}，放不下 → dp[${i}][${cap}] = dp[${i-1}][${cap}] = ${dp[i][cap]}。`;
       } else if (mode === "01") {
         const take = dp[i - 1][cap - w] + v;
         dp[i][cap] = Math.max(notTake, take);
-        snap({ [i + "," + cap]: "cur", [(i-1) + "," + cap]: "src", [(i-1) + "," + (cap-w)]: "src" },
-          `dp[${i}][${cap}] = max(不选 ${notTake}, 选 dp[${i-1}][${cap-w}]+${v}=${take}) = ${dp[i][cap]}。`, dp[n][W] || 0);
+        marks = { [i + "," + cap]: "cur", [(i-1) + "," + cap]: "src", [(i-1) + "," + (cap-w)]: "src" };
+        desc = `dp[${i}][${cap}] = max(不选 ${notTake}, 选 dp[${i-1}][${cap-w}]+${v}=${take}) = ${dp[i][cap]}。`;
       } else if (mode === "full") {
         const take = dp[i][cap - w] + v;   // 完全背包：从本行转移，可重复取
         dp[i][cap] = Math.max(notTake, take);
-        snap({ [i + "," + cap]: "cur", [(i-1) + "," + cap]: "src", [i + "," + (cap-w)]: "src" },
-          `完全背包 dp[${i}][${cap}] = max(不选 ${notTake}, 再放一个 dp[${i}][${cap-w}]+${v}=${take}) = ${dp[i][cap]}。`, dp[n][W] || 0);
+        marks = { [i + "," + cap]: "cur", [(i-1) + "," + cap]: "src", [i + "," + (cap-w)]: "src" };
+        desc = `完全背包 dp[${i}][${cap}] = max(不选 ${notTake}, 再放一个 dp[${i}][${cap-w}]+${v}=${take}) = ${dp[i][cap]}。`;
       } else {
         // 多重背包：枚举取 0~min(cnt, cap/w) 个
         const lim = CNT[i - 1], maxK = Math.min(lim, Math.floor(cap / w));
         let best = notTake, bestK = 0;
         for (let kk = 1; kk <= maxK; kk++) { const cand = dp[i - 1][cap - kk * w] + kk * v; if (cand > best) { best = cand; bestK = kk; } }
         dp[i][cap] = best;
-        snap({ [i + "," + cap]: "cur", [(i-1) + "," + cap]: "src" },
-          `多重背包 dp[${i}][${cap}]：枚举取 0~${maxK} 个物品${i}，最优取 ${bestK} 个 → ${best}。`, dp[n][W] || 0);
+        marks = { [i + "," + cap]: "cur", [(i-1) + "," + cap]: "src" };
+        desc = `多重背包 dp[${i}][${cap}]：枚举取 0~${maxK} 个物品${i}，最优取 ${bestK} 个 → ${best}。`;
       }
+      seen.add(i + "," + cap);   // 本格已推导，先算后标记，再快照
+      snap(marks, desc, "-");    // 过程中不提前泄露最终答案
     }
   }
   snap({ [n + "," + W]: "best" }, `完成！最大价值 = dp[${n}][${W}] = <b>${dp[n][W]}</b>。`, dp[n][W]);
