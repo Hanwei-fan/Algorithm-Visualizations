@@ -79,6 +79,8 @@
   }
   svg { width: 100%; height: auto; display: block; }
   .edge { stroke: #4a4478; stroke-width: 2; transition: all .2s; }
+  .edge.down { stroke: var(--magenta); stroke-width: 3; filter: drop-shadow(0 0 6px rgba(255,43,214,.7)); }
+  .edge.up { stroke: #ff7a45; stroke-width: 3; filter: drop-shadow(0 0 6px rgba(255,122,69,.7)); }
   .bnode circle { fill: rgba(0,240,255,0.06); stroke: var(--border); stroke-width: 2; transition: all .2s; }
   .bnode text { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; }
   .bnode.path circle { fill: rgba(255,212,0,0.18); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.5)); }
@@ -88,6 +90,14 @@
   .bnode.succ circle { fill: rgba(160,107,255,0.25); stroke: #a06bff; filter: drop-shadow(0 0 10px rgba(160,107,255,.7)); }
   .bnode.newn circle { fill: var(--green); stroke: var(--green); filter: drop-shadow(0 0 14px rgba(0,255,156,.8)); }
   .bnode.newn text { fill: #05201a; }
+  /* 遍历三态：与树遍历一致 —— 进入(active/品红)、访问(visit/黄)、回溯(back/橙)、已访问(done/绿) */
+  .bnode.active circle { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 12px rgba(255,43,214,.8)); }
+  .bnode.active text { fill: #fff; }
+  .bnode.visit circle { fill: var(--yellow); stroke: var(--yellow); filter: drop-shadow(0 0 10px rgba(255,212,0,.8)); }
+  .bnode.visit text { fill: #120e00; }
+  .bnode.back circle { fill: rgba(255,122,69,0.22); stroke: #ff7a45; filter: drop-shadow(0 0 12px rgba(255,122,69,.8)); }
+  .bnode.back text { fill: #fff; }
+  .bnode.done circle { fill: rgba(0,255,156,0.18); stroke: var(--green); }
   /* 右栏 */
   .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
   .seqlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 12px 0 8px; }
@@ -141,9 +151,10 @@
   <section class="card">
     <svg id="tree" viewBox="0 0 680 420" preserveAspectRatio="xMidYMid meet"></svg>
     <div class="tlegend">
-      <span><i class="dot" style="background:#ffd400"></i>已走过的比较路径</span>
-      <span><i class="dot" style="background:#ff2bd6"></i>当前比较节点</span>
-      <span><i class="dot" style="background:#00ff9c"></i>命中/新插入</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>当前比较/进入</span>
+      <span><i class="dot" style="background:#ffd400"></i>访问节点</span>
+      <span><i class="dot" style="background:#ff7a45"></i>回溯返回</span>
+      <span><i class="dot" style="background:#00ff9c"></i>命中/新插入/已访问</span>
       <span><i class="dot" style="background:#a06bff"></i>后继(删除用)</span>
     </div>
   </section>
@@ -200,15 +211,15 @@ function treeSize(nd) { return nd ? 1 + treeSize(nd.left) + treeSize(nd.right) :
 function treeHeight(nd) { return nd ? 1 + Math.max(treeHeight(nd.left), treeHeight(nd.right)) : 0; }
 
 // ---- 渲染 ----
-// marks: id -> class
-function render(marks = {}) {
+// marks: 节点 id -> class；edgeMarks: 子节点 id -> "down"/"up"（边高亮）
+function render(marks = {}, edgeMarks = {}) {
   const svg = $("tree");
   const { nodes } = layout();
   let edges = "", circles = "";
   nodes.forEach(nd => {
     ["left", "right"].forEach(side => {
       const c = nd[side];
-      if (c) edges += `<line class="edge" x1="${nd.x}" y1="${nd.y}" x2="${c.x}" y2="${c.y}"/>`;
+      if (c) { const ec = edgeMarks[c.id] ? " " + edgeMarks[c.id] : ""; edges += `<line class="edge${ec}" x1="${nd.x}" y1="${nd.y}" x2="${c.x}" y2="${c.y}"/>`; }
     });
   });
   nodes.forEach(nd => {
@@ -243,7 +254,7 @@ function loadSteps(list, auto = false) {
 function applyStep(i) {
   const s = steps[i];
   if (s.mutate) s.mutate();
-  render(s.marks || {});
+  render(s.marks || {}, s.edgeMarks || {});
   if (s.seq !== undefined) $("sequence").innerHTML = s.seq.map(v => `<div class="chip">${v}</div>`).join("");
   setStatus(s.desc);
 }
@@ -365,15 +376,53 @@ function buildDelete(val) {
   return buildFromSnaps(list);
 }
 
-// 中序遍历
+// 中序遍历：与「二叉树遍历」演示一致 —— 进入(enter)→访问(visit)→回溯(leave) 三态，
+// 下探边品红、回溯边橙色，已访问节点保持绿色，右侧同步追加访问序列。
 function buildInorder() {
-  const order = [];
-  (function go(nd) { if (!nd) return; go(nd.left); order.push(nd); go(nd.right); })(root);
-  if (order.length === 0) return [{ marks: {}, desc: "空树，无可遍历节点。" }];
+  if (root === null) return [{ marks: {}, desc: "空树，无可遍历节点。" }];
+  // 父节点映射，用于高亮“进入/回溯”对应的边（边按子节点 id 标识）
+  const parent = {};
+  (function mp(nd) { if (!nd) return; if (nd.left) { parent[nd.left.id] = nd; mp(nd.left); } if (nd.right) { parent[nd.right.id] = nd; mp(nd.right); } })(root);
+
+  // 先生成 enter/visit/leave 事件序列
+  const ev = [];
+  (function go(nd) {
+    if (!nd) return;
+    ev.push({ kind: "enter", nd });
+    go(nd.left);
+    ev.push({ kind: "visit", nd });
+    go(nd.right);
+    ev.push({ kind: "leave", nd });
+  })(root);
+
+  // 逐事件构建步骤：已 visit 过的节点标 done，当前节点按 kind 着色
   const list = [];
-  const seq = [];
-  order.forEach(nd => { seq.push(nd.val); list.push({ marks: { [nd.id]: "cur" }, seq: [...seq], desc: `中序访问 ${nd.val}` }); });
-  list.push({ marks: {}, seq: [...seq], desc: `中序遍历完成，升序序列：${seq.join(" ")}` });
+  const visited = [];      // 已访问节点 id
+  const seq = [];          // 访问值序列
+  ev.forEach(e => {
+    const marks = {};
+    visited.forEach(id => marks[id] = "done");
+    const edgeMarks = {};
+    const p = parent[e.nd.id];
+    if (e.kind === "enter") {
+      marks[e.nd.id] = "active";
+      if (p) edgeMarks[e.nd.id] = "down";
+      list.push({ marks, edgeMarks, seq: [...seq], desc: p ? `从 ${p.val} 递归进入节点 ${e.nd.val}` : `进入根节点 ${e.nd.val}` });
+    } else if (e.kind === "visit") {
+      marks[e.nd.id] = "visit";
+      seq.push(e.nd.val);
+      list.push({ marks, seq: [...seq], desc: `访问节点 ${e.nd.val}（左子树已处理完）` });
+      visited.push(e.nd.id);
+    } else {  // leave
+      marks[e.nd.id] = "back";
+      if (p) edgeMarks[e.nd.id] = "up";
+      list.push({ marks, seq: [...seq], desc: p ? `节点 ${e.nd.val} 处理完毕，回溯到 ${p.val}` : `根节点 ${e.nd.val} 处理完毕，遍历结束` });
+    }
+  });
+  // 收尾：全部标为已访问
+  const finalMarks = {};
+  visited.forEach(id => finalMarks[id] = "done");
+  list.push({ marks: finalMarks, seq: [...seq], desc: `中序遍历完成，升序序列：${seq.join(" ")}` });
   return list;
 }
 
