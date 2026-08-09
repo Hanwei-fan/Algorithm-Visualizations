@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>并查集演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .subtabs { display: flex; align-items: center; gap: 10px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .sublabel { font-size: 12px; color: var(--muted); letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace; }
+  .subtab {
+    padding: 8px 16px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 13px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .subtab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .subtab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 70px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 16px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.ghost { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.ghost:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  svg { width: 100%; height: auto; display: block; }
+  .edge { stroke: #6b64a0; stroke-width: 2; transition: all .2s; }
+  .edge.up { stroke: var(--cyan); stroke-width: 3.5; filter: drop-shadow(0 0 6px rgba(0,240,255,.7)); }
+  .edge.new { stroke: var(--green); stroke-width: 3.5; filter: drop-shadow(0 0 6px rgba(0,255,156,.7)); }
+  .edge.compress { stroke: var(--magenta); stroke-width: 3; stroke-dasharray: 5 3; filter: drop-shadow(0 0 6px rgba(255,43,214,.7)); }
+  .unode circle { fill: rgba(0,240,255,0.06); stroke: var(--border); stroke-width: 2; transition: all .2s; }
+  .unode text.val { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; }
+  .unode text.rk { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 10px; }
+  .unode.root circle { stroke: var(--yellow); stroke-width: 3; }
+  .unode.cur circle { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 12px rgba(255,43,214,.8)); }
+  .unode.cur text.val { fill: #fff; }
+  .unode.path circle { fill: rgba(255,212,0,0.2); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.5)); }
+  .unode.found circle { fill: rgba(0,255,156,0.25); stroke: var(--green); filter: drop-shadow(0 0 10px rgba(0,255,156,.7)); }
+  /* parent 数组 */
+  .arrlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 14px 0 8px; }
+  .arr { display: flex; gap: 5px; flex-wrap: wrap; }
+  .acell { display: flex; flex-direction: column; align-items: center; gap: 3px; font-family: "SF Mono", Menlo, monospace; }
+  .acell .box {
+    min-width: 34px; height: 36px; padding: 0 5px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 5px; background: rgba(0,240,255,0.04);
+    font-size: 14px; font-weight: 700; transition: all .15s;
+  }
+  .acell .ix { font-size: 10px; color: var(--muted); }
+  .acell.cur .box { background: var(--magenta); border-color: var(--magenta); color: #fff; }
+  .acell.path .box { background: rgba(255,212,0,0.2); border-color: var(--yellow); color: var(--yellow); }
+  .acell.found .box { background: rgba(0,255,156,0.2); border-color: var(--green); color: var(--green); }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: #8fb8c9; margin: 0 0 16px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .status { margin-top: 10px; font-size: 15px; min-height: 44px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .tlegend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tlegend .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .tlegend .bar { width: 18px; height: 4px; border-radius: 2px; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>并查集演示 (Union-Find)</h1>
+  <p>维护若干不相交集合，支持合并两个集合、查询两元素是否同集合。用森林表示：每个集合是一棵树，根是代表元。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="subtabs">
+  <span class="sublabel">优化：</span>
+  <button class="subtab active" data-opt="both">路径压缩 + 按秩合并</button>
+  <button class="subtab" data-opt="none">朴素（无优化）</button>
+</div>
+
+<div class="controls">
+  <div class="field"><label>元素 x</label><input id="xInput" type="number" placeholder="x"></div>
+  <div class="field"><label>元素 y</label><input id="yInput" type="number" placeholder="y"></div>
+  <button class="btn" id="unionBtn">合并 union(x,y)</button>
+  <button class="btn cy" id="findBtn">查找 find(x)</button>
+  <button class="btn cy" id="sameBtn">同集合? (x,y)</button>
+  <div class="field"><label>元素个数 n</label><input id="nInput" type="number" value="8" min="1" max="12"></div>
+  <button class="btn ghost" id="resetBtn">重置</button>
+  <button class="btn ghost" id="randBtn">随机合并</button>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1100" value="550" step="50"></div>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+</div>
+
+<main>
+  <section class="card">
+    <svg id="forest" viewBox="0 0 680 360" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="arrlabel">parent 数组（每个元素的父亲；根指向自己）</div>
+    <div class="arr" id="arr"></div>
+    <div class="tlegend">
+      <span><i class="dot" style="background:#ffd400"></i>代表元(根)/查找路径</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>当前元素</span>
+      <span><i class="dot" style="background:#00ff9c"></i>找到的根</span>
+      <span><i class="bar" style="background:#ff2bd6"></i>路径压缩改的边</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel">核心操作</div>
+    <div class="formula" id="formula"></div>
+    <div class="plabel">集合数</div>
+    <div style="font-family:'SF Mono',monospace;font-size:20px;color:var(--yellow);text-shadow:0 0 12px rgba(255,212,0,.6)"><span id="setCount">-</span> 个</div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let parent = [], rank_ = [], N = 8;
+let opt = "both";   // both / none
+let steps = [], idx = 0, timer = null, running = false;
+
+function setStatus(t) { $("status").innerHTML = t; }
+
+// ======== 渲染：森林 SVG + parent 数组 ========
+// marks[i]=class（节点着色）；edgeMarks[i]=class（i→parent[i] 的边）
+function render(marks = {}, edgeMarks = {}) {
+  const svg = $("forest");
+  // 计算每个节点深度（到根的距离）与所属根，用于分层布局
+  const rootOf = i => { while (parent[i] !== i) i = parent[i]; return i; };
+  const depthOf = i => { let d = 0; while (parent[i] !== i) { i = parent[i]; d++; } return d; };
+  // 按根分组
+  const groups = {};
+  for (let i = 0; i < N; i++) { const r = rootOf(i); (groups[r] = groups[r] || []).push(i); }
+  const roots = Object.keys(groups).map(Number).sort((a, b) => a - b);
+  // 每棵树占一列区间；节点按深度分层、同层平铺
+  const W = 680, colGap = W / roots.length;
+  const pos = [];
+  let maxDepth = 0; for (let i = 0; i < N; i++) maxDepth = Math.max(maxDepth, depthOf(i));
+  const dy = Math.min(75, 300 / Math.max(maxDepth, 1));
+  roots.forEach((r, ci) => {
+    const members = groups[r];
+    // 按深度分层
+    const byDepth = {};
+    members.forEach(i => { const d = depthOf(i); (byDepth[d] = byDepth[d] || []).push(i); });
+    const cx = colGap * (ci + 0.5);
+    Object.keys(byDepth).forEach(d => {
+      const arr = byDepth[d].sort((a, b) => a - b);
+      arr.forEach((i, k) => {
+        const spread = Math.min(colGap * 0.8, 44 * arr.length);
+        const x = arr.length === 1 ? cx : cx - spread / 2 + spread * k / (arr.length - 1);
+        pos[i] = { x, y: 34 + d * dy };
+      });
+    });
+  });
+  let edges = "", nodes = "";
+  for (let i = 0; i < N; i++) {
+    if (parent[i] !== i) {
+      const p = parent[i];
+      const ec = edgeMarks[i] ? " " + edgeMarks[i] : "";
+      edges += `<line class="edge${ec}" x1="${pos[i].x}" y1="${pos[i].y}" x2="${pos[p].x}" y2="${pos[p].y}"/>`;
+    }
+  }
+  for (let i = 0; i < N; i++) {
+    const isRoot = parent[i] === i;
+    let cls = "unode" + (isRoot ? " root" : "") + (marks[i] ? " " + marks[i] : "");
+    nodes += `<g class="${cls}"><circle cx="${pos[i].x}" cy="${pos[i].y}" r="17"/>`
+      + `<text class="val" x="${pos[i].x}" y="${pos[i].y+5}" text-anchor="middle">${i}</text>`;
+    if (isRoot && opt === "both") nodes += `<text class="rk" x="${pos[i].x}" y="${pos[i].y-20}" text-anchor="middle">rank=${rank_[i]}</text>`;
+    nodes += `</g>`;
+  }
+  svg.innerHTML = edges + nodes;
+  // parent 数组
+  $("arr").innerHTML = parent.map((p, i) =>
+    `<div class="acell ${marks[i] || ""}"><div class="box">${p}</div><div class="ix">${i}</div></div>`).join("");
+  // 集合数
+  const rootsSet = new Set(); for (let i = 0; i < N; i++) rootsSet.add(rootOf(i));
+  $("setCount").textContent = rootsSet.size;
+}
+
+// ======== 单步引擎 ========
+function loadSteps(list) {
+  steps = list; idx = 0; running = true;
+  lockOps(true);
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  applyStep(0);
+  if (steps.length <= 1) endRun();
+}
+function applyStep(i) {
+  const s = steps[i];
+  if (s.mutate) s.mutate();
+  render(s.marks || {}, s.edgeMarks || {});
+  setStatus(s.desc);
+}
+function stepOnce() { if (!running) return false; if (idx < steps.length - 1) { idx++; applyStep(idx); } if (idx >= steps.length - 1) endRun(); return true; }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; lockOps(false); }
+function playAll() { if (!running) return; stopTimer(); const spd = 1200 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; applyStep(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+function lockOps(v) { ["unionBtn","findBtn","sameBtn","resetBtn","randBtn"].forEach(id => $(id).disabled = v); }
+
+// ======== 逻辑：find / union，生成分步 ========
+// 纯 find（不产生步骤，用于内部）
+function findRaw(x) { while (parent[x] !== x) x = parent[x]; return x; }
+
+// 生成 find(x) 的步骤；compress 决定是否路径压缩。回调返回根。
+function pushFind(list, x, label) {
+  const path = [x];
+  let cur = x;
+  list.push({ marks: { [x]: "cur" }, desc: `${label}find(${x})：从 ${x} 出发沿 parent 向上找根。` });
+  while (parent[cur] !== cur) {
+    const nxt = parent[cur];
+    const pm = {}; path.forEach(p => pm[p] = "path"); pm[cur] = "cur";
+    list.push({ marks: pm, edgeMarks: { [cur]: "up" }, desc: `parent[${cur}] = ${nxt}，继续向上。` });
+    cur = nxt; path.push(cur);
+  }
+  const root = cur;
+  const fm = {}; path.forEach(p => fm[p] = "path"); fm[root] = "found";
+  list.push({ marks: fm, desc: `${root} 的 parent 是自己 → 它是根（代表元）。` });
+  // 路径压缩：把路径上所有点直接挂到根
+  if (opt === "both") {
+    const toCompress = path.filter(p => p !== root && parent[p] !== root);
+    if (toCompress.length) {
+      const em = {}; toCompress.forEach(p => em[p] = "compress");
+      const fm2 = {}; path.forEach(p => fm2[p] = "path"); fm2[root] = "found";
+      list.push({ mutate: () => { toCompress.forEach(p => parent[p] = root); },
+        edgeMarks: em, marks: fm2, desc: `路径压缩：把路径上 [${toCompress.join(", ")}] 直接指向根 ${root}，下次更快。` });
+    }
+  }
+  return root;
+}
+
+function buildFind(x) {
+  const list = [{ marks: { [x]: "cur" }, desc: `查找 ${x} 所在集合的代表元。` }];
+  pushFind(list, x, "");
+  return list;
+}
+
+function buildSame(x, y) {
+  const list = [{ marks: { [x]: "cur", [y]: "cur" }, desc: `判断 ${x} 与 ${y} 是否在同一集合：分别 find 后比较根。` }];
+  const rx = pushFind(list, x, `x：`);
+  const ry = pushFind(list, y, `y：`);
+  list.push({ marks: { [rx]: "found", [ry]: "found" }, desc: rx === ry
+    ? `两者的根都是 ${rx} → <b style="color:var(--green)">在同一集合</b>。`
+    : `根不同（${rx} ≠ ${ry}）→ <b style="color:var(--magenta)">不在同一集合</b>。` });
+  return list;
+}
+
+function buildUnion(x, y) {
+  const list = [{ marks: { [x]: "cur", [y]: "cur" }, desc: `合并 ${x} 与 ${y} 所在集合：先各自 find 根。` }];
+  const rx = pushFind(list, x, `x：`);
+  const ry = pushFind(list, y, `y：`);
+  if (rx === ry) {
+    list.push({ marks: { [rx]: "found" }, desc: `两者已在同一集合（根都是 ${rx}），无需合并。` });
+    return list;
+  }
+  if (opt === "both") {
+    // 按秩合并：矮树挂到高树
+    let a = rx, b = ry;
+    if (rank_[a] < rank_[b]) [a, b] = [b, a];   // a 秩不小于 b，b 挂到 a
+    const doRankInc = rank_[a] === rank_[b];
+    list.push({ mutate: () => { parent[b] = a; if (doRankInc) rank_[a]++; },
+      edgeMarks: { [b]: "new" }, marks: { [a]: "found", [b]: "cur" },
+      desc: `按秩合并：rank[${rx}]=${rank_[rx]}, rank[${ry}]=${rank_[ry]}，把秩较小的根 ${b} 挂到 ${a} 下${doRankInc ? `（秩相等，${a} 的 rank+1）` : ""}。` });
+  } else {
+    list.push({ mutate: () => { parent[ry] = rx; },
+      edgeMarks: { [ry]: "new" }, marks: { [rx]: "found", [ry]: "cur" },
+      desc: `朴素合并：直接把根 ${ry} 挂到根 ${rx} 下（可能让树变高）。` });
+  }
+  return list;
+}
+
+// ======== 交互 ========
+function readXY() {
+  const x = parseInt($("xInput").value, 10), y = parseInt($("yInput").value, 10);
+  return { x, y };
+}
+function validIdx(v) { return Number.isInteger(v) && v >= 0 && v < N; }
+function opGuard() { return !running; }
+
+$("unionBtn").onclick = () => { if (!opGuard()) return; const { x, y } = readXY(); if (!validIdx(x) || !validIdx(y)) { setStatus(`请输入 0~${N-1} 的元素 x 和 y。`); return; } loadSteps(buildUnion(x, y)); };
+$("findBtn").onclick = () => { if (!opGuard()) return; const x = parseInt($("xInput").value, 10); if (!validIdx(x)) { setStatus(`请输入 0~${N-1} 的元素 x。`); return; } loadSteps(buildFind(x)); };
+$("sameBtn").onclick = () => { if (!opGuard()) return; const { x, y } = readXY(); if (!validIdx(x) || !validIdx(y)) { setStatus(`请输入 0~${N-1} 的元素 x 和 y。`); return; } loadSteps(buildSame(x, y)); };
+$("resetBtn").onclick = () => { if (running) return; initSets(); };
+$("randBtn").onclick = () => {
+  if (running) return;
+  // 随机做几次合并（直接执行，不分步），便于观察结构
+  const times = 2 + Math.floor(Math.random() * 3);
+  for (let t = 0; t < times; t++) {
+    const x = Math.floor(Math.random() * N), y = Math.floor(Math.random() * N);
+    const rx = findRaw(x), ry = findRaw(y);
+    if (rx === ry) continue;
+    if (opt === "both") { let a = rx, b = ry; if (rank_[a] < rank_[b]) [a, b] = [b, a]; parent[b] = a; if (rank_[a] === rank_[b]) rank_[a]++; }
+    else parent[ry] = rx;
+  }
+  render(); setStatus(`随机合并了几次，观察当前森林。`);
+};
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("playBtn").onclick = () => playAll();
+
+function initSets() {
+  N = Math.max(1, Math.min(12, parseInt($("nInput").value, 10) || 8));
+  $("nInput").value = N;
+  parent = Array.from({ length: N }, (_, i) => i);
+  rank_ = Array(N).fill(0);
+  render();
+  setStatus(`初始化 ${N} 个元素，各自成一个集合（parent[i]=i）。输入 x、y 试试合并/查找。`);
+}
+
+function applyOpt(o) {
+  opt = o; stopTimer(); running = false;
+  document.querySelectorAll(".subtab").forEach(b => b.classList.toggle("active", b.dataset.opt === o));
+  $("formula").innerHTML = o === "both"
+    ? `find(x)：沿 parent 上溯到根；<b>路径压缩</b>——把路径上所有点直接挂到根。<br>union(x,y)：<b>按秩合并</b>——矮树的根挂到高树的根下，秩相等时新根 rank+1。<br>两者结合近乎 O(1)（反阿克曼 α）。`
+    : `find(x)：沿 parent 一路上溯到根。<br>union(x,y)：直接把一个根挂到另一个根下。<br>无优化时树可能退化成链，单次操作最坏 O(n)。`;
+  $("note").innerHTML = o === "both"
+    ? "路径压缩让查找路径上的节点“抄近路”直接连根；按秩合并避免矮树拉高整体。两者配合，均摊复杂度接近常数。"
+    : "朴素并查集不做任何优化，容易形成高树甚至链，效率低——用来对比优化的价值。";
+  initSets();
+}
+
+document.querySelectorAll(".subtab").forEach(b => b.onclick = () => applyOpt(b.dataset.opt));
+
+applyOpt("both");
+</script>
+</body>
+</html>
