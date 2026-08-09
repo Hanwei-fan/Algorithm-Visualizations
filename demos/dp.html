@@ -127,6 +127,24 @@
   .tlegend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--muted); justify-content: center; }
   .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
   .tlegend .dot { width: 12px; height: 12px; border-radius: 3px; }
+  /* 数塔：绝对定位格子 + 平滑变形（居中三角 → 左对齐下三角）*/
+  .tower-wrap { position: relative; margin: 4px auto 0; }
+  .tcell {
+    position: absolute; width: 56px; height: 52px; box-sizing: border-box;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 6px; background: rgba(0,240,255,0.04);
+    font-family: "SF Mono", Menlo, monospace;
+    transition: left .5s cubic-bezier(.4,0,.2,1), top .5s cubic-bezier(.4,0,.2,1), background .15s, box-shadow .15s, border-color .15s;
+  }
+  .tcell .v { font-size: 16px; font-weight: 700; color: var(--text); }
+  .tcell .d { font-size: 10px; }
+  .tcell.filled { background: rgba(0,240,255,0.08); }
+  .tcell.cur { background: var(--yellow); box-shadow: 0 0 14px rgba(255,212,0,.7); }
+  .tcell.cur .v { color: #120e00; }
+  .tcell.src { background: rgba(255,43,214,0.28); box-shadow: 0 0 10px rgba(255,43,214,.5); border-color: var(--magenta); }
+  .tcell.best { background: rgba(0,255,156,0.25); box-shadow: 0 0 12px rgba(0,255,156,.5); border-color: var(--green); }
+  .tcell.best .v { color: var(--green); }
+  .tri-hint { text-align: center; font-size: 12px; color: var(--muted); margin-top: 8px; font-family: "SF Mono", Menlo, monospace; min-height: 16px; }
 </style>
 </head>
 <body>
@@ -282,25 +300,40 @@ function renderTwoSeq(ci, cj, match) {
     rowHtml("序列 B", B, cj, "cyan");
 }
 
-// 数塔渲染：tri 原始三角、dp 三角(null=未算)，marks["r,c"]=class
-function renderTower(tri, dp, marks) {
-  let html = '<div style="display:flex;flex-direction:column;align-items:center;gap:10px">';
-  tri.forEach((row, r) => {
-    html += '<div style="display:flex;gap:10px;justify-content:center">';
-    row.forEach((v, c) => {
-      const cls = marks[r + "," + c] || "";
-      const d = dp[r][c];
-      const dTxt = (d === null || d === undefined) ? "" : d;
-      html += `<div class="cell ${cls}" style="width:56px;height:52px">`
-        + `<div class="v">${v}</div>`
-        + `<div class="ix" style="color:${dTxt===""?"var(--muted)":"var(--green)"}">${dTxt===""?"·":"dp="+dTxt}</div>`
-        + `</div>`;
-    });
-    html += '</div>';
-  });
-  html += '</div>';
-  $("seqArea").innerHTML = html;
-  $("tableArea").innerHTML = "";
+// 数塔渲染：格子持久化 + 绝对定位，layout="tri"(居中三角) / "lower"(左对齐下三角)，
+// 布局变化时靠 CSS transition 平滑移动。marks["r,c"]=class，hint 为下方提示文字。
+const STEP_X = 66, STEP_Y = 62;   // 格子间距（含间隙）
+function renderTower(tri, dp, marks, layout, hint) {
+  const R = tri.length;
+  const maxW = R * STEP_X - 10;   // 最宽行（底行）宽度
+  let wrap = document.getElementById("tower-wrap");
+  // 结构不存在或规模变了 → 重建所有格子
+  const need = tri.reduce((s, row) => s + row.length, 0);
+  if (!wrap || +wrap.dataset.count !== need) {
+    $("tableArea").innerHTML = "";
+    let html = `<div class="tower-wrap" id="tower-wrap" data-count="${need}" style="width:${maxW}px;height:${R*STEP_Y}px">`;
+    tri.forEach((row, r) => row.forEach((v, c) => {
+      html += `<div class="tcell" id="tc-${r}-${c}"><div class="v">${v}</div><div class="d"></div></div>`;
+    }));
+    html += `</div><div class="tri-hint" id="tri-hint"></div>`;
+    $("seqArea").innerHTML = html;
+  }
+  // 更新每个格子的位置、着色、dp 文本
+  tri.forEach((row, r) => row.forEach((v, c) => {
+    const el = document.getElementById(`tc-${r}-${c}`);
+    if (!el) return;
+    const rowW = row.length * STEP_X - 10;
+    const left = layout === "lower" ? c * STEP_X : (maxW - rowW) / 2 + c * STEP_X;
+    el.style.left = left + "px";
+    el.style.top = r * STEP_Y + "px";
+    el.className = "tcell" + (marks[r + "," + c] ? " " + marks[r + "," + c] : "");
+    const d = dp[r][c];
+    const dEl = el.querySelector(".d");
+    if (d === null || d === undefined) { dEl.textContent = "·"; dEl.style.color = "var(--muted)"; }
+    else { dEl.textContent = "dp=" + d; dEl.style.color = "var(--green)"; }
+  }));
+  const hintEl = document.getElementById("tri-hint");
+  if (hintEl) hintEl.textContent = hint || "";
 }
 
 // ======== 各 DP：构建 steps ========
@@ -454,43 +487,50 @@ function buildKnap(mode) {
 function buildTower() {
   const R = TRI.length, list = [];
   const dp = TRI.map(row => row.map(() => null));
-  const snap = (marks, desc, ans) => {
+  // layout: "tri"(居中三角) / "lower"(左对齐下三角)；hint: 下方提示
+  const snap = (marks, desc, ans, layout, hint) => {
     const dpCopy = dp.map(row => [...row]);
-    list.push({ render: () => renderTower(TRI, dpCopy, marks), desc, ans });
+    list.push({ render: () => renderTower(TRI, dpCopy, marks, layout, hint), desc, ans });
   };
-  snap({}, `数塔：从顶到底选一条路径，每步走向下方相邻的两个数之一，使路径和最大。dp[i][j] = 从顶部走到 (i,j) 的最大路径和，自顶向下推。`, "-");
-  // 顶部：dp = 本身
+  // ① 先展示居中三角形
+  snap({}, `数塔：从顶到底选一条路径，每步走向下方相邻的两个数之一，使路径和最大。`, "-", "tri",
+    "这是题目给的三角形（居中显示）");
+  // ② 变形为左对齐下三角 —— 对应代码里的二维数组 a[i][j]
+  snap({}, `写代码时用二维数组存它：第 i 行放 i+1 个数、左对齐。把三角形“推平”成下三角矩阵 a[i][j]。`, "-", "lower",
+    "左对齐下三角：a[i][j]，第 i 行有 j=0..i");
+  snap({}, `现在 (i,j) 的上方两个父格就是 a[i-1][j-1] 和 a[i-1][j]（下三角里正上方与左上方）。开始自顶向下计算 dp。`, "-", "lower",
+    "dp[i][j] = a[i][j] + max(a[i-1][j-1], a[i-1][j])");
+  // ③ 顶部
   dp[0][0] = TRI[0][0];
-  snap({ "0,0": "filled" }, `顶点 dp[0][0] = a[0][0] = ${TRI[0][0]}（路径起点）。`, "-");
-  // 自顶向下
+  snap({ "0,0": "filled" }, `顶点 dp[0][0] = a[0][0] = ${TRI[0][0]}（路径起点）。`, "-", "lower", "");
+  // ④ 自顶向下（下三角布局）
   for (let i = 1; i < R; i++) {
     for (let j = 0; j < TRI[i].length; j++) {
-      // (i,j) 只能从上一行的 (i-1,j-1) 或 (i-1,j) 走下来；边界格只有一个来源
-      const fromLeft = j - 1 >= 0 ? dp[i - 1][j - 1] : null;      // 上左（父）
-      const fromRight = j <= TRI[i - 1].length - 1 ? dp[i - 1][j] : null;  // 上右（父）
+      const fromLeft = j - 1 >= 0 ? dp[i - 1][j - 1] : null;              // 左上父 a[i-1][j-1]
+      const fromRight = j <= TRI[i - 1].length - 1 ? dp[i - 1][j] : null; // 正上父 a[i-1][j]
       let best, marks, srcDesc;
       if (fromLeft !== null && fromRight !== null) {
         best = Math.max(fromLeft, fromRight);
         marks = { [i + "," + j]: "cur", [(i-1) + "," + (j-1)]: "src", [(i-1) + "," + j]: "src" };
-        srcDesc = `max(上左 ${fromLeft}, 上右 ${fromRight}) = ${best}`;
-      } else if (fromRight !== null) {   // j === 0，只有上右(正上方 j)
+        srcDesc = `max(左上 dp[${i-1}][${j-1}]=${fromLeft}, 正上 dp[${i-1}][${j}]=${fromRight}) = ${best}`;
+      } else if (fromRight !== null) {   // j === 0，只有正上方
         best = fromRight;
         marks = { [i + "," + j]: "cur", [(i-1) + "," + j]: "src" };
-        srcDesc = `只能从上方 dp[${i-1}][${j}] = ${best} 走来（最左格）`;
-      } else {   // j === i，只有上左(j-1)
+        srcDesc = `只能从正上方 dp[${i-1}][${j}] = ${best} 走来（每行第 0 列）`;
+      } else {   // j === i，只有左上方
         best = fromLeft;
         marks = { [i + "," + j]: "cur", [(i-1) + "," + (j-1)]: "src" };
-        srcDesc = `只能从上方 dp[${i-1}][${j-1}] = ${best} 走来（最右格）`;
+        srcDesc = `只能从左上方 dp[${i-1}][${j-1}] = ${best} 走来（每行末列）`;
       }
       dp[i][j] = TRI[i][j] + best;
-      snap(marks, `dp[${i}][${j}] = a[${i}][${j}](${TRI[i][j]}) + ${srcDesc} = ${dp[i][j]}。`, "-");
+      snap(marks, `dp[${i}][${j}] = a[${i}][${j}](${TRI[i][j]}) + ${srcDesc} = ${dp[i][j]}。`, "-", "lower", "");
     }
   }
   // 答案：最底行最大值
   const bottom = dp[R - 1];
   let ans = bottom[0], bj = 0;
   for (let j = 1; j < bottom.length; j++) if (bottom[j] > ans) { ans = bottom[j]; bj = j; }
-  snap({ [(R-1) + "," + bj]: "best" }, `完成！答案 = 最底行的最大值 = dp[${R-1}][${bj}] = <b>${ans}</b>。`, ans);
+  snap({ [(R-1) + "," + bj]: "best" }, `完成！答案 = 最底行的最大值 = dp[${R-1}][${bj}] = <b>${ans}</b>。`, ans, "lower", "");
   return list;
 }
 
