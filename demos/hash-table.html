@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>哈希表演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .subtabs { display: flex; align-items: center; gap: 10px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .sublabel { font-size: 12px; color: var(--muted); letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace; }
+  .subtab {
+    padding: 8px 16px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 13px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .subtab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .subtab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 80px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 16px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.ghost { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.ghost:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  /* 哈希桶表格 */
+  .buckets { display: flex; flex-direction: column; gap: 6px; }
+  .brow { display: flex; align-items: center; gap: 10px; }
+  .bidx {
+    min-width: 54px; height: 40px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 6px; background: rgba(0,240,255,0.05);
+    color: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 14px;
+    transition: all .18s;
+  }
+  .brow.cur .bidx { border-color: var(--yellow); background: rgba(255,212,0,0.18); color: var(--yellow); box-shadow: 0 0 10px rgba(255,212,0,.5); }
+  .bslots { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .chain-arrow { color: var(--muted); font-size: 14px; }
+  .slot {
+    min-width: 42px; height: 40px; padding: 0 8px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 6px; background: rgba(0,240,255,0.06);
+    color: var(--text); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 15px;
+    transition: all .18s;
+  }
+  .slot.empty { color: var(--muted); border-style: dashed; background: transparent; }
+  .slot.probe { border-color: var(--yellow); background: rgba(255,212,0,0.2); color: var(--yellow); box-shadow: 0 0 10px rgba(255,212,0,.5); }
+  .slot.hit { border-color: var(--green); background: rgba(0,255,156,0.22); color: var(--green); box-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .slot.newn { border-color: var(--magenta); background: rgba(255,43,214,0.24); color: #fff; box-shadow: 0 0 12px rgba(255,43,214,.6); }
+  .slot.tomb { color: var(--muted); border-color: #55506e; text-decoration: line-through; }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: #8fb8c9; margin: 0 0 16px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .stats { display: flex; gap: 22px; font-size: 14px; align-items: baseline; margin-bottom: 6px; }
+  .stats b { font-size: 20px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(255,212,0,.6); }
+  .status { margin-top: 10px; font-size: 15px; min-height: 44px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .tlegend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--muted); }
+  .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tlegend .dot { width: 12px; height: 12px; border-radius: 3px; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>哈希表演示 (Hash Table)</h1>
+  <p id="subtitle">用哈希函数 h(k)=k mod M 把键映射到桶。冲突（不同键映到同一桶）需要处理。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="subtabs">
+  <span class="sublabel">冲突处理：</span>
+  <button class="subtab active" data-mode="chain">链地址法（拉链）</button>
+  <button class="subtab" data-mode="linear">开放寻址（线性探测）</button>
+</div>
+
+<div class="controls">
+  <div class="field"><label>键 key</label><input id="keyInput" type="number" placeholder="整数"></div>
+  <button class="btn cy" id="insertBtn">插入</button>
+  <button class="btn" id="findBtn">查找</button>
+  <button class="btn" id="delBtn">删除</button>
+  <div class="field"><label>桶数 M</label><input id="mInput" type="number" value="7" min="2" max="13"></div>
+  <button class="btn ghost" id="resetBtn">重置</button>
+  <button class="btn ghost" id="randBtn">随机插入</button>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1100" value="550" step="50"></div>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="buckets" id="buckets"></div>
+    <div class="tlegend">
+      <span><i class="dot" style="background:#ffd400"></i>正在探查的桶/槽</span>
+      <span><i class="dot" style="background:#00ff9c"></i>命中</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>新插入</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel">哈希函数与探查</div>
+    <div class="formula" id="formula"></div>
+    <div class="stats">元素数：<b id="cnt">0</b> <span>装载因子 α：<b id="alpha">0</b></span></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let M = 7;
+let mode = "chain";           // chain / linear
+let chains = [];              // 链地址法：每桶一个数组
+let slots = [];               // 开放寻址：每槽 值 / null(空) / "TOMB"(墓碑)
+let count = 0;
+let steps = [], idx = 0, timer = null, running = false;
+
+const hash = k => ((k % M) + M) % M;
+
+function setStatus(t) { $("status").innerHTML = t; }
+
+// ======== 渲染 ========
+// mk: { bucket: 高亮的桶下标, chainPos: 链内高亮位置+class, slotCls: {idx:class} }
+function render(mk = {}) {
+  const box = $("buckets");
+  let html = "";
+  if (mode === "chain") {
+    for (let b = 0; b < M; b++) {
+      const rowCls = "brow" + (mk.bucket === b ? " cur" : "");
+      let slotsHtml = "";
+      const chain = chains[b];
+      if (chain.length === 0) slotsHtml = `<span class="slot empty">∅</span>`;
+      else slotsHtml = chain.map((v, k) => {
+        let cls = "slot";
+        if (mk.bucket === b && mk.chainPos && mk.chainPos.pos === k) cls += " " + mk.chainPos.cls;
+        return (k ? `<span class="chain-arrow">→</span>` : "") + `<span class="${cls}">${v}</span>`;
+      }).join("");
+      html += `<div class="${rowCls}"><div class="bidx">桶 ${b}</div><div class="bslots">${slotsHtml}</div></div>`;
+    }
+  } else {
+    for (let i = 0; i < M; i++) {
+      const v = slots[i];
+      let cls = "slot";
+      if (v === null) cls += " empty"; else if (v === "TOMB") cls += " tomb";
+      if (mk.slotCls && mk.slotCls[i]) cls += " " + mk.slotCls[i];
+      const disp = v === null ? "∅" : v === "TOMB" ? "墓碑" : v;
+      html += `<div class="brow${mk.bucket === i ? " cur" : ""}"><div class="bidx">槽 ${i}</div><div class="bslots"><span class="${cls}">${disp}</span></div></div>`;
+    }
+  }
+  box.innerHTML = html;
+  $("cnt").textContent = count;
+  $("alpha").textContent = (count / M).toFixed(2);
+}
+
+// ======== 单步引擎 ========
+function loadSteps(list) {
+  steps = list; idx = 0; running = true;
+  lockOps(true); $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  applyStep(0);
+  if (steps.length <= 1) endRun();
+}
+function applyStep(i) { const s = steps[i]; if (s.mutate) s.mutate(); render(s.mk || {}); setStatus(s.desc); }
+function stepOnce() { if (!running) return false; if (idx < steps.length - 1) { idx++; applyStep(idx); } if (idx >= steps.length - 1) endRun(); return true; }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; lockOps(false); }
+function playAll() { if (!running) return; stopTimer(); const spd = 1200 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; applyStep(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+function lockOps(v) { ["insertBtn","findBtn","delBtn","resetBtn","randBtn"].forEach(id => $(id).disabled = v); }
+
+// ======== 操作：链地址法 ========
+function chainInsert(k) {
+  const b = hash(k), list = [];
+  list.push({ mk: { bucket: b }, desc: `h(${k}) = ${k} mod ${M} = ${b}，定位到桶 ${b}。` });
+  const chain = chains[b];
+  const exist = chain.indexOf(k);
+  if (exist >= 0) { list.push({ mk: { bucket: b, chainPos: { pos: exist, cls: "hit" } }, desc: `桶 ${b} 里已存在 ${k}，不重复插入。` }); return list; }
+  list.push({ mutate: () => { chains[b].push(k); count++; }, mk: { bucket: b, chainPos: { pos: chain.length, cls: "newn" } },
+    desc: `桶 ${b}${chain.length ? "已有元素（冲突），" : "为空，"}把 ${k} 挂到链${chain.length ? "尾" : "上"}。` });
+  return list;
+}
+function chainFind(k, forDelete) {
+  const b = hash(k), list = [];
+  list.push({ mk: { bucket: b }, desc: `h(${k}) = ${b}，到桶 ${b} 的链上逐个比较。` });
+  const chain = chains[b];
+  for (let p = 0; p < chain.length; p++) {
+    if (chain[p] === k) {
+      if (forDelete) { list.push({ mutate: () => { chains[b].splice(p, 1); count--; }, mk: { bucket: b, chainPos: { pos: p, cls: "hit" } }, desc: `在链第 ${p+1} 个位置找到 ${k}，从链中删除。` }); }
+      else list.push({ mk: { bucket: b, chainPos: { pos: p, cls: "hit" } }, desc: `✓ 在桶 ${b} 链第 ${p+1} 个位置找到 ${k}。` });
+      return list;
+    }
+    list.push({ mk: { bucket: b, chainPos: { pos: p, cls: "probe" } }, desc: `链第 ${p+1} 个是 ${chain[p]} ≠ ${k}，继续。` });
+  }
+  list.push({ mk: { bucket: b }, desc: `桶 ${b} 链上没有 ${k}${forDelete ? "，无法删除" : "，查找失败"}。` });
+  return list;
+}
+
+// ======== 操作：开放寻址（线性探测）========
+function linearInsert(k) {
+  const h0 = hash(k), list = [];
+  if (count >= M) { list.push({ mk: {}, desc: `表已满（${count}/${M}），无法插入。` }); return list; }
+  list.push({ mk: { bucket: h0, slotCls: { [h0]: "probe" } }, desc: `h(${k}) = ${h0}，从槽 ${h0} 开始线性探测。` });
+  let firstTomb = -1;
+  for (let step = 0; step < M; step++) {
+    const i = (h0 + step) % M;
+    const v = slots[i];
+    if (v === k) { list.push({ mk: { bucket: i, slotCls: { [i]: "hit" } }, desc: `槽 ${i} 已是 ${k}，不重复插入。` }); return list; }
+    if (v === null) {
+      const target = firstTomb >= 0 ? firstTomb : i;
+      list.push({ mutate: () => { slots[target] = k; count++; }, mk: { bucket: target, slotCls: { [target]: "newn" } },
+        desc: `槽 ${i} 为空 → 把 ${k} 放入槽 ${target}${firstTomb >= 0 ? "（之前遇到的墓碑位，复用）" : ""}。` });
+      return list;
+    }
+    if (v === "TOMB" && firstTomb < 0) firstTomb = i;
+    list.push({ mk: { bucket: i, slotCls: { [i]: "probe" } }, desc: `槽 ${i} 被 ${v === "TOMB" ? "墓碑" : v} 占用（冲突），探测下一个 (${i}+1) mod ${M}。` });
+  }
+  if (firstTomb >= 0) { const t = firstTomb; list.push({ mutate: () => { slots[t] = k; count++; }, mk: { bucket: t, slotCls: { [t]: "newn" } }, desc: `绕了一圈，用最早的墓碑位槽 ${t} 放入 ${k}。` }); }
+  else list.push({ mk: {}, desc: `探测一圈都满，插入失败。` });
+  return list;
+}
+function linearFind(k, forDelete) {
+  const h0 = hash(k), list = [];
+  list.push({ mk: { bucket: h0, slotCls: { [h0]: "probe" } }, desc: `h(${k}) = ${h0}，从槽 ${h0} 线性探测查找 ${k}。` });
+  for (let step = 0; step < M; step++) {
+    const i = (h0 + step) % M;
+    const v = slots[i];
+    if (v === null) { list.push({ mk: { bucket: i, slotCls: { [i]: "probe" } }, desc: `槽 ${i} 为空 → 探测停止，${k} 不在表中${forDelete ? "，无法删除" : ""}。` }); return list; }
+    if (v === k) {
+      if (forDelete) list.push({ mutate: () => { slots[i] = "TOMB"; count--; }, mk: { bucket: i, slotCls: { [i]: "hit" } }, desc: `槽 ${i} 找到 ${k}，标记为“墓碑”（不能直接置空，否则会截断探测链）。` });
+      else list.push({ mk: { bucket: i, slotCls: { [i]: "hit" } }, desc: `✓ 在槽 ${i} 找到 ${k}。` });
+      return list;
+    }
+    list.push({ mk: { bucket: i, slotCls: { [i]: v === "TOMB" ? "probe" : "probe" } }, desc: `槽 ${i} 是 ${v === "TOMB" ? "墓碑" : v} ≠ ${k}，继续探测。` });
+  }
+  list.push({ mk: {}, desc: `探测一圈未找到 ${k}。` });
+  return list;
+}
+
+// ======== 分发 ========
+function doInsert(k) { return mode === "chain" ? chainInsert(k) : linearInsert(k); }
+function doFind(k) { return mode === "chain" ? chainFind(k, false) : linearFind(k, false); }
+function doDelete(k) { return mode === "chain" ? chainFind(k, true) : linearFind(k, true); }
+
+// ======== 交互 ========
+function readKey() { const k = parseInt($("keyInput").value, 10); if (isNaN(k)) { setStatus("请输入一个整数键。"); return null; } return k; }
+function opGuard() { return !running; }
+
+$("insertBtn").onclick = () => { if (!opGuard()) return; const k = readKey(); if (k === null) return; loadSteps(doInsert(k)); $("keyInput").value = ""; };
+$("findBtn").onclick = () => { if (!opGuard()) return; const k = readKey(); if (k === null) return; loadSteps(doFind(k)); };
+$("delBtn").onclick = () => { if (!opGuard()) return; const k = readKey(); if (k === null) return; loadSteps(doDelete(k)); $("keyInput").value = ""; };
+$("resetBtn").onclick = () => { if (running) return; initTable(); };
+$("randBtn").onclick = () => {
+  if (running) return;
+  const times = 3 + Math.floor(Math.random() * 4);
+  for (let t = 0; t < times; t++) {
+    const k = Math.floor(Math.random() * 50);
+    // 直接执行插入（不分步）
+    if (mode === "chain") { const b = hash(k); if (!chains[b].includes(k)) { chains[b].push(k); count++; } }
+    else {
+      if (count >= M) break;
+      const h0 = hash(k); let placed = false;
+      for (let s = 0; s < M; s++) { const i = (h0 + s) % M; if (slots[i] === k) { placed = true; break; } if (slots[i] === null || slots[i] === "TOMB") { slots[i] = k; count++; placed = true; break; } }
+    }
+  }
+  render(); setStatus(`随机插入了几个键，观察分布与冲突。`);
+};
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("playBtn").onclick = () => playAll();
+$("keyInput").addEventListener("keydown", e => { if (e.key === "Enter") $("insertBtn").click(); });
+
+function initTable() {
+  M = Math.max(2, Math.min(13, parseInt($("mInput").value, 10) || 7));
+  $("mInput").value = M;
+  chains = Array.from({ length: M }, () => []);
+  slots = Array(M).fill(null);
+  count = 0;
+  render();
+  setStatus(`初始化：${M} 个${mode === "chain" ? "桶（每桶一条链）" : "槽（开放寻址）"}。h(k) = k mod ${M}。`);
+}
+
+function applyMode(mo) {
+  mode = mo; stopTimer(); running = false;
+  document.querySelectorAll(".subtab").forEach(b => b.classList.toggle("active", b.dataset.mode === mo));
+  $("subtitle").textContent = mo === "chain"
+    ? "链地址法：每个桶挂一条链表，冲突的键都串在同一桶的链上。"
+    : "开放寻址（线性探测）：冲突时依次看下一个槽，直到找到空位。";
+  $("formula").innerHTML = mo === "chain"
+    ? `哈希函数：<b>h(k) = k mod M</b><br>插入：算出桶号，把 k 挂到该桶的链尾。<br>查找/删除：在对应桶的链上逐个比较。<br>装载因子 α 可 >1，冲突多时链变长。`
+    : `哈希函数：<b>h(k) = k mod M</b><br>探测序列：<b>(h(k)+i) mod M</b>，i=0,1,2…<br>插入：从 h(k) 起找第一个空槽。<br>删除用<b>墓碑</b>标记，避免截断后续探测链。α 必须 ≤ 1。`;
+  $("note").innerHTML = mo === "chain"
+    ? "链地址法实现简单、装载因子可超过 1；缺点是需要额外的链表指针、缓存不友好。"
+    : "开放寻址所有元素都存在表内数组、缓存友好；但删除要用墓碑，且装载因子高时探测变长、性能下降。";
+  initTable();
+}
+
+document.querySelectorAll(".subtab").forEach(b => b.onclick = () => applyMode(b.dataset.mode));
+
+
+applyMode("chain");
+</script>
+</body>
+</html>
