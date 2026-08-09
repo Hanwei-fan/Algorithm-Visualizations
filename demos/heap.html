@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>二叉堆演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 90px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 16px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.ghost { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.ghost:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  svg { width: 100%; height: auto; display: block; }
+  .edge { stroke: #4a4478; stroke-width: 2; }
+  .hnode circle { fill: rgba(0,240,255,0.06); stroke: var(--border); stroke-width: 2; transition: all .2s; }
+  .hnode text.val { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; }
+  .hnode text.idx { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 10px; }
+  .hnode.cur circle { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 12px rgba(255,43,214,.8)); }
+  .hnode.cur text.val { fill: #fff; }
+  .hnode.cmp circle { fill: rgba(255,212,0,0.2); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.5)); }
+  .hnode.swap circle { fill: rgba(255,43,214,0.28); stroke: var(--magenta); filter: drop-shadow(0 0 10px rgba(255,43,214,.6)); }
+  .hnode.done circle { fill: rgba(0,255,156,0.18); stroke: var(--green); }
+  .hnode.newn circle { fill: var(--green); stroke: var(--green); filter: drop-shadow(0 0 14px rgba(0,255,156,.8)); }
+  .hnode.newn text.val { fill: #05201a; }
+  /* 数组视图 */
+  .arrlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 14px 0 8px; }
+  .arr { display: flex; gap: 5px; flex-wrap: wrap; }
+  .acell {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .acell .box {
+    min-width: 38px; height: 40px; padding: 0 6px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 5px; background: rgba(0,240,255,0.04);
+    font-size: 15px; font-weight: 700; transition: all .15s;
+  }
+  .acell .ix { font-size: 10px; color: var(--muted); }
+  .acell.cur .box { background: var(--magenta); border-color: var(--magenta); color: #fff; box-shadow: 0 0 10px rgba(255,43,214,.5); }
+  .acell.cmp .box { background: rgba(255,212,0,0.2); border-color: var(--yellow); color: var(--yellow); }
+  .acell.swap .box { background: rgba(255,43,214,0.28); border-color: var(--magenta); }
+  .acell.done .box { background: rgba(0,255,156,0.18); border-color: var(--green); color: var(--green); }
+  .acell.newn .box { background: var(--green); border-color: var(--green); color: #05201a; }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: #8fb8c9; margin: 0 0 16px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .seqlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 12px 0 8px; }
+  .sequence { display: flex; flex-wrap: wrap; gap: 6px; min-height: 40px; }
+  .chip {
+    width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--green); border-radius: 6px; background: rgba(0,255,156,0.12);
+    color: var(--green); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 14px;
+    box-shadow: 0 0 8px rgba(0,255,156,.3);
+  }
+  .status { margin-top: 10px; font-size: 15px; min-height: 40px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .tlegend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tlegend .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>二叉堆演示（小根堆）</h1>
+  <p>完全二叉树，父节点 ≤ 两个子节点。用数组存储：节点 i 的左孩子 2i+1、右孩子 2i+2、父亲 ⌊(i-1)/2⌋。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="controls">
+  <div class="field">
+    <label for="valInput">数值</label>
+    <input id="valInput" type="number" placeholder="值">
+  </div>
+  <button class="btn cy" id="insertBtn">插入(上浮)</button>
+  <button class="btn" id="popBtn">删除堆顶(下沉)</button>
+  <button class="btn cy" id="buildBtn">建堆</button>
+  <button class="btn" id="sortBtn">堆排序</button>
+  <button class="btn ghost" id="randBtn">随机生成</button>
+  <button class="btn ghost" id="clearBtn">清空</button>
+  <div class="speed">
+    <label for="speedInput">速度</label>
+    <input id="speedInput" type="range" min="120" max="1100" value="550" step="50">
+  </div>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+</div>
+
+<main>
+  <section class="card">
+    <svg id="tree" viewBox="0 0 680 360" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="arrlabel">数组存储</div>
+    <div class="arr" id="arr"></div>
+    <div class="tlegend">
+      <span><i class="dot" style="background:#ff2bd6"></i>当前节点</span>
+      <span><i class="dot" style="background:#ffd400"></i>比较对象</span>
+      <span><i class="dot" style="background:#00ff9c"></i>新插入/已就位</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel">性质与下标关系</div>
+    <div class="formula" id="formula">
+      小根堆：<b>a[parent] ≤ a[child]</b><br>
+      左孩子 = <b>2i+1</b>，右孩子 = <b>2i+2</b>，父亲 = <b>⌊(i-1)/2⌋</b><br>
+      插入：加到末尾后<b>上浮</b>；删堆顶：末尾补到顶后<b>下沉</b>。
+    </div>
+    <div class="seqlabel" id="seqLabel" style="display:none">堆排序输出（升序）</div>
+    <div class="sequence" id="sequence" style="display:none"></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note">堆是完全二叉树，用数组紧凑存储、无需指针。插入/删除都是 O(log n)；建堆 O(n)；堆排序 O(n log n)、原地。小根堆每次能 O(1) 取最小值，是优先队列的常用实现。</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let heap = [];   // 数组存储的小根堆
+let steps = [], idx = 0, timer = null, running = false;
+let sortOut = [];   // 堆排序输出
+
+function setStatus(t) { $("status").innerHTML = t; }
+
+// ======== 渲染：完全二叉树 SVG + 数组 ========
+// arr: 要画的数组；marks[i]=class；extra: 额外的游离节点(如刚弹出的堆顶) {val, cls}
+function render(marks = {}, seqShow) {
+  const svg = $("tree");
+  const n = heap.length;
+  if (n === 0) {
+    svg.innerHTML = `<text x="340" y="180" text-anchor="middle" fill="#7d76a8" font-family="monospace" font-size="15">（空堆）</text>`;
+  } else {
+    // 计算每个节点坐标：按层排布
+    const depth = Math.floor(Math.log2(n)) + 1;
+    const W = 680, topY = 34, dy = Math.min(80, (330 - topY) / Math.max(depth - 1, 1));
+    const pos = [];
+    for (let i = 0; i < n; i++) {
+      const lvl = Math.floor(Math.log2(i + 1));
+      const idxInLvl = i - (Math.pow(2, lvl) - 1);
+      const cnt = Math.pow(2, lvl);
+      const x = W * (idxInLvl + 0.5) / cnt;
+      pos[i] = { x, y: topY + lvl * dy };
+    }
+    let edges = "", nodes = "";
+    for (let i = 1; i < n; i++) {
+      const p = Math.floor((i - 1) / 2);
+      edges += `<line class="edge" x1="${pos[p].x}" y1="${pos[p].y}" x2="${pos[i].x}" y2="${pos[i].y}"/>`;
+    }
+    for (let i = 0; i < n; i++) {
+      const cls = "hnode" + (marks[i] ? " " + marks[i] : "");
+      nodes += `<g class="${cls}"><circle cx="${pos[i].x}" cy="${pos[i].y}" r="18"/>`
+        + `<text class="val" x="${pos[i].x}" y="${pos[i].y+5}" text-anchor="middle">${heap[i]}</text>`
+        + `<text class="idx" x="${pos[i].x}" y="${pos[i].y-22}" text-anchor="middle">i=${i}</text></g>`;
+    }
+    svg.innerHTML = edges + nodes;
+  }
+  // 数组视图
+  $("arr").innerHTML = heap.map((v, i) =>
+    `<div class="acell ${marks[i] || ""}"><div class="box">${v}</div><div class="ix">${i}</div></div>`).join("")
+    || '<span style="color:var(--muted);font-family:monospace">（空）</span>';
+  // 堆排序输出
+  if (seqShow !== undefined) {
+    $("seqLabel").style.display = seqShow ? "block" : "none";
+    $("sequence").style.display = seqShow ? "flex" : "none";
+    if (seqShow) $("sequence").innerHTML = sortOut.map(v => `<div class="chip">${v}</div>`).join("");
+  }
+}
+
+// ======== 单步引擎 ========
+function loadSteps(list, auto) {
+  steps = list; idx = 0; running = true;
+  lockOps(true);
+  applyStep(0);
+  if (auto) { $("stepBtn").disabled = true; $("playBtn").disabled = true; if (steps.length <= 1) endRun(); else playAll(); }
+  else { $("stepBtn").disabled = false; $("playBtn").disabled = false; if (steps.length <= 1) endRun(); }
+}
+function applyStep(i) {
+  const s = steps[i];
+  if (s.mutate) s.mutate();
+  render(s.marks || {}, s.seqShow);
+  setStatus(s.desc);
+}
+function stepOnce() { if (!running) return false; if (idx < steps.length - 1) { idx++; applyStep(idx); } if (idx >= steps.length - 1) endRun(); return true; }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; lockOps(false); }
+function playAll() { if (!running) return; stopTimer(); const spd = 1200 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; applyStep(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+function lockOps(v) { ["insertBtn","popBtn","buildBtn","sortBtn","randBtn","clearBtn"].forEach(id => $(id).disabled = v); }
+
+// ======== 堆操作：构建 steps ========
+// 每步 {mutate, marks, desc, seqShow}；mutate 真正改 heap 数组
+function buildInsert(val) {
+  const list = [];
+  const arr = heap;   // 引用，mutate 直接改
+  list.push({ mutate: () => { arr.push(val); }, marks: { [arr.length]: "newn" },
+    desc: `把 ${val} 加到数组末尾（新的最后一个位置），准备上浮。`, markIdxFn: true });
+  // 上浮：预先在“影子数组”上模拟以生成步骤
+  const shadow = [...heap, val];
+  let i = shadow.length - 1;
+  // 修正首步 marks 用真实末尾下标
+  list[0].marks = { [i]: "newn" };
+  while (i > 0) {
+    const p = Math.floor((i - 1) / 2);
+    const ci = i, pp = p;
+    list.push({ marks: { [ci]: "cur", [pp]: "cmp" }, desc: `比较 a[${ci}]=${shadow[ci]} 与父 a[${pp}]=${shadow[pp]}：${shadow[ci] < shadow[pp] ? "更小，需上浮" : "≥ 父节点，停止"}。` });
+    if (shadow[ci] < shadow[pp]) {
+      [shadow[ci], shadow[pp]] = [shadow[pp], shadow[ci]];
+      const from = ci, to = pp, snap = [...shadow];
+      list.push({ mutate: () => { [arr[from], arr[to]] = [arr[to], arr[from]]; }, marks: { [to]: "swap", [from]: "swap" }, desc: `交换 a[${from}] 与 a[${to}]，${val} 上浮到位置 ${to}。` });
+      i = p;
+    } else break;
+  }
+  list.push({ marks: { [i]: "done" }, desc: `${val} 就位于位置 ${i}，堆性质恢复。`, });
+  return list;
+}
+
+function buildPop() {
+  const list = [];
+  const arr = heap;
+  if (arr.length === 0) return [{ marks: {}, desc: "空堆，无法删除。" }];
+  const top = arr[0], last = arr[arr.length - 1];
+  list.push({ marks: { 0: "cur" }, desc: `堆顶 a[0]=${top} 是最小值，取出它。` });
+  if (arr.length === 1) {
+    list.push({ mutate: () => { arr.pop(); }, marks: {}, desc: `堆只剩一个元素，直接删除。堆空。` });
+    return list;
+  }
+  // 末尾补到堆顶，删末尾
+  list.push({ mutate: () => { arr[0] = arr[arr.length - 1]; arr.pop(); }, marks: { 0: "newn" },
+    desc: `把末尾元素 ${last} 移到堆顶，删除末尾。接下来对堆顶下沉。` });
+  // 下沉：在影子数组上模拟
+  const shadow = [...heap];
+  shadow[0] = last; shadow.pop();
+  let i = 0; const n = shadow.length;
+  while (true) {
+    let l = 2 * i + 1, r = 2 * i + 2, small = i;
+    if (l < n && shadow[l] < shadow[small]) small = l;
+    if (r < n && shadow[r] < shadow[small]) small = r;
+    const cmpMarks = { [i]: "cur" };
+    if (l < n) cmpMarks[l] = "cmp"; if (r < n) cmpMarks[r] = "cmp";
+    if (small === i) { list.push({ marks: cmpMarks, desc: `a[${i}]=${shadow[i]} 已 ≤ 两个孩子，下沉结束。` }); break; }
+    list.push({ marks: cmpMarks, desc: `a[${i}]=${shadow[i]} 与孩子比较，最小的是 a[${small}]=${shadow[small]}，需交换。` });
+    [shadow[i], shadow[small]] = [shadow[small], shadow[i]];
+    const from = i, to = small;
+    list.push({ mutate: () => { [arr[from], arr[to]] = [arr[to], arr[from]]; }, marks: { [from]: "swap", [to]: "swap" }, desc: `交换 a[${from}] 与 a[${to}]，继续下沉。` });
+    i = small;
+  }
+  return list;
+}
+
+function buildHeapify() {
+  const list = [];
+  const arr = heap;
+  if (arr.length <= 1) return [{ marks: {}, desc: "元素 ≤ 1，已是堆。" }];
+  const shadow = [...heap];
+  const n = shadow.length;
+  const start = Math.floor(n / 2) - 1;
+  list.push({ marks: {}, desc: `建堆：从最后一个非叶子节点 i=${start} 开始，倒序对每个节点下沉。O(n)。` });
+  for (let s = start; s >= 0; s--) {
+    list.push({ marks: { [s]: "cur" }, desc: `对节点 i=${s}（值 ${shadow[s]}）执行下沉。` });
+    let i = s;
+    while (true) {
+      let l = 2 * i + 1, r = 2 * i + 2, small = i;
+      if (l < n && shadow[l] < shadow[small]) small = l;
+      if (r < n && shadow[r] < shadow[small]) small = r;
+      const cmpMarks = { [i]: "cur" };
+      if (l < n) cmpMarks[l] = "cmp"; if (r < n) cmpMarks[r] = "cmp";
+      if (small === i) { list.push({ marks: cmpMarks, desc: `a[${i}] ≤ 孩子，无需下沉。` }); break; }
+      list.push({ marks: cmpMarks, desc: `最小孩子 a[${small}]=${shadow[small]} < a[${i}]=${shadow[i]}，交换。` });
+      [shadow[i], shadow[small]] = [shadow[small], shadow[i]];
+      const from = i, to = small, snap = [...shadow];
+      list.push({ mutate: () => { heap = snap.slice(); }, marks: { [from]: "swap", [to]: "swap" }, desc: `交换 a[${from}] 与 a[${to}]。` });
+      i = small;
+    }
+  }
+  list.push({ mutate: () => { heap = shadow.slice(); }, marks: {}, desc: `建堆完成，数组已满足小根堆性质。` });
+  return list;
+}
+
+function buildHeapSort() {
+  const list = [];
+  if (heap.length === 0) return [{ marks: {}, desc: "空堆，无可排序。" }];
+  list.push({ mutate: () => { sortOut = []; }, marks: {}, seqShow: true, desc: `堆排序：反复取堆顶（当前最小值）加入输出，再把末尾补到堆顶下沉。（假设当前已是小根堆；若不确定请先“建堆”）` });
+  const heapArr = [...heap];      // 生成阶段的工作副本
+  const acc = [];                 // 生成阶段累积的输出（局部，非全局 sortOut）
+  let size = heapArr.length;
+  while (size > 0) {
+    const minVal = heapArr[0];
+    acc.push(minVal);
+    const outSnap = [...acc];                    // 快照本步输出
+    const heapSnap = heapArr.slice(1, size);     // 取走堆顶后剩余（临时展示）
+    list.push({ mutate: () => { sortOut = outSnap.slice(); heap = heapArr.slice(0, size); },
+      marks: { 0: "cur" }, seqShow: true, desc: `取堆顶 ${minVal} 加入输出序列。` });
+    // 末尾补到顶，size--
+    heapArr[0] = heapArr[size - 1];
+    size--;
+    // 下沉（在工作副本上，只考虑前 size 个）
+    let i = 0;
+    while (true) {
+      let l = 2 * i + 1, r = 2 * i + 2, small = i;
+      if (l < size && heapArr[l] < heapArr[small]) small = l;
+      if (r < size && heapArr[r] < heapArr[small]) small = r;
+      if (small === i) break;
+      [heapArr[i], heapArr[small]] = [heapArr[small], heapArr[i]];
+      i = small;
+    }
+    const displaySnap = heapArr.slice(0, size);
+    list.push({ mutate: () => { heap = displaySnap.slice(); }, seqShow: true, marks: {},
+      desc: size > 0 ? `末尾补到堆顶并下沉，堆缩小为 ${size} 个元素。` : `堆已空，排序完成。` });
+  }
+  const finalOut = [...acc];
+  list.push({ mutate: () => { sortOut = finalOut.slice(); heap = []; }, seqShow: true, marks: {}, desc: `完成！输出序列升序：${finalOut.join(" ")}。` });
+  return list;
+}
+
+// ======== 交互 ========
+function readVal() { const v = parseInt($("valInput").value, 10); if (isNaN(v)) { setStatus("请输入一个整数值。"); return null; } return v; }
+function opGuard() { return !running; }
+
+$("insertBtn").onclick = () => { if (!opGuard()) return; const v = readVal(); if (v === null) return; loadSteps(buildInsert(v), true); $("valInput").value = ""; };
+$("popBtn").onclick = () => { if (!opGuard()) return; if (heap.length === 0) { setStatus("空堆。"); return; } loadSteps(buildPop(), false); };
+$("buildBtn").onclick = () => { if (!opGuard()) return; if (heap.length === 0) { setStatus("空堆，先随机生成或插入。"); return; } loadSteps(buildHeapify(), false); };
+$("sortBtn").onclick = () => { if (!opGuard()) return; if (heap.length === 0) { setStatus("空堆。"); return; } loadSteps(buildHeapSort(), false); };
+$("clearBtn").onclick = () => { if (running) return; heap = []; sortOut = []; render(undefined, false); setStatus("已清空。"); };
+$("randBtn").onclick = () => {
+  if (running) return;
+  const n = 6 + Math.floor(Math.random() * 4);
+  heap = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * 99));
+  sortOut = []; render(undefined, false);
+  setStatus(`随机生成了 ${n} 个数（未必满足堆性质，可点“建堆”整理）。`);
+};
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("playBtn").onclick = () => playAll();
+$("valInput").addEventListener("keydown", e => { if (e.key === "Enter") $("insertBtn").click(); });
+
+render();
+setStatus("空堆。输入数值点“插入”，或点“随机生成”“建堆”。");
+</script>
+</body>
+</html>
