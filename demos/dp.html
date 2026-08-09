@@ -449,7 +449,8 @@ function buildKnap(mode) {
   return list;
 }
 
-// ---- 数塔（数字三角形）：自底向上，dp[i][j] = a[i][j] + max(dp[i+1][j], dp[i+1][j+1]) ----
+// ---- 数塔（数字三角形）：自顶向下，dp[i][j] = a[i][j] + max(dp[i-1][j-1], dp[i-1][j]) ----
+// dp[i][j] = 从顶部走到 (i,j) 的最大路径和；答案 = 最底行的最大值。
 function buildTower() {
   const R = TRI.length, list = [];
   const dp = TRI.map(row => row.map(() => null));
@@ -457,22 +458,39 @@ function buildTower() {
     const dpCopy = dp.map(row => [...row]);
     list.push({ render: () => renderTower(TRI, dpCopy, marks), desc, ans });
   };
-  snap({}, `数塔：从顶到底选一条路径，每步走向下方相邻的两个数之一，使路径和最大。dp[i][j] = 从 (i,j) 出发到底部的最大路径和，自底向上推。`, "-");
-  // 最底行：dp = 本身
-  for (let c = 0; c < TRI[R - 1].length; c++) dp[R - 1][c] = TRI[R - 1][c];
-  snap((() => { const mk = {}; for (let c = 0; c < TRI[R-1].length; c++) mk[(R-1)+","+c] = "filled"; return mk; })(),
-    `最底行没有下一层，dp 直接等于该格数值。`, "-");
-  // 自底向上
-  for (let i = R - 2; i >= 0; i--) {
+  snap({}, `数塔：从顶到底选一条路径，每步走向下方相邻的两个数之一，使路径和最大。dp[i][j] = 从顶部走到 (i,j) 的最大路径和，自顶向下推。`, "-");
+  // 顶部：dp = 本身
+  dp[0][0] = TRI[0][0];
+  snap({ "0,0": "filled" }, `顶点 dp[0][0] = a[0][0] = ${TRI[0][0]}（路径起点）。`, "-");
+  // 自顶向下
+  for (let i = 1; i < R; i++) {
     for (let j = 0; j < TRI[i].length; j++) {
-      const dl = dp[i + 1][j], dr = dp[i + 1][j + 1];
-      dp[i][j] = TRI[i][j] + Math.max(dl, dr);
-      const pick = dl >= dr ? j : j + 1;
-      const marks = { [i + "," + j]: "cur", [(i+1) + "," + j]: "src", [(i+1) + "," + (j+1)]: "src" };
-      snap(marks, `dp[${i}][${j}] = a[${i}][${j}](${TRI[i][j]}) + max(下左 ${dl}, 下右 ${dr}) = ${TRI[i][j]} + ${Math.max(dl,dr)} = ${dp[i][j]}（选下${pick===j?"左":"右"}）。`, "-");
+      // (i,j) 只能从上一行的 (i-1,j-1) 或 (i-1,j) 走下来；边界格只有一个来源
+      const fromLeft = j - 1 >= 0 ? dp[i - 1][j - 1] : null;      // 上左（父）
+      const fromRight = j <= TRI[i - 1].length - 1 ? dp[i - 1][j] : null;  // 上右（父）
+      let best, marks, srcDesc;
+      if (fromLeft !== null && fromRight !== null) {
+        best = Math.max(fromLeft, fromRight);
+        marks = { [i + "," + j]: "cur", [(i-1) + "," + (j-1)]: "src", [(i-1) + "," + j]: "src" };
+        srcDesc = `max(上左 ${fromLeft}, 上右 ${fromRight}) = ${best}`;
+      } else if (fromRight !== null) {   // j === 0，只有上右(正上方 j)
+        best = fromRight;
+        marks = { [i + "," + j]: "cur", [(i-1) + "," + j]: "src" };
+        srcDesc = `只能从上方 dp[${i-1}][${j}] = ${best} 走来（最左格）`;
+      } else {   // j === i，只有上左(j-1)
+        best = fromLeft;
+        marks = { [i + "," + j]: "cur", [(i-1) + "," + (j-1)]: "src" };
+        srcDesc = `只能从上方 dp[${i-1}][${j-1}] = ${best} 走来（最右格）`;
+      }
+      dp[i][j] = TRI[i][j] + best;
+      snap(marks, `dp[${i}][${j}] = a[${i}][${j}](${TRI[i][j]}) + ${srcDesc} = ${dp[i][j]}。`, "-");
     }
   }
-  snap({ "0,0": "best" }, `完成！最大路径和 = dp[0][0] = <b>${dp[0][0]}</b>。`, dp[0][0]);
+  // 答案：最底行最大值
+  const bottom = dp[R - 1];
+  let ans = bottom[0], bj = 0;
+  for (let j = 1; j < bottom.length; j++) if (bottom[j] > ans) { ans = bottom[j]; bj = j; }
+  snap({ [(R-1) + "," + bj]: "best" }, `完成！答案 = 最底行的最大值 = dp[${R-1}][${bj}] = <b>${ans}</b>。`, ans);
   return list;
 }
 
@@ -490,8 +508,8 @@ const CFG = {
     note: "与 01 背包的区别：选物品 i 时从<code>本行</code> dp[i][w-wᵢ] 转移（可重复取）。" },
   knapmulti: { subtitle: "多重背包：每件物品有数量上限。", formula: "dp[i][w] = max{ dp[i-1][w-k·wᵢ] + k·vᵢ | 0 ≤ k ≤ min(cᵢ, w/wᵢ) }",
     note: "每件物品最多取 cᵢ 个，枚举取 <code>k</code> 个中的最优。" },
-  tower: { subtitle: "数塔（数字三角形）：从顶到底，每步走向下方相邻两数之一，求最大路径和。", formula: "dp[i][j] = a[i][j] + max( dp[i+1][j], dp[i+1][j+1] )<br>答案 = <b>dp[0][0]</b>",
-    note: "自底向上：dp[i][j] 表示<code>从 (i,j) 到底部</code>的最大路径和。最底行等于自身；每格加上下方两个子格的较大者。" },
+  tower: { subtitle: "数塔（数字三角形）：从顶到底，每步走向下方相邻两数之一，求最大路径和。", formula: "dp[i][j] = a[i][j] + max( dp[i-1][j-1], dp[i-1][j] )<br>答案 = <b>max</b>(最底行 dp)",
+    note: "自顶向下：dp[i][j] 表示<code>从顶部走到 (i,j)</code>的最大路径和。顶点等于自身；每格加上方两个父格的较大者（边缘格只有一个父格）。答案是最底行的最大值。" },
 };
 
 function initAlgoTabs() {
