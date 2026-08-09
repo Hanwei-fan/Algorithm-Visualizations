@@ -218,6 +218,8 @@ const ALGOS = {
   ],
   tower: [
     { id: "tower", name: "数塔（数字三角形）" },
+    { id: "gridmax", name: "矩阵最大路径和" },
+    { id: "gridcount", name: "矩阵路径方案数" },
   ],
 };
 
@@ -337,7 +339,7 @@ function renderTower(tri, dp, marks, layout, hint) {
 }
 
 // ======== 各 DP：构建 steps ========
-let A = [], B = [], CAP = 10, WT = [], VAL = [], CNT = [], TRI = [];
+let A = [], B = [], CAP = 10, WT = [], VAL = [], CNT = [], TRI = [], MAT = [];
 
 // ---- LIS：dp[i]=以 a[i] 结尾的最长上升子序列长度 ----
 function buildLIS() {
@@ -534,6 +536,62 @@ function buildTower() {
   return list;
 }
 
+// ---- 矩阵 DP 通用：n×m 网格，只能向右/向下走，左上角到右下角 ----
+// combine(up, left, val) 定义如何由上/左转移；变体：最大路径和 / 方案数
+function buildGrid(mode) {
+  const n = MAT.length, m = MAT[0].length, list = [];
+  const dp = Array.from({ length: n }, () => Array(m).fill(null));
+  const seen = new Set();
+  const rowHead = [...Array(n).keys()], colHead = [...Array(m).keys()];
+  const snap = (marks, desc, ans) => {
+    const grid = dp.map((row, i) => row.map((v, j) => seen.has(i + "," + j) ? v : null));
+    list.push({ render: () => renderTable(grid, marks, { rowHead, colHead }), desc, ans });
+  };
+  const isMax = mode === "max";
+  snap({}, isMax
+    ? `矩阵最大路径和：从左上 (0,0) 每次只能向右或向下，走到右下 (${n-1},${m-1})，使经过的数之和最大。dp[i][j]=到 (i,j) 的最大和。`
+    : `矩阵路径方案数：从左上 (0,0) 每次只能向右或向下，走到右下 (${n-1},${m-1})，问有多少条不同路径。dp[i][j]=到 (i,j) 的路径数。`,
+    "-");
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < m; j++) {
+      const up = i > 0 ? dp[i - 1][j] : null;     // 从上方来
+      const left = j > 0 ? dp[i][j - 1] : null;   // 从左方来
+      let marks, desc;
+      if (i === 0 && j === 0) {
+        dp[i][j] = isMax ? MAT[0][0] : 1;
+        marks = { "0,0": "cur" };
+        desc = isMax ? `起点 dp[0][0] = a[0][0] = ${MAT[0][0]}。` : `起点 dp[0][0] = 1（只有一条空路径到自己）。`;
+      } else if (i === 0) {   // 第一行只能从左来
+        dp[i][j] = isMax ? left + MAT[i][j] : left;
+        marks = { [i + "," + j]: "cur", [i + "," + (j-1)]: "src" };
+        desc = isMax ? `第一行只能从左走：dp[${i}][${j}] = dp[${i}][${j-1}](${left}) + a[${i}][${j}](${MAT[i][j]}) = ${dp[i][j]}。`
+                     : `第一行只能从左走：dp[${i}][${j}] = dp[${i}][${j-1}] = ${dp[i][j]}。`;
+      } else if (j === 0) {   // 第一列只能从上来
+        dp[i][j] = isMax ? up + MAT[i][j] : up;
+        marks = { [i + "," + j]: "cur", [(i-1) + "," + j]: "src" };
+        desc = isMax ? `第一列只能从上走：dp[${i}][${j}] = dp[${i-1}][${j}](${up}) + a[${i}][${j}](${MAT[i][j]}) = ${dp[i][j]}。`
+                     : `第一列只能从上走：dp[${i}][${j}] = dp[${i-1}][${j}] = ${dp[i][j]}。`;
+      } else {
+        marks = { [i + "," + j]: "cur", [(i-1) + "," + j]: "src", [i + "," + (j-1)]: "src" };
+        if (isMax) {
+          dp[i][j] = Math.max(up, left) + MAT[i][j];
+          desc = `dp[${i}][${j}] = max(上 ${up}, 左 ${left}) + a[${i}][${j}](${MAT[i][j]}) = ${dp[i][j]}。`;
+        } else {
+          dp[i][j] = up + left;
+          desc = `dp[${i}][${j}] = 上 ${up} + 左 ${left} = ${dp[i][j]}（两个方向的路径数相加）。`;
+        }
+      }
+      seen.add(i + "," + j);
+      snap(marks, desc, "-");
+    }
+  }
+  const res = dp[n - 1][m - 1];
+  snap({ [(n-1) + "," + (m-1)]: "best" }, isMax
+    ? `完成！最大路径和 = dp[${n-1}][${m-1}] = <b>${res}</b>。`
+    : `完成！从左上到右下共有 <b>${res}</b> 条不同路径。`, res);
+  return list;
+}
+
 // ======== 配置与交互 ========
 const CFG = {
   lis: { subtitle: "最长上升子序列 (LIS)：找出最长的、严格递增的子序列长度。", formula: "dp[i] = 1 + max{ dp[j] | j&lt;i 且 a[j]&lt;a[i] }<br>答案 = <b>max</b>(dp[i])",
@@ -550,6 +608,10 @@ const CFG = {
     note: "每件物品最多取 cᵢ 个，枚举取 <code>k</code> 个中的最优。" },
   tower: { subtitle: "数塔（数字三角形）：从顶到底，每步走向下方相邻两数之一，求最大路径和。", formula: "dp[i][j] = a[i][j] + max( dp[i-1][j-1], dp[i-1][j] )<br>答案 = <b>max</b>(最底行 dp)",
     note: "自顶向下：dp[i][j] 表示<code>从顶部走到 (i,j)</code>的最大路径和。顶点等于自身；每格加上方两个父格的较大者（边缘格只有一个父格）。答案是最底行的最大值。" },
+  gridmax: { subtitle: "矩阵最大路径和：n×m 网格，只能向右/向下，左上到右下的最大数字和。", formula: "dp[i][j] = a[i][j] + max( dp[i-1][j], dp[i][j-1] )<br>答案 = <b>dp[n-1][m-1]</b>",
+    note: "dp[i][j] 表示<code>从 (0,0) 走到 (i,j)</code>的最大和。只能从<code>上方</code>或<code>左方</code>转移；第一行只能从左、第一列只能从上。" },
+  gridcount: { subtitle: "矩阵路径方案数：n×m 网格，只能向右/向下，左上到右下的不同路径数。", formula: "dp[i][j] = dp[i-1][j] + dp[i][j-1]<br>答案 = <b>dp[n-1][m-1]</b>",
+    note: "dp[i][j] 表示<code>到达 (i,j) 的路径条数</code>。起点为 1；每格 = 上方路径数 + 左方路径数；第一行/第一列都只有 1 条。" },
 };
 
 function initAlgoTabs() {
@@ -576,9 +638,12 @@ function readInputs() {
     WT = []; VAL = []; CNT = [];
     items.forEach(it => { const p = it.split(/[:：]/).map(x => parseInt(x, 10)); if (!isNaN(p[0]) && !isNaN(p[1])) { WT.push(p[0]); VAL.push(p[1]); CNT.push(isNaN(p[2]) ? 3 : p[2]); } });
     CAP = parseInt($("capInput").value, 10) || 10;
-  } else {
+  } else if (algo === "tower") {
     // 数塔：每行用 ; 分隔，行内空格/逗号分隔；第 r 行应有 r+1 个数
     TRI = $("dataInput").value.split(/[;；\n]/).map(r => parseNums(r)).filter(r => r.length);
+  } else {
+    // 矩阵：每行用 ; 分隔，行内空格/逗号分隔的数字，各行等长
+    MAT = $("dataInput").value.split(/[;；\n]/).map(r => parseNums(r)).filter(r => r.length);
   }
 }
 
@@ -587,6 +652,8 @@ function buildSteps() {
   if (algo === "mss") return buildMSS();
   if (algo === "lcs") return buildLCS();
   if (algo === "tower") return buildTower();
+  if (algo === "gridmax") return buildGrid("max");
+  if (algo === "gridcount") return buildGrid("count");
   if (algo === "knap01") return buildKnap("01");
   if (algo === "knapfull") return buildKnap("full");
   return buildKnap("multi");
@@ -600,10 +667,15 @@ function prepare() {
   if (kind === "seq" && A.length === 0) { $("status").textContent = "请输入序列。"; $("seqArea").innerHTML = ""; $("tableArea").innerHTML = ""; return; }
   if (algo === "lcs" && B.length === 0) { $("status").textContent = "请输入两个序列。"; return; }
   if (kind === "knap" && WT.length === 0) { $("status").textContent = "请输入物品（格式：重量:价值 或 重量:价值:数量，逗号分隔）。"; $("seqArea").innerHTML = ""; $("tableArea").innerHTML = ""; return; }
-  if (kind === "tower") {
+  if (algo === "tower") {
     if (TRI.length === 0) { $("status").textContent = "请输入数塔（每行一个层，用 ; 分隔，第 r 层 r 个数）。"; $("seqArea").innerHTML = ""; $("tableArea").innerHTML = ""; return; }
     // 校验三角形形状：第 r 行应有 r+1 个数
     for (let r = 0; r < TRI.length; r++) if (TRI[r].length !== r + 1) { $("status").textContent = `数塔形状错误：第 ${r+1} 行应有 ${r+1} 个数（当前 ${TRI[r].length} 个）。`; $("seqArea").innerHTML = ""; $("tableArea").innerHTML = ""; return; }
+  }
+  if (algo === "gridmax" || algo === "gridcount") {
+    if (MAT.length === 0) { $("status").textContent = "请输入矩阵（每行用 ; 分隔，行内数字用空格/逗号分隔，各行等长）。"; $("seqArea").innerHTML = ""; $("tableArea").innerHTML = ""; return; }
+    const m0 = MAT[0].length;
+    if (MAT.some(r => r.length !== m0)) { $("status").textContent = "矩阵形状错误：每行的列数必须相同。"; $("seqArea").innerHTML = ""; $("tableArea").innerHTML = ""; return; }
   }
   loadSteps(buildSteps());
 }
@@ -623,14 +695,18 @@ function applyAlgo(a) {
   $("formula").innerHTML = cfg.formula;
   $("note").innerHTML = cfg.note;
   // 输入区切换
-  const isKnap = kind === "knap", isTower = kind === "tower";
+  const isKnap = kind === "knap", isTower = (a === "tower"), isGrid = (a === "gridmax" || a === "gridcount");
   $("data2Field").style.display = (a === "lcs") ? "flex" : "none";
   $("capField").style.display = isKnap ? "flex" : "none";
-  $("dataLabel").textContent = isKnap ? "物品（重量:价值[:数量]，逗号分隔）" : isTower ? "数塔（每层用 ; 分隔，第 r 层 r 个数）" : (a === "lcs" ? "序列 A" : "序列");
-  $("dataInput").style.width = (isKnap || isTower) ? "340px" : (a === "lcs" ? "180px" : "260px");
+  $("dataLabel").textContent = isKnap ? "物品（重量:价值[:数量]，逗号分隔）"
+    : isTower ? "数塔（每层用 ; 分隔，第 r 层 r 个数）"
+    : isGrid ? "矩阵（每行用 ; 分隔，行内空格分隔，各行等长）"
+    : (a === "lcs" ? "序列 A" : "序列");
+  $("dataInput").style.width = (isKnap || isTower || isGrid) ? "340px" : (a === "lcs" ? "180px" : "260px");
   // 默认数据
   if (isKnap) { $("dataInput").value = a === "knapmulti" ? "2:3:2, 3:4:3, 4:5:1, 5:6:2" : "2:3, 3:4, 4:5, 5:6"; $("capInput").value = 10; }
   else if (isTower) { $("dataInput").value = "7; 3 8; 8 1 0; 2 7 4 4; 4 5 2 6 5"; }
+  else if (isGrid) { $("dataInput").value = a === "gridcount" ? "1 1 1 1; 1 1 1 1; 1 1 1 1" : "1 3 1 2; 1 5 1 3; 4 2 1 4"; }
   else defaultData();
   prepare();
 }
@@ -641,10 +717,15 @@ function randomize() {
     if (algo === "mss") $("dataInput").value = Array.from({ length: n }, () => Math.floor(Math.random() * 21) - 10).join(", ");
     else $("dataInput").value = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * 20)).join(", ");
     if (algo === "lcs") $("data2Input").value = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * 9)).join(", ");
-  } else if (kind === "tower") {
+  } else if (algo === "tower") {
     const R = 4 + Math.floor(Math.random() * 2);   // 4~5 层
     const rows = [];
     for (let r = 0; r < R; r++) rows.push(Array.from({ length: r + 1 }, () => Math.floor(Math.random() * 10)).join(" "));
+    $("dataInput").value = rows.join("; ");
+  } else if (algo === "gridmax" || algo === "gridcount") {
+    const rn = 3 + Math.floor(Math.random() * 2), cn = 3 + Math.floor(Math.random() * 2);
+    const rows = [];
+    for (let r = 0; r < rn; r++) rows.push(Array.from({ length: cn }, () => algo === "gridcount" ? 1 : Math.floor(Math.random() * 9)).join(" "));
     $("dataInput").value = rows.join("; ");
   } else {
     const n = 3 + Math.floor(Math.random() * 2);
