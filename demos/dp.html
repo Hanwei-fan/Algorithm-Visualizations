@@ -94,7 +94,11 @@
   table.dp td.cell {
     width: 44px; height: 40px; text-align: center; border: 1px solid var(--border);
     font-size: 15px; font-weight: 700; color: var(--text); background: rgba(0,240,255,0.03);
-    transition: all .15s;
+    transition: all .15s; position: relative;
+  }
+  table.dp td.cell .orig {
+    position: absolute; top: 1px; left: 3px; font-size: 9px; font-weight: 400;
+    color: var(--muted); line-height: 1;
   }
   table.dp td.cell.filled { background: rgba(0,240,255,0.08); }
   table.dp td.cell.cur { background: var(--yellow); color: #120e00; box-shadow: 0 0 14px rgba(255,212,0,.7) inset; transform: scale(1.08); }
@@ -276,7 +280,9 @@ function renderTable(grid, marks = {}, opt = {}) {
       const cls = marks[r + "," + c] || "";
       const v = grid[r][c];
       const disp = v === null || v === undefined ? "" : (v === -Infinity ? "-∞" : v);
-      html += `<td class="cell ${cls}">${disp}</td>`;
+      // opt.orig 存在时，用小字在角落显示该位置原始值
+      const orig = opt.orig ? `<span class="orig">${opt.orig[r][c]}</span>` : "";
+      html += `<td class="cell ${cls}">${orig}${disp}</td>`;
     }
     html += '</tr>';
   }
@@ -543,11 +549,13 @@ function buildGrid(mode) {
   const dp = Array.from({ length: n }, () => Array(m).fill(null));
   const seen = new Set();
   const rowHead = [...Array(n).keys()], colHead = [...Array(m).keys()];
+  const isMax = mode === "max";
   const snap = (marks, desc, ans) => {
     const grid = dp.map((row, i) => row.map((v, j) => seen.has(i + "," + j) ? v : null));
-    list.push({ render: () => renderTable(grid, marks, { rowHead, colHead }), desc, ans });
+    // 最大路径和：格子里 dp 值 + 角落小字显示原矩阵值
+    const opt = isMax ? { rowHead, colHead, orig: MAT } : { rowHead, colHead };
+    list.push({ render: () => renderTable(grid, marks, opt), desc, ans });
   };
-  const isMax = mode === "max";
   snap({}, isMax
     ? `矩阵最大路径和：从左上 (0,0) 每次只能向右或向下，走到右下 (${n-1},${m-1})，使经过的数之和最大。dp[i][j]=到 (i,j) 的最大和。`
     : `矩阵路径方案数：从左上 (0,0) 每次只能向右或向下，走到右下 (${n-1},${m-1})，问有多少条不同路径。dp[i][j]=到 (i,j) 的路径数。`,
