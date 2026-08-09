@@ -27,14 +27,24 @@
 
 ```
 .
-├── index.html          门户页（按板块分组的卡片导航）
-├── demos/              各演示页（每个是零依赖的单文件 HTML）
-│   ├── search.html
-│   ├── hanoi.html
-│   ├── binary-tree.html
-│   ├── graph-traversal.html
-│   ├── topo-sort.html
-│   └── linked-list.html
+├── index.html                门户页（按板块分组的卡片导航）
+├── demos/                    各演示页（每个是零依赖的单文件 HTML）
+│   ├── search.html           查找算法演示
+│   ├── sorting.html          排序算法演示  
+│   ├── linked-list.html      链表演示
+│   ├── stack-queue.html      栈与队列演示
+│   ├── binary-tree.html      二叉树遍历演示
+│   ├── bst.html              二叉搜索树 (BST) 演示
+│   ├── heap.html             二叉堆演示（小根堆）
+│   ├── union-find.html       并查集演示 (Union-Find)
+│   ├── graph-traversal.html  图遍历演示  
+│   ├── topo-sort.html        拓扑排序演示
+│   ├── euler.html            欧拉图遍历演示
+│   ├── shortest-path.html    最短路径演示 (Dijkstra)
+│   ├── mst.html              最小生成树演示 (MST)
+│   ├── dp.html               动态规划演示
+│   ├── hash-table.html       哈希表演示 (Hash Table)
+│   └── hanoi.html            汉诺塔演示
 ├── README.md
 └── LICENSE
 ```
