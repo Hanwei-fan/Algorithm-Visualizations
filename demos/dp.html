@@ -198,6 +198,9 @@ const ALGOS = {
     { id: "knapfull", name: "完全背包" },
     { id: "knapmulti", name: "多重背包" },
   ],
+  tower: [
+    { id: "tower", name: "数塔（数字三角形）" },
+  ],
 };
 
 function parseNums(s) { return s.split(/[,，\s]+/).map(x => parseInt(x, 10)).filter(x => !isNaN(x)); }
@@ -279,8 +282,29 @@ function renderTwoSeq(ci, cj, match) {
     rowHtml("序列 B", B, cj, "cyan");
 }
 
+// 数塔渲染：tri 原始三角、dp 三角(null=未算)，marks["r,c"]=class
+function renderTower(tri, dp, marks) {
+  let html = '<div style="display:flex;flex-direction:column;align-items:center;gap:10px">';
+  tri.forEach((row, r) => {
+    html += '<div style="display:flex;gap:10px;justify-content:center">';
+    row.forEach((v, c) => {
+      const cls = marks[r + "," + c] || "";
+      const d = dp[r][c];
+      const dTxt = (d === null || d === undefined) ? "" : d;
+      html += `<div class="cell ${cls}" style="width:56px;height:52px">`
+        + `<div class="v">${v}</div>`
+        + `<div class="ix" style="color:${dTxt===""?"var(--muted)":"var(--green)"}">${dTxt===""?"·":"dp="+dTxt}</div>`
+        + `</div>`;
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  $("seqArea").innerHTML = html;
+  $("tableArea").innerHTML = "";
+}
+
 // ======== 各 DP：构建 steps ========
-let A = [], B = [], CAP = 10, WT = [], VAL = [], CNT = [];
+let A = [], B = [], CAP = 10, WT = [], VAL = [], CNT = [], TRI = [];
 
 // ---- LIS：dp[i]=以 a[i] 结尾的最长上升子序列长度 ----
 function buildLIS() {
@@ -425,6 +449,33 @@ function buildKnap(mode) {
   return list;
 }
 
+// ---- 数塔（数字三角形）：自底向上，dp[i][j] = a[i][j] + max(dp[i+1][j], dp[i+1][j+1]) ----
+function buildTower() {
+  const R = TRI.length, list = [];
+  const dp = TRI.map(row => row.map(() => null));
+  const snap = (marks, desc, ans) => {
+    const dpCopy = dp.map(row => [...row]);
+    list.push({ render: () => renderTower(TRI, dpCopy, marks), desc, ans });
+  };
+  snap({}, `数塔：从顶到底选一条路径，每步走向下方相邻的两个数之一，使路径和最大。dp[i][j] = 从 (i,j) 出发到底部的最大路径和，自底向上推。`, "-");
+  // 最底行：dp = 本身
+  for (let c = 0; c < TRI[R - 1].length; c++) dp[R - 1][c] = TRI[R - 1][c];
+  snap((() => { const mk = {}; for (let c = 0; c < TRI[R-1].length; c++) mk[(R-1)+","+c] = "filled"; return mk; })(),
+    `最底行没有下一层，dp 直接等于该格数值。`, "-");
+  // 自底向上
+  for (let i = R - 2; i >= 0; i--) {
+    for (let j = 0; j < TRI[i].length; j++) {
+      const dl = dp[i + 1][j], dr = dp[i + 1][j + 1];
+      dp[i][j] = TRI[i][j] + Math.max(dl, dr);
+      const pick = dl >= dr ? j : j + 1;
+      const marks = { [i + "," + j]: "cur", [(i+1) + "," + j]: "src", [(i+1) + "," + (j+1)]: "src" };
+      snap(marks, `dp[${i}][${j}] = a[${i}][${j}](${TRI[i][j]}) + max(下左 ${dl}, 下右 ${dr}) = ${TRI[i][j]} + ${Math.max(dl,dr)} = ${dp[i][j]}（选下${pick===j?"左":"右"}）。`, "-");
+    }
+  }
+  snap({ "0,0": "best" }, `完成！最大路径和 = dp[0][0] = <b>${dp[0][0]}</b>。`, dp[0][0]);
+  return list;
+}
+
 // ======== 配置与交互 ========
 const CFG = {
   lis: { subtitle: "最长上升子序列 (LIS)：找出最长的、严格递增的子序列长度。", formula: "dp[i] = 1 + max{ dp[j] | j&lt;i 且 a[j]&lt;a[i] }<br>答案 = <b>max</b>(dp[i])",
@@ -439,6 +490,8 @@ const CFG = {
     note: "与 01 背包的区别：选物品 i 时从<code>本行</code> dp[i][w-wᵢ] 转移（可重复取）。" },
   knapmulti: { subtitle: "多重背包：每件物品有数量上限。", formula: "dp[i][w] = max{ dp[i-1][w-k·wᵢ] + k·vᵢ | 0 ≤ k ≤ min(cᵢ, w/wᵢ) }",
     note: "每件物品最多取 cᵢ 个，枚举取 <code>k</code> 个中的最优。" },
+  tower: { subtitle: "数塔（数字三角形）：从顶到底，每步走向下方相邻两数之一，求最大路径和。", formula: "dp[i][j] = a[i][j] + max( dp[i+1][j], dp[i+1][j+1] )<br>答案 = <b>dp[0][0]</b>",
+    note: "自底向上：dp[i][j] 表示<code>从 (i,j) 到底部</code>的最大路径和。最底行等于自身；每格加上下方两个子格的较大者。" },
 };
 
 function initAlgoTabs() {
@@ -459,12 +512,15 @@ function readInputs() {
   if (kind === "seq") {
     A = parseNums($("dataInput").value).slice(0, 12);
     if (algo === "lcs") B = parseNums($("data2Input").value).slice(0, 12);
-  } else {
+  } else if (kind === "knap") {
     // 背包：dataInput 存 "重量:价值[:数量]" 用逗号分隔
     const items = $("dataInput").value.split(/[,，]/).map(s => s.trim()).filter(Boolean);
     WT = []; VAL = []; CNT = [];
     items.forEach(it => { const p = it.split(/[:：]/).map(x => parseInt(x, 10)); if (!isNaN(p[0]) && !isNaN(p[1])) { WT.push(p[0]); VAL.push(p[1]); CNT.push(isNaN(p[2]) ? 3 : p[2]); } });
     CAP = parseInt($("capInput").value, 10) || 10;
+  } else {
+    // 数塔：每行用 ; 分隔，行内空格/逗号分隔；第 r 行应有 r+1 个数
+    TRI = $("dataInput").value.split(/[;；\n]/).map(r => parseNums(r)).filter(r => r.length);
   }
 }
 
@@ -472,6 +528,7 @@ function buildSteps() {
   if (algo === "lis") return buildLIS();
   if (algo === "mss") return buildMSS();
   if (algo === "lcs") return buildLCS();
+  if (algo === "tower") return buildTower();
   if (algo === "knap01") return buildKnap("01");
   if (algo === "knapfull") return buildKnap("full");
   return buildKnap("multi");
@@ -485,6 +542,11 @@ function prepare() {
   if (kind === "seq" && A.length === 0) { $("status").textContent = "请输入序列。"; $("seqArea").innerHTML = ""; $("tableArea").innerHTML = ""; return; }
   if (algo === "lcs" && B.length === 0) { $("status").textContent = "请输入两个序列。"; return; }
   if (kind === "knap" && WT.length === 0) { $("status").textContent = "请输入物品（格式：重量:价值 或 重量:价值:数量，逗号分隔）。"; $("seqArea").innerHTML = ""; $("tableArea").innerHTML = ""; return; }
+  if (kind === "tower") {
+    if (TRI.length === 0) { $("status").textContent = "请输入数塔（每行一个层，用 ; 分隔，第 r 层 r 个数）。"; $("seqArea").innerHTML = ""; $("tableArea").innerHTML = ""; return; }
+    // 校验三角形形状：第 r 行应有 r+1 个数
+    for (let r = 0; r < TRI.length; r++) if (TRI[r].length !== r + 1) { $("status").textContent = `数塔形状错误：第 ${r+1} 行应有 ${r+1} 个数（当前 ${TRI[r].length} 个）。`; $("seqArea").innerHTML = ""; $("tableArea").innerHTML = ""; return; }
+  }
   loadSteps(buildSteps());
 }
 
@@ -503,13 +565,14 @@ function applyAlgo(a) {
   $("formula").innerHTML = cfg.formula;
   $("note").innerHTML = cfg.note;
   // 输入区切换
-  const isKnap = kind === "knap";
+  const isKnap = kind === "knap", isTower = kind === "tower";
   $("data2Field").style.display = (a === "lcs") ? "flex" : "none";
   $("capField").style.display = isKnap ? "flex" : "none";
-  $("dataLabel").textContent = isKnap ? "物品（重量:价值[:数量]，逗号分隔）" : (a === "lcs" ? "序列 A" : "序列");
-  $("dataInput").style.width = isKnap ? "320px" : (a === "lcs" ? "180px" : "260px");
+  $("dataLabel").textContent = isKnap ? "物品（重量:价值[:数量]，逗号分隔）" : isTower ? "数塔（每层用 ; 分隔，第 r 层 r 个数）" : (a === "lcs" ? "序列 A" : "序列");
+  $("dataInput").style.width = (isKnap || isTower) ? "340px" : (a === "lcs" ? "180px" : "260px");
   // 默认数据
   if (isKnap) { $("dataInput").value = a === "knapmulti" ? "2:3:2, 3:4:3, 4:5:1, 5:6:2" : "2:3, 3:4, 4:5, 5:6"; $("capInput").value = 10; }
+  else if (isTower) { $("dataInput").value = "7; 3 8; 8 1 0; 2 7 4 4; 4 5 2 6 5"; }
   else defaultData();
   prepare();
 }
@@ -520,6 +583,11 @@ function randomize() {
     if (algo === "mss") $("dataInput").value = Array.from({ length: n }, () => Math.floor(Math.random() * 21) - 10).join(", ");
     else $("dataInput").value = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * 20)).join(", ");
     if (algo === "lcs") $("data2Input").value = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * 9)).join(", ");
+  } else if (kind === "tower") {
+    const R = 4 + Math.floor(Math.random() * 2);   // 4~5 层
+    const rows = [];
+    for (let r = 0; r < R; r++) rows.push(Array.from({ length: r + 1 }, () => Math.floor(Math.random() * 10)).join(" "));
+    $("dataInput").value = rows.join("; ");
   } else {
     const n = 3 + Math.floor(Math.random() * 2);
     const items = Array.from({ length: n }, () => {
@@ -539,7 +607,8 @@ $("resetBtn").onclick = () => prepare();
 $("randBtn").onclick = () => randomize();
 
 // 支持通过 URL 参数 ?kind=seq|knap 指定初始类别（门户拆成两张卡片用）
-const initKind = new URLSearchParams(location.search).get("kind") === "knap" ? "knap" : "seq";
+const _k = new URLSearchParams(location.search).get("kind");
+const initKind = (_k === "knap" || _k === "tower") ? _k : "seq";
 applyKind(initKind);
 </script>
 </body>
