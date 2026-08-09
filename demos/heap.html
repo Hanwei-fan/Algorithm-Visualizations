@@ -378,7 +378,8 @@ function buildHeapSort() {
     const topVal = heapArr[0];
     acc.push(topVal);
     const outSnap = [...acc];                    // 快照本步输出
-    list.push({ mutate: () => { sortOut = outSnap.slice(); heap = heapArr.slice(0, size); },
+    const heapNow = heapArr.slice(0, size);      // 快照当前堆内容（size 值捕获，避免闭包引用 bug）
+    list.push({ mutate: () => { sortOut = outSnap.slice(); heap = heapNow.slice(); },
       marks: { 0: "cur" }, seqShow: true, desc: `取堆顶 ${topVal}（当前${topWord()}值）加入输出序列。` });
     // 末尾补到顶，size--
     heapArr[0] = heapArr[size - 1];
