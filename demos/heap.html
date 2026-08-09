@@ -129,14 +129,29 @@
   .tlegend .dot { width: 12px; height: 12px; border-radius: 50%; }
   .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
   .note code { color: var(--cyan); }
+  .subtabs { display: flex; align-items: center; gap: 10px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .sublabel { font-size: 12px; color: var(--muted); letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace; }
+  .subtab {
+    padding: 8px 18px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 14px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .subtab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .subtab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
 </style>
 </head>
 <body>
 <header>
-  <h1>二叉堆演示（小根堆）</h1>
-  <p>完全二叉树，父节点 ≤ 两个子节点。用数组存储：节点 i 的左孩子 2i+1、右孩子 2i+2、父亲 ⌊(i-1)/2⌋。</p>
+  <h1 id="title">二叉堆演示</h1>
+  <p id="subtitle"></p>
 </header>
 <a class="back" href="../index.html">← 返回门户</a>
+
+<div class="subtabs">
+  <span class="sublabel">堆类型：</span>
+  <button class="subtab active" data-type="min">小根堆 (Min-Heap)</button>
+  <button class="subtab" data-type="max">大根堆 (Max-Heap)</button>
+</div>
 
 <div class="controls">
   <div class="field">
@@ -159,9 +174,10 @@
 
 <main>
   <section class="card">
-    <svg id="tree" viewBox="0 0 680 360" preserveAspectRatio="xMidYMid meet"></svg>
-    <div class="arrlabel">数组存储</div>
+    <div class="arrlabel">数组存储（下标 0..n-1）</div>
     <div class="arr" id="arr"></div>
+    <div class="arrlabel" style="margin-top:16px">对应的完全二叉树</div>
+    <svg id="tree" viewBox="0 0 680 340" preserveAspectRatio="xMidYMid meet"></svg>
     <div class="tlegend">
       <span><i class="dot" style="background:#ff2bd6"></i>当前节点</span>
       <span><i class="dot" style="background:#ffd400"></i>比较对象</span>
@@ -185,9 +201,15 @@
 <script>
 const $ = id => document.getElementById(id);
 
-let heap = [];   // 数组存储的小根堆
+let heap = [];   // 数组存储的堆
+let heapType = "min";   // min / max
 let steps = [], idx = 0, timer = null, running = false;
 let sortOut = [];   // 堆排序输出
+
+// 比较：小根堆用 <，大根堆用 >。higher(a,b)=true 表示 a 应比 b 更靠近堆顶
+const higher = (a, b) => heapType === "min" ? a < b : a > b;
+const topWord = () => heapType === "min" ? "最小" : "最大";
+const cmpSym = () => heapType === "min" ? "≤" : "≥";
 
 function setStatus(t) { $("status").innerHTML = t; }
 
@@ -270,8 +292,8 @@ function buildInsert(val) {
   while (i > 0) {
     const p = Math.floor((i - 1) / 2);
     const ci = i, pp = p;
-    list.push({ marks: { [ci]: "cur", [pp]: "cmp" }, desc: `比较 a[${ci}]=${shadow[ci]} 与父 a[${pp}]=${shadow[pp]}：${shadow[ci] < shadow[pp] ? "更小，需上浮" : "≥ 父节点，停止"}。` });
-    if (shadow[ci] < shadow[pp]) {
+    list.push({ marks: { [ci]: "cur", [pp]: "cmp" }, desc: `比较 a[${ci}]=${shadow[ci]} 与父 a[${pp}]=${shadow[pp]}：${higher(shadow[ci], shadow[pp]) ? `更${heapType==="min"?"小":"大"}，需上浮` : `${cmpSym()} 父节点方向，停止`}。` });
+    if (higher(shadow[ci], shadow[pp])) {
       [shadow[ci], shadow[pp]] = [shadow[pp], shadow[ci]];
       const from = ci, to = pp, snap = [...shadow];
       list.push({ mutate: () => { [arr[from], arr[to]] = [arr[to], arr[from]]; }, marks: { [to]: "swap", [from]: "swap" }, desc: `交换 a[${from}] 与 a[${to}]，${val} 上浮到位置 ${to}。` });
@@ -287,7 +309,7 @@ function buildPop() {
   const arr = heap;
   if (arr.length === 0) return [{ marks: {}, desc: "空堆，无法删除。" }];
   const top = arr[0], last = arr[arr.length - 1];
-  list.push({ marks: { 0: "cur" }, desc: `堆顶 a[0]=${top} 是最小值，取出它。` });
+  list.push({ marks: { 0: "cur" }, desc: `堆顶 a[0]=${top} 是${topWord()}值，取出它。` });
   if (arr.length === 1) {
     list.push({ mutate: () => { arr.pop(); }, marks: {}, desc: `堆只剩一个元素，直接删除。堆空。` });
     return list;
@@ -300,17 +322,17 @@ function buildPop() {
   shadow[0] = last; shadow.pop();
   let i = 0; const n = shadow.length;
   while (true) {
-    let l = 2 * i + 1, r = 2 * i + 2, small = i;
-    if (l < n && shadow[l] < shadow[small]) small = l;
-    if (r < n && shadow[r] < shadow[small]) small = r;
+    let l = 2 * i + 1, r = 2 * i + 2, best = i;
+    if (l < n && higher(shadow[l], shadow[best])) best = l;
+    if (r < n && higher(shadow[r], shadow[best])) best = r;
     const cmpMarks = { [i]: "cur" };
     if (l < n) cmpMarks[l] = "cmp"; if (r < n) cmpMarks[r] = "cmp";
-    if (small === i) { list.push({ marks: cmpMarks, desc: `a[${i}]=${shadow[i]} 已 ≤ 两个孩子，下沉结束。` }); break; }
-    list.push({ marks: cmpMarks, desc: `a[${i}]=${shadow[i]} 与孩子比较，最小的是 a[${small}]=${shadow[small]}，需交换。` });
-    [shadow[i], shadow[small]] = [shadow[small], shadow[i]];
-    const from = i, to = small;
+    if (best === i) { list.push({ marks: cmpMarks, desc: `a[${i}]=${shadow[i]} 已 ${cmpSym()} 两个孩子，下沉结束。` }); break; }
+    list.push({ marks: cmpMarks, desc: `a[${i}]=${shadow[i]} 与孩子比较，最${topWord().slice(0,1)}的是 a[${best}]=${shadow[best]}，需交换。` });
+    [shadow[i], shadow[best]] = [shadow[best], shadow[i]];
+    const from = i, to = best;
     list.push({ mutate: () => { [arr[from], arr[to]] = [arr[to], arr[from]]; }, marks: { [from]: "swap", [to]: "swap" }, desc: `交换 a[${from}] 与 a[${to}]，继续下沉。` });
-    i = small;
+    i = best;
   }
   return list;
 }
@@ -327,56 +349,56 @@ function buildHeapify() {
     list.push({ marks: { [s]: "cur" }, desc: `对节点 i=${s}（值 ${shadow[s]}）执行下沉。` });
     let i = s;
     while (true) {
-      let l = 2 * i + 1, r = 2 * i + 2, small = i;
-      if (l < n && shadow[l] < shadow[small]) small = l;
-      if (r < n && shadow[r] < shadow[small]) small = r;
+      let l = 2 * i + 1, r = 2 * i + 2, best = i;
+      if (l < n && higher(shadow[l], shadow[best])) best = l;
+      if (r < n && higher(shadow[r], shadow[best])) best = r;
       const cmpMarks = { [i]: "cur" };
       if (l < n) cmpMarks[l] = "cmp"; if (r < n) cmpMarks[r] = "cmp";
-      if (small === i) { list.push({ marks: cmpMarks, desc: `a[${i}] ≤ 孩子，无需下沉。` }); break; }
-      list.push({ marks: cmpMarks, desc: `最小孩子 a[${small}]=${shadow[small]} < a[${i}]=${shadow[i]}，交换。` });
-      [shadow[i], shadow[small]] = [shadow[small], shadow[i]];
-      const from = i, to = small, snap = [...shadow];
+      if (best === i) { list.push({ marks: cmpMarks, desc: `a[${i}] 已 ${cmpSym()} 孩子，无需下沉。` }); break; }
+      list.push({ marks: cmpMarks, desc: `最${topWord().slice(0,1)}孩子 a[${best}]=${shadow[best]} 应在上，与 a[${i}]=${shadow[i]} 交换。` });
+      [shadow[i], shadow[best]] = [shadow[best], shadow[i]];
+      const from = i, to = best, snap = [...shadow];
       list.push({ mutate: () => { heap = snap.slice(); }, marks: { [from]: "swap", [to]: "swap" }, desc: `交换 a[${from}] 与 a[${to}]。` });
-      i = small;
+      i = best;
     }
   }
-  list.push({ mutate: () => { heap = shadow.slice(); }, marks: {}, desc: `建堆完成，数组已满足小根堆性质。` });
+  list.push({ mutate: () => { heap = shadow.slice(); }, marks: {}, desc: `建堆完成，数组已满足${heapType==="min"?"小":"大"}根堆性质。` });
   return list;
 }
 
 function buildHeapSort() {
   const list = [];
   if (heap.length === 0) return [{ marks: {}, desc: "空堆，无可排序。" }];
-  list.push({ mutate: () => { sortOut = []; }, marks: {}, seqShow: true, desc: `堆排序：反复取堆顶（当前最小值）加入输出，再把末尾补到堆顶下沉。（假设当前已是小根堆；若不确定请先“建堆”）` });
+  const ord = heapType === "min" ? "升序" : "降序";
+  list.push({ mutate: () => { sortOut = []; }, marks: {}, seqShow: true, desc: `堆排序：反复取堆顶（当前${topWord()}值）加入输出，再把末尾补到堆顶下沉。（假设当前已是${heapType==="min"?"小":"大"}根堆；若不确定请先“建堆”）` });
   const heapArr = [...heap];      // 生成阶段的工作副本
   const acc = [];                 // 生成阶段累积的输出（局部，非全局 sortOut）
   let size = heapArr.length;
   while (size > 0) {
-    const minVal = heapArr[0];
-    acc.push(minVal);
+    const topVal = heapArr[0];
+    acc.push(topVal);
     const outSnap = [...acc];                    // 快照本步输出
-    const heapSnap = heapArr.slice(1, size);     // 取走堆顶后剩余（临时展示）
     list.push({ mutate: () => { sortOut = outSnap.slice(); heap = heapArr.slice(0, size); },
-      marks: { 0: "cur" }, seqShow: true, desc: `取堆顶 ${minVal} 加入输出序列。` });
+      marks: { 0: "cur" }, seqShow: true, desc: `取堆顶 ${topVal}（当前${topWord()}值）加入输出序列。` });
     // 末尾补到顶，size--
     heapArr[0] = heapArr[size - 1];
     size--;
     // 下沉（在工作副本上，只考虑前 size 个）
     let i = 0;
     while (true) {
-      let l = 2 * i + 1, r = 2 * i + 2, small = i;
-      if (l < size && heapArr[l] < heapArr[small]) small = l;
-      if (r < size && heapArr[r] < heapArr[small]) small = r;
-      if (small === i) break;
-      [heapArr[i], heapArr[small]] = [heapArr[small], heapArr[i]];
-      i = small;
+      let l = 2 * i + 1, r = 2 * i + 2, best = i;
+      if (l < size && higher(heapArr[l], heapArr[best])) best = l;
+      if (r < size && higher(heapArr[r], heapArr[best])) best = r;
+      if (best === i) break;
+      [heapArr[i], heapArr[best]] = [heapArr[best], heapArr[i]];
+      i = best;
     }
     const displaySnap = heapArr.slice(0, size);
     list.push({ mutate: () => { heap = displaySnap.slice(); }, seqShow: true, marks: {},
       desc: size > 0 ? `末尾补到堆顶并下沉，堆缩小为 ${size} 个元素。` : `堆已空，排序完成。` });
   }
   const finalOut = [...acc];
-  list.push({ mutate: () => { sortOut = finalOut.slice(); heap = []; }, seqShow: true, marks: {}, desc: `完成！输出序列升序：${finalOut.join(" ")}。` });
+  list.push({ mutate: () => { sortOut = finalOut.slice(); heap = []; }, seqShow: true, marks: {}, desc: `完成！输出序列${ord}：${finalOut.join(" ")}。` });
   return list;
 }
 
@@ -400,8 +422,32 @@ $("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
 $("playBtn").onclick = () => playAll();
 $("valInput").addEventListener("keydown", e => { if (e.key === "Enter") $("insertBtn").click(); });
 
-render();
-setStatus("空堆。输入数值点“插入”，或点“随机生成”“建堆”。");
+// 堆类型切换
+function applyType(t) {
+  heapType = t; stopTimer(); running = false;
+  document.querySelectorAll(".subtab").forEach(b => b.classList.toggle("active", b.dataset.type === t));
+  const nm = t === "min" ? "小根堆" : "大根堆";
+  $("title").textContent = `二叉堆演示（${nm}）`;
+  $("subtitle").textContent = t === "min"
+    ? "完全二叉树，父节点 ≤ 两个子节点（堆顶最小）。数组存储：左孩子 2i+1、右孩子 2i+2、父亲 ⌊(i-1)/2⌋。"
+    : "完全二叉树，父节点 ≥ 两个子节点（堆顶最大）。数组存储：左孩子 2i+1、右孩子 2i+2、父亲 ⌊(i-1)/2⌋。";
+  $("formula").innerHTML = `${nm}：<b>a[parent] ${cmpSym()} a[child]</b><br>`
+    + `左孩子 = <b>2i+1</b>，右孩子 = <b>2i+2</b>，父亲 = <b>⌊(i-1)/2⌋</b><br>`
+    + `插入：加到末尾后<b>上浮</b>；删堆顶：末尾补到顶后<b>下沉</b>；建堆：乱序数组<b>自底向上</b>调整。`;
+  $("seqLabel").textContent = `堆排序输出（${t === "min" ? "升序" : "降序"}）`;
+  $("insertBtn").textContent = "插入(上浮)";
+  $("popBtn").textContent = t === "min" ? "删除堆顶(最小)" : "删除堆顶(最大)";
+  // 切换类型：保留当前序列，但清空堆排序输出；提示重新建堆
+  sortOut = []; render(undefined, false);
+  if (heap.length) setStatus(`已切换为${nm}。当前数组未必满足新的堆性质，点“建堆”重新调整。`);
+  else setStatus(`已切换为${nm}。点“随机生成”造一个乱序数组，再“建堆”。`);
+}
+document.querySelectorAll(".subtab").forEach(b => b.onclick = () => { if (!running) applyType(b.dataset.type); });
+
+// 初始：随机生成一个乱序序列放入数组（对应一棵二叉树，未必是堆）
+heap = Array.from({ length: 7 }, () => 1 + Math.floor(Math.random() * 99));
+applyType("min");
+setStatus("已随机生成一个乱序序列（对应下方二叉树，未必满足堆性质）。点“建堆”自底向上调整成小根堆。");
 </script>
 </body>
 </html>
