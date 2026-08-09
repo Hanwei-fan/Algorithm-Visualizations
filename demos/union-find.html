@@ -143,11 +143,16 @@
 </div>
 
 <div class="controls">
+  <div class="field"><label>查找的元素</label><input id="findInput" type="number" placeholder="x"></div>
+  <button class="btn cy" id="findBtn">查找 find(x)</button>
+  <span style="align-self:center;color:var(--muted)">|</span>
   <div class="field"><label>元素 x</label><input id="xInput" type="number" placeholder="x"></div>
   <div class="field"><label>元素 y</label><input id="yInput" type="number" placeholder="y"></div>
   <button class="btn" id="unionBtn">合并 union(x,y)</button>
-  <button class="btn cy" id="findBtn">查找 find(x)</button>
   <button class="btn cy" id="sameBtn">同集合? (x,y)</button>
+</div>
+
+<div class="controls" style="padding-top:0">
   <div class="field"><label>元素个数 n</label><input id="nInput" type="number" value="8" min="1" max="12"></div>
   <button class="btn ghost" id="resetBtn">重置</button>
   <button class="btn ghost" id="randBtn">随机合并</button>
@@ -343,7 +348,7 @@ function validIdx(v) { return Number.isInteger(v) && v >= 0 && v < N; }
 function opGuard() { return !running; }
 
 $("unionBtn").onclick = () => { if (!opGuard()) return; const { x, y } = readXY(); if (!validIdx(x) || !validIdx(y)) { setStatus(`请输入 0~${N-1} 的元素 x 和 y。`); return; } loadSteps(buildUnion(x, y)); };
-$("findBtn").onclick = () => { if (!opGuard()) return; const x = parseInt($("xInput").value, 10); if (!validIdx(x)) { setStatus(`请输入 0~${N-1} 的元素 x。`); return; } loadSteps(buildFind(x)); };
+$("findBtn").onclick = () => { if (!opGuard()) return; const x = parseInt($("findInput").value, 10); if (!validIdx(x)) { setStatus(`请在“查找的元素”里输入 0~${N-1} 的一个元素。`); return; } loadSteps(buildFind(x)); };
 $("sameBtn").onclick = () => { if (!opGuard()) return; const { x, y } = readXY(); if (!validIdx(x) || !validIdx(y)) { setStatus(`请输入 0~${N-1} 的元素 x 和 y。`); return; } loadSteps(buildSame(x, y)); };
 $("resetBtn").onclick = () => { if (running) return; initSets(); };
 $("randBtn").onclick = () => {
@@ -368,15 +373,15 @@ function initSets() {
   parent = Array.from({ length: N }, (_, i) => i);
   rank_ = Array(N).fill(0);
   render();
-  setStatus(`初始化 ${N} 个元素，各自成一个集合（parent[i]=i）。输入 x、y 试试合并/查找。`);
+  setStatus(`初始化 ${N} 个元素，各自成一个集合（parent[i]=i）。查找=查某元素所属集合的代表元(根)；合并=把两元素所在集合并为一个。`);
 }
 
 function applyOpt(o) {
   opt = o; stopTimer(); running = false;
   document.querySelectorAll(".subtab").forEach(b => b.classList.toggle("active", b.dataset.opt === o));
   $("formula").innerHTML = o === "both"
-    ? `find(x)：沿 parent 上溯到根；<b>路径压缩</b>——把路径上所有点直接挂到根。<br>union(x,y)：<b>按秩合并</b>——矮树的根挂到高树的根下，秩相等时新根 rank+1。<br>两者结合近乎 O(1)（反阿克曼 α）。`
-    : `find(x)：沿 parent 一路上溯到根。<br>union(x,y)：直接把一个根挂到另一个根下。<br>无优化时树可能退化成链，单次操作最坏 O(n)。`;
+    ? `<b>find(x)</b>：查 x 所属集合的<b>代表元（树根）</b>——沿 parent 一路上溯到根；<b>路径压缩</b>把路径上所有点直接挂到根。<br><b>union(x,y)</b>：<b>按秩合并</b>——先各自 find 出根，矮树的根挂到高树的根下，秩相等时新根 rank+1。<br><b>同集合?</b>：x、y 的 find 结果（根）相同即在同一集合。两优化结合近乎 O(1)（反阿克曼 α）。`
+    : `<b>find(x)</b>：查 x 所属集合的<b>代表元（树根）</b>——沿 parent 一路上溯到根。<br><b>union(x,y)</b>：各自 find 出根后，直接把一个根挂到另一个根下。<br><b>同集合?</b>：比较两者的根是否相同。无优化时树可能退化成链，单次最坏 O(n)。`;
   $("note").innerHTML = o === "both"
     ? "路径压缩让查找路径上的节点“抄近路”直接连根；按秩合并避免矮树拉高整体。两者配合，均摊复杂度接近常数。"
     : "朴素并查集不做任何优化，容易形成高树甚至链，效率低——用来对比优化的价值。";
@@ -384,6 +389,7 @@ function applyOpt(o) {
 }
 
 document.querySelectorAll(".subtab").forEach(b => b.onclick = () => applyOpt(b.dataset.opt));
+$("findInput").addEventListener("keydown", e => { if (e.key === "Enter") $("findBtn").click(); });
 
 applyOpt("both");
 </script>
