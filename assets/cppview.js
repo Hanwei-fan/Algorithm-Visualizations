@@ -59,33 +59,61 @@
     document.head.appendChild(el);
   }
 
-  // 极简 C++ 高亮（转义 + 注释/字符串/关键字/数字着色）
+  // 极简 C++ 高亮：单次分词扫描，每个 token 先 HTML 转义再包 span，
+  // 避免多轮 replace 相互污染（否则会把已生成的 <span class="..."> 属性再匹配一次，导致标签泄漏）。
   function esc(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+  const KW = new Set("int long double float char bool void const unsigned short struct class public private return if else for while do switch case break continue sizeof new delete true false nullptr using namespace std include define vector string pair auto static template typename".split(" "));
   function highlight(code) {
-    const KW = /\b(int|long|double|float|char|bool|void|const|unsigned|short|struct|class|public|private|return|if|else|for|while|do|switch|case|break|continue|sizeof|new|delete|true|false|nullptr|using|namespace|std|include|define|vector|string|pair|auto|static|template|typename)\b/g;
-    // 逐行处理，行注释与块内简单处理
-    return code.split("\n").map(line => {
-      // 提取行注释
-      let comment = "";
-      const ci = findLineComment(line);
-      if (ci >= 0) { comment = line.slice(ci); line = line.slice(0, ci); }
-      let out = esc(line)
-        .replace(/(&quot;.*?&quot;|"[^"]*")/g, s => `<span class="cppview-str">${s}</span>`)
-        .replace(/\b(\d+)\b/g, '<span class="cppview-num">$1</span>')
-        .replace(KW, '<span class="cppview-kw">$&</span>');
-      if (comment) out += `<span class="cppview-cmt">${esc(comment)}</span>`;
-      return out;
-    }).join("\n");
-  }
-  // 找到不在字符串内的 // 位置
-  function findLineComment(line) {
-    let inStr = false;
-    for (let i = 0; i < line.length - 1; i++) {
-      const c = line[i];
-      if (c === '"' && line[i - 1] !== "\\") inStr = !inStr;
-      if (!inStr && c === "/" && line[i + 1] === "/") return i;
+    let out = "";
+    let i = 0;
+    const n = code.length;
+    while (i < n) {
+      const c = code[i];
+      // 行注释 // ... 到行尾
+      if (c === "/" && code[i + 1] === "/") {
+        let j = i; while (j < n && code[j] !== "\n") j++;
+        out += `<span class="cppview-cmt">${esc(code.slice(i, j))}</span>`;
+        i = j; continue;
+      }
+      // 块注释 /* ... */
+      if (c === "/" && code[i + 1] === "*") {
+        let j = i + 2; while (j < n && !(code[j] === "*" && code[j + 1] === "/")) j++;
+        j = Math.min(n, j + 2);
+        out += `<span class="cppview-cmt">${esc(code.slice(i, j))}</span>`;
+        i = j; continue;
+      }
+      // 字符串 "..."（处理转义）
+      if (c === '"') {
+        let j = i + 1; while (j < n && !(code[j] === '"' && code[j - 1] !== "\\")) j++;
+        j = Math.min(n, j + 1);
+        out += `<span class="cppview-str">${esc(code.slice(i, j))}</span>`;
+        i = j; continue;
+      }
+      // 字符 '...'
+      if (c === "'") {
+        let j = i + 1; while (j < n && !(code[j] === "'" && code[j - 1] !== "\\")) j++;
+        j = Math.min(n, j + 1);
+        out += `<span class="cppview-str">${esc(code.slice(i, j))}</span>`;
+        i = j; continue;
+      }
+      // 标识符/关键字
+      if (/[A-Za-z_]/.test(c)) {
+        let j = i; while (j < n && /[A-Za-z0-9_]/.test(code[j])) j++;
+        const word = code.slice(i, j);
+        out += KW.has(word) ? `<span class="cppview-kw">${word}</span>` : esc(word);
+        i = j; continue;
+      }
+      // 数字
+      if (/[0-9]/.test(c)) {
+        let j = i; while (j < n && /[0-9.xXa-fA-F]/.test(code[j])) j++;
+        out += `<span class="cppview-num">${esc(code.slice(i, j))}</span>`;
+        i = j; continue;
+      }
+      // 其他单字符（含 < > & 等，需转义）
+      out += esc(c);
+      i++;
     }
-    return -1;
+    return out;
   }
 
   function open(id) {
