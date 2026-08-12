@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>扫描线演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .subtabs { display: flex; align-items: center; gap: 10px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .sublabel { font-size: 12px; color: var(--muted); letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace; }
+  .subtab {
+    padding: 8px 18px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 14px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .subtab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .subtab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; padding: 16px 30px; }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 130px; accent-color: var(--magenta); }
+  .btn {
+    padding: 10px 18px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 14px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  svg { width: 100%; height: auto; display: block; }
+  .rect { fill: rgba(0,240,255,0.08); stroke: var(--cyan); stroke-width: 1.5; }
+  .rect-lbl { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 11px; }
+  .scan { stroke: var(--magenta); stroke-width: 2.5; filter: drop-shadow(0 0 6px rgba(255,43,214,.8)); }
+  .slab { fill: rgba(255,43,214,0.18); }          /* 当前扫过的竖条 (面积) */
+  .cover { stroke: var(--green); stroke-width: 5; filter: drop-shadow(0 0 6px rgba(0,255,156,.7)); }  /* 扫描线上被覆盖的 y 段 */
+  .axis { stroke: #4a4478; stroke-width: 1; }
+  .axis-lbl { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 10px; }
+  .evline { stroke: var(--yellow); stroke-width: 1.5; stroke-dasharray: 4 3; opacity: .6; }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: #8fb8c9; margin: 0 0 16px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .stats { display: flex; gap: 22px; font-size: 14px; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; }
+  .stats b { font-size: 20px; color: var(--green); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .evtab { width: 100%; border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 12px; margin-bottom: 12px; }
+  .evtab th, .evtab td { border: 1px solid var(--border); padding: 4px 6px; text-align: center; }
+  .evtab th { color: var(--cyan); }
+  .evtab tr.cur td { background: rgba(255,43,214,0.18); color: #fff; }
+  .evtab tr.done td { background: rgba(0,255,156,0.08); }
+  .status { margin-top: 8px; font-size: 14.5px; min-height: 44px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .tlegend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tlegend .dot { width: 12px; height: 12px; border-radius: 3px; }
+  .tlegend .bar { width: 18px; height: 4px; border-radius: 2px; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>扫描线演示</h1>
+  <p id="subtitle"></p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="subtabs">
+  <span class="sublabel">求解：</span>
+  <button class="subtab active" data-mode="area">矩形面积并</button>
+  <button class="subtab" data-mode="peri">矩形周长并</button>
+</div>
+
+<div class="controls">
+  <div class="speed">
+    <label for="speedInput">速度</label>
+    <input id="speedInput" type="range" min="150" max="1400" value="700" step="50">
+  </div>
+  <button class="btn" id="playBtn">自动播放</button>
+  <button class="btn secondary" id="stepBtn">单步 ▶</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="btn secondary" id="randBtn">随机矩形</button>
+</div>
+
+<main>
+  <section class="card">
+    <svg id="canvas" viewBox="0 0 640 460" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="tlegend">
+      <span><i class="bar" style="background:#ff2bd6"></i>扫描线（竖直，从左向右）</span>
+      <span><i class="bar" style="background:#00ff9c"></i>扫描线上被覆盖的 y 段</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>当前累加的竖条</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel">算法</div>
+    <div class="formula" id="formula"></div>
+    <div class="stats" id="stats"></div>
+    <div class="plabel">事件（按 x 排序的竖边）</div>
+    <table class="evtab" id="evtab"></table>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let mode = "area";        // area / peri
+let rects = [];           // {x1,y1,x2,y2}
+let steps = [], idx = 0, timer = null, running = false;
+
+// 坐标系：数据坐标 → SVG 像素。数据范围固定 0..20，SVG 内边距
+const DMIN = 0, DMAX = 20, PAD = 40, SVGW = 640, SVGH = 460;
+const sx = x => PAD + (x - DMIN) / (DMAX - DMIN) * (SVGW - 2 * PAD);
+const sy = y => (SVGH - PAD) - (y - DMIN) / (DMAX - DMIN) * (SVGH - 2 * PAD);  // y 轴向上
+
+function setStatus(t) { $("status").innerHTML = t; }
+
+// 覆盖计数数组（每个 y 单位格 [y,y+1) 的覆盖次数）→ 覆盖总长 & 连续段
+function coverLen(cnt) { let s = 0; for (let y = 0; y < DMAX; y++) if (cnt[y] > 0) s++; return s; }
+function segCount(cnt) { let s = 0; for (let y = 0; y < DMAX; y++) if (cnt[y] > 0 && (y === 0 || cnt[y - 1] === 0)) s++; return s; }
+// 把覆盖计数转成若干连续 [lo,hi) 区间（用于画绿线）
+function coverSegs(cnt) {
+  const segs = []; let lo = -1;
+  for (let y = 0; y < DMAX; y++) {
+    if (cnt[y] > 0 && lo < 0) lo = y;
+    if ((cnt[y] <= 0 || y === DMAX - 1) && lo >= 0) { const hi = cnt[y] > 0 ? y + 1 : y; segs.push([lo, hi]); lo = -1; }
+  }
+  return segs;
+}
+
+// ======== 生成扫描线步骤 ========
+function genSteps() {
+  const xs = [...new Set(rects.flatMap(r => [r.x1, r.x2]))].sort((a, b) => a - b);
+  const cnt = new Array(DMAX).fill(0);
+  const list = [];
+  let area = 0, peri = 0;
+  const slabs = [];   // 已累加的面积竖条 {x1,x2,segs}
+  const evRows = xs.map(x => {
+    const adds = rects.filter(r => r.x1 === x).length;
+    const rems = rects.filter(r => r.x2 === x).length;
+    return { x, adds, rems };
+  });
+
+  const snap = (o) => list.push(Object.assign({
+    scanX: null, covSegs: [], slabs: slabs.map(s => ({ ...s, segs: s.segs.map(g => [...g]) })),
+    area, peri, evIdx: -1, doneEv: [], desc: ""
+  }, o));
+
+  snap({ desc: mode === "area"
+    ? `扫描线求面积并：竖直线从左向右扫过每条竖边。相邻两条边之间，覆盖的 y 总长不变，面积 += 覆盖长 × Δx。`
+    : `扫描线求周长并：竖直边贡献 = 覆盖长的变化量 |Δ|；水平边贡献 = 2 × 连续覆盖段数 × Δx。` });
+
+  for (let e = 0; e < xs.length; e++) {
+    const x = xs[e];
+    // 记录处理前每个 y 单位的覆盖布尔，用于统计竖直边界长度
+    const coveredBefore = cnt.map(c => c > 0);
+    const beforeLen = coverLen(cnt);
+    // 应用该 x 处的所有竖边
+    rects.forEach(r => {
+      if (r.x1 === x) for (let y = r.y1; y < r.y2; y++) cnt[y]++;
+      if (r.x2 === x) for (let y = r.y1; y < r.y2; y++) cnt[y]--;
+    });
+    const after = coverLen(cnt);
+    const segs = coverSegs(cnt);
+    const doneEv = xs.slice(0, e);
+
+    if (mode === "peri") {
+      // 竖直边贡献 = 覆盖状态发生翻转(0↔覆盖)的 y 单位数，而非覆盖总长的净差
+      let dV = 0;
+      for (let y = 0; y < DMAX; y++) if ((cnt[y] > 0) !== coveredBefore[y]) dV++;
+      peri += dV;
+      snap({ scanX: x, covSegs: segs.map(g => [...g]), evIdx: e, doneEv,
+        desc: `扫描线到 x=${x}：处理竖边后覆盖长 ${beforeLen} → ${after}，此处新增/消失的竖直边界共 ${dV} 单位长，累计周长 ${peri}。` });
+    } else {
+      snap({ scanX: x, covSegs: segs.map(g => [...g]), evIdx: e, doneEv,
+        desc: `扫描线到 x=${x}：更新覆盖区间，当前覆盖 y 总长 = ${after}。` });
+    }
+
+    // 累加到下一个事件
+    if (e < xs.length - 1) {
+      const nx = xs[e + 1], dx = nx - x;
+      if (mode === "area") {
+        if (after > 0) { area += after * dx; slabs.push({ x1: x, x2: nx, segs: segs.map(g => [...g]) }); }
+        snap({ scanX: x, covSegs: segs.map(g => [...g]), evIdx: e, doneEv,
+          slabs: slabs.map(s => ({ ...s, segs: s.segs.map(g => [...g]) })),
+          desc: `区间 [${x}, ${nx}]：覆盖长 ${after} × 宽 ${dx} = ${after * dx}，面积累加到 ${area}。` });
+      } else {
+        const sc = segCount(cnt);
+        const add = 2 * sc * dx;
+        peri += add;
+        snap({ scanX: x, covSegs: segs.map(g => [...g]), evIdx: e, doneEv,
+          desc: `区间 [${x}, ${nx}]：连续覆盖段 ${sc} 段，水平边贡献 2×${sc}×${dx}=${add}，累计周长 ${peri}。` });
+      }
+    }
+  }
+  snap({ scanX: null, covSegs: [], evIdx: -1, doneEv: xs.slice(),
+    desc: mode === "area" ? `完成！矩形面积并 = <b>${area}</b>。` : `完成！矩形周长并 = <b>${peri}</b>。`,
+    slabs: slabs.map(s => ({ ...s, segs: s.segs.map(g => [...g]) })) });
+  return list;
+}
+
+// ======== 渲染 ========
+function draw(k) {
+  const s = steps[k];
+  let svg = "";
+  // 坐标轴
+  svg += `<line class="axis" x1="${sx(0)}" y1="${sy(0)}" x2="${sx(DMAX)}" y2="${sy(0)}"/>`;
+  svg += `<line class="axis" x1="${sx(0)}" y1="${sy(0)}" x2="${sx(0)}" y2="${sy(DMAX)}"/>`;
+  for (let t = 0; t <= DMAX; t += 5) {
+    svg += `<text class="axis-lbl" x="${sx(t)}" y="${sy(0)+14}" text-anchor="middle">${t}</text>`;
+    svg += `<text class="axis-lbl" x="${sx(0)-12}" y="${sy(t)+4}" text-anchor="middle">${t}</text>`;
+  }
+  // 已累加的面积竖条（面积模式）
+  (s.slabs || []).forEach(sl => {
+    sl.segs.forEach(([lo, hi]) => {
+      svg += `<rect class="slab" x="${sx(sl.x1)}" y="${sy(hi)}" width="${sx(sl.x2)-sx(sl.x1)}" height="${sy(lo)-sy(hi)}"/>`;
+    });
+  });
+  // 矩形轮廓
+  rects.forEach((r, i) => {
+    svg += `<rect class="rect" x="${sx(r.x1)}" y="${sy(r.y2)}" width="${sx(r.x2)-sx(r.x1)}" height="${sy(r.y1)-sy(r.y2)}"/>`;
+  });
+  // 事件竖边虚线
+  const xs = [...new Set(rects.flatMap(r => [r.x1, r.x2]))].sort((a, b) => a - b);
+  xs.forEach(x => { svg += `<line class="evline" x1="${sx(x)}" y1="${sy(0)}" x2="${sx(x)}" y2="${sy(DMAX)}"/>`; });
+  // 扫描线
+  if (s.scanX !== null) {
+    svg += `<line class="scan" x1="${sx(s.scanX)}" y1="${sy(0)}" x2="${sx(s.scanX)}" y2="${sy(DMAX)}"/>`;
+    // 扫描线上被覆盖的 y 段（绿色粗线）
+    (s.covSegs || []).forEach(([lo, hi]) => {
+      svg += `<line class="cover" x1="${sx(s.scanX)}" y1="${sy(lo)}" x2="${sx(s.scanX)}" y2="${sy(hi)}"/>`;
+    });
+  }
+  $("canvas").innerHTML = svg;
+
+  // 统计
+  $("stats").innerHTML = mode === "area"
+    ? `面积并：<b>${s.area}</b>`
+    : `周长并：<b>${s.peri}</b>`;
+  // 事件表
+  let rows = `<tr><th>x</th><th>加入</th><th>移除</th></tr>`;
+  xs.forEach((x, i) => {
+    const adds = rects.filter(r => r.x1 === x).length, rems = rects.filter(r => r.x2 === x).length;
+    const cls = i === s.evIdx ? "cur" : (s.doneEv || []).includes(x) ? "done" : "";
+    rows += `<tr class="${cls}"><td>${x}</td><td>${adds || "-"}</td><td>${rems || "-"}</td></tr>`;
+  });
+  $("evtab").innerHTML = rows;
+  setStatus(s.desc);
+}
+
+// ======== 单步引擎 ========
+function applyStep(i) { draw(i); }
+function stepOnce() { if (!running) return false; if (idx < steps.length - 1) { idx++; applyStep(idx); } if (idx >= steps.length - 1) endRun(); return true; }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 1550 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; applyStep(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+function prepare() {
+  stopTimer(); steps = genSteps(); idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  draw(0);
+}
+
+// ======== 随机矩形 ========
+function randomRects() {
+  const n = 3 + Math.floor(Math.random() * 2);   // 3~4 个
+  rects = [];
+  for (let i = 0; i < n; i++) {
+    const w = 3 + Math.floor(Math.random() * 6), h = 3 + Math.floor(Math.random() * 6);
+    const x1 = Math.floor(Math.random() * (DMAX - w)), y1 = Math.floor(Math.random() * (DMAX - h));
+    rects.push({ x1, y1, x2: x1 + w, y2: y1 + h });
+  }
+}
+
+function applyMode(m) {
+  mode = m; stopTimer(); running = false;
+  document.querySelectorAll(".subtab").forEach(b => b.classList.toggle("active", b.dataset.mode === m));
+  $("subtitle").textContent = m === "area"
+    ? "用竖直扫描线从左向右扫过所有矩形的竖边，累加各段的覆盖面积，求若干矩形的面积并（重叠只算一次）。"
+    : "扫描线求若干矩形的周长并：分别累加竖直边与水平边对总周长的贡献。";
+  $("formula").innerHTML = m === "area"
+    ? `事件 = 每个矩形的<b>左右竖边</b>（左边 +1，右边 −1），按 x 排序。<br>用覆盖计数数组维护每段 y 是否被覆盖；<b>覆盖长</b> = 被覆盖的 y 总长。<br>相邻两事件 x 之间覆盖长不变：<b>面积 += 覆盖长 × Δx</b>。`
+    : `<b>竖直边贡献</b>：处理一条竖边后覆盖长的变化量 <b>|Δ覆盖长|</b> 累加（新增/消失的竖直边界）。<br><b>水平边贡献</b>：相邻两事件间，覆盖区间的<b>连续段数 × 2 × Δx</b>（每段上下两条水平边）。`;
+  $("note").innerHTML = m === "area"
+    ? "面积并：重叠区域只计一次。真正的工程实现用<code>线段树</code>维护覆盖长以支持大数据；这里用小网格计数便于观察原理。"
+    : "周长并把总周长拆成竖直、水平两部分分别累加。竖直看覆盖长的突变，水平看连续覆盖段的上下边界。";
+  if (rects.length === 0) randomRects();
+  prepare();
+}
+
+document.querySelectorAll(".subtab").forEach(b => b.onclick = () => applyMode(b.dataset.mode));
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) prepare(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("resetBtn").onclick = () => prepare();
+$("randBtn").onclick = () => { randomRects(); prepare(); };
+
+applyMode("area");
+</script>
+</body>
+</html>
