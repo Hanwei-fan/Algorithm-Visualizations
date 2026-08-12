@@ -259,6 +259,7 @@ function genPeri() {
     let dH = 0;
     for (let x = 0; x < DMAX; x++) if ((cntX[x] > 0) !== beforeCov[x]) dH++;
     horiz += dH;
+    peri = horiz;   // 实时更新周长(第一轮只有水平边)，让统计栏跟随
     const segs = coverSegs(cntX);
     snap({ dir: "h", round: 1, scanY: y, covSegs: segs.map(g => [...g]), evIdx: e, doneEv: ys.slice(0, e),
       desc: `横线 y=${y}：处理横边后，x 方向覆盖状态翻转 ${dH} 单位 → 这条横线贡献 ${dH} 的水平边长，累计水平边 ${horiz}。` });
