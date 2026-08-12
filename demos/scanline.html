@@ -437,131 +437,149 @@ applyMode("area");
 <script src="../assets/cppview.js"></script>
 <script>
 CppView.register({
-  area: { title: "扫描线 · 矩形面积并 — C++", code:
+  area: { title: "扫描线 + 线段树 · 矩形面积并 — C++", code:
 `// 功能：求 n 个轴对齐矩形的面积并（重叠区域只算一次）。
 // 原理：水平扫描线自下而上。事件 = 每个矩形的上下横边（下边 +1，上边 -1）。
-//       对 x 坐标离散化后，用「覆盖计数 + 暴力统计覆盖长」维护当前被覆盖的 x 总长；
-//       相邻两条横线之间覆盖长不变，面积 += 覆盖长 × Δy。
-// 输入：第一行整数 n；接下来 n 行，每行 4 个整数 x1 y1 x2 y2
-//       （矩形左下角 (x1,y1)、右上角 (x2,y2)，要求 x1<x2, y1<y2）。
-// 输出：一行一个整数，表示矩形面积并。
+//       x 坐标【离散化】后，用【线段树】维护「当前被覆盖的 x 总长 covered」：
+//       每个叶子对应一个基本 x 段 [xs[j], xs[j+1])，区间整体 +1/-1，
+//       根节点的 covered 即当前覆盖长。相邻两横线之间 面积 += covered × Δy。
+// 输入：第一行整数 n；接下来 n 行 4 个整数 x1 y1 x2 y2
+//       （矩形左下角 (x1,y1)、右上角 (x2,y2)，x1<x2, y1<y2）。
+// 输出：一行一个整数，矩形面积并。
 #include <iostream>
 #include <algorithm>
 #include <vector>
 using namespace std;
+typedef long long ll;
 
-struct Edge {          // 一条横边（事件）
-    long long y;       // 所在的 y 坐标
-    long long x1, x2;  // 覆盖的 x 区间 [x1,x2)
-    int type;          // +1 下边（进入）/ -1 上边（离开）
-};
+vector<ll> xs;         // 离散化后的 x 坐标（基本段端点）
+int cnt_[400005];      // 线段树：该节点区间被整体覆盖的次数（懒标记式，不下传）
+ll covered[400005];    // 线段树：该节点区间当前被覆盖的 x 长度
+
+// 线段树节点 o 对应基本段下标区间 [l, r]（覆盖实数区间 [xs[l], xs[r+1]]）
+// 上传：由 cnt_ 和子节点信息算出本节点的 covered
+void pushUp(int o, int l, int r) {
+    if (cnt_[o] > 0) covered[o] = xs[r + 1] - xs[l];          // 本区间被完整覆盖
+    else if (l == r) covered[o] = 0;                          // 叶子且未覆盖
+    else covered[o] = covered[o << 1] + covered[o << 1 | 1];  // 由两个子区间求和
+}
+// 对基本段区间 [ql, qr] 整体 +v（v=+1 进入 / -1 离开），当前处理节点 o 管 [l, r]
+void update(int o, int l, int r, int ql, int qr, int v) {
+    if (ql <= l && r <= qr) { cnt_[o] += v; pushUp(o, l, r); return; }
+    int mid = (l + r) >> 1;
+    if (ql <= mid) update(o << 1, l, mid, ql, qr, v);
+    if (qr > mid)  update(o << 1 | 1, mid + 1, r, ql, qr, v);
+    pushUp(o, l, r);
+}
+
+struct Edge { ll y, x1, x2; int type; };   // 一条横边（扫描事件）
 
 int main() {
     int n;
     cin >> n;
     vector<Edge> edges;
-    vector<long long> xsAll;      // 收集所有 x 坐标用于离散化
     for (int i = 0; i < n; i++) {
-        long long x1, y1, x2, y2;
+        ll x1, y1, x2, y2;
         cin >> x1 >> y1 >> x2 >> y2;
         edges.push_back({y1, x1, x2, +1});  // 下边：区间进入
         edges.push_back({y2, x1, x2, -1});  // 上边：区间离开
-        xsAll.push_back(x1);
-        xsAll.push_back(x2);
+        xs.push_back(x1); xs.push_back(x2);
     }
-    // x 坐标离散化：去重排序，得到若干基本 x 段 [xs[j], xs[j+1])
-    sort(xsAll.begin(), xsAll.end());
-    xsAll.erase(unique(xsAll.begin(), xsAll.end()), xsAll.end());
-    int m = xsAll.size();
-    vector<int> cover(m, 0);      // cover[j]=第 j 个 x 基本段的覆盖次数
+    // x 坐标离散化：去重排序 → 基本段 [xs[j], xs[j+1])，共 m-1 段
+    sort(xs.begin(), xs.end());
+    xs.erase(unique(xs.begin(), xs.end()), xs.end());
+    int m = xs.size();
     // 事件按 y 从小到大排序
     sort(edges.begin(), edges.end(), [](const Edge& a, const Edge& b){ return a.y < b.y; });
 
-    long long area = 0, prevY = 0;
+    ll area = 0;
     for (int i = 0; i < (int)edges.size(); i++) {
-        // 结算 [prevY, 当前 y] 这条带的面积（i>0 时覆盖状态已建立）
-        if (i > 0) {
-            long long covLen = 0;                 // 当前被覆盖的 x 总长
-            for (int j = 0; j + 1 < m; j++)
-                if (cover[j] > 0) covLen += xsAll[j + 1] - xsAll[j];
-            area += covLen * (edges[i].y - prevY); // 面积 += 覆盖长 × Δy
-        }
-        // 应用当前 y 处的所有横边，更新覆盖计数
-        long long curY = edges[i].y;
-        while (i < (int)edges.size() && edges[i].y == curY) {
-            for (int j = 0; j + 1 < m; j++)        // 找出该边覆盖的基本 x 段
-                if (edges[i].x1 <= xsAll[j] && xsAll[j + 1] <= edges[i].x2)
-                    cover[j] += edges[i].type;
-            i++;
-        }
-        i--;                                       // 抵消 for 的 i++
-        prevY = curY;
+        if (i > 0) area += covered[1] * (edges[i].y - edges[i - 1].y);  // 结算下方一条带
+        // 该横边覆盖 x∈[x1,x2] → 基本段下标 [L, R-1]
+        int L = lower_bound(xs.begin(), xs.end(), edges[i].x1) - xs.begin();
+        int R = lower_bound(xs.begin(), xs.end(), edges[i].x2) - xs.begin();
+        if (L < R) update(1, 0, m - 2, L, R - 1, edges[i].type);
     }
     cout << area << endl;
     return 0;
 }` },
-  peri: { title: "扫描线 · 矩形周长并 — C++", code:
+  peri: { title: "扫描线 + 线段树 · 矩形周长并 — C++", code:
 `// 功能：求 n 个轴对齐矩形的周长并（重叠边界只算一次）。
-// 原理：周长 = 水平边总长 + 竖直边总长，两轮方向相反的扫描分别累加。
-//       每条扫描线上的边界长度 = 垂直方向覆盖状态发生翻转(0↔覆盖)的单位数。
-//       这里坐标较小(0..COORD)，直接用网格计数便于理解（工程实现可用线段树）。
-// 输入：第一行整数 n；接下来 n 行，每行 4 个整数 x1 y1 x2 y2
-//       （矩形左下角、右上角，坐标范围 0..COORD，x1<x2, y1<y2）。
-// 输出：一行一个整数，表示矩形周长并。
+// 原理：竖直扫描线从左向右，事件 = 矩形左右竖边（左 +1，右 -1）。
+//       x 坐标【离散化】后用【线段树】维护「被覆盖的 x 总长 covered」与「连续覆盖段数 segs」。
+//       每处理一条竖边：竖直边贡献 += |covered 变化量|；
+//       两条相邻竖线之间：水平边贡献 += 2 × segs × Δx（每段上下两条水平边）。
+// 输入：第一行整数 n；接下来 n 行 4 个整数 x1 y1 x2 y2（矩形左下、右上，x1<x2, y1<y2）。
+// 输出：一行一个整数，矩形周长并。
 #include <iostream>
 #include <algorithm>
 #include <vector>
+#include <cmath>
 using namespace std;
+typedef long long ll;
 
-const int COORD = 1005;   // 坐标上界（单位格数）
+vector<ll> ys;         // 离散化后的 y 坐标（基本段端点）
+int cnt_[400005];      // 线段树：区间被整体覆盖的次数
+ll covered[400005];    // 线段树：区间当前被覆盖的 y 长度
+int segs[400005];      // 线段树：区间当前的连续覆盖段数
+bool lc[400005], rc[400005];  // 该节点区间左端、右端是否被覆盖（用于合并时判断段是否相连
 
-int x1_[100005], y1_[100005], x2_[100005], y2_[100005];
-int cnt_[COORD];          // 每个单位格的覆盖次数（两轮复用）
+// 上传：由 cnt_ 与子节点求出本节点的 covered / segs / lc / rc
+void pushUp(int o, int l, int r) {
+    if (cnt_[o] > 0) {                       // 本区间被完整覆盖 → 一整段
+        covered[o] = ys[r + 1] - ys[l];
+        segs[o] = 1; lc[o] = rc[o] = true;
+    } else if (l == r) {                     // 叶子且未覆盖
+        covered[o] = 0; segs[o] = 0; lc[o] = rc[o] = false;
+    } else {                                 // 由两个子区间合并
+        int L = o << 1, R = o << 1 | 1;
+        covered[o] = covered[L] + covered[R];
+        segs[o] = segs[L] + segs[R];
+        if (rc[L] && lc[R]) segs[o]--;       // 左子右端与右子左端相连 → 合并为一段
+        lc[o] = lc[L]; rc[o] = rc[R];
+    }
+}
+void update(int o, int l, int r, int ql, int qr, int v) {
+    if (ql <= l && r <= qr) { cnt_[o] += v; pushUp(o, l, r); return; }
+    int mid = (l + r) >> 1;
+    if (ql <= mid) update(o << 1, l, mid, ql, qr, v);
+    if (qr > mid)  update(o << 1 | 1, mid + 1, r, ql, qr, v);
+    pushUp(o, l, r);
+}
+
+struct Edge { ll x, y1, y2; int type; };    // 一条竖边（扫描事件）
 
 int main() {
     int n;
     cin >> n;
-    vector<int> ys, xs;   // 收集横边的 y、竖边的 x（去重排序作为扫描位置）
+    vector<Edge> edges;
     for (int i = 0; i < n; i++) {
-        cin >> x1_[i] >> y1_[i] >> x2_[i] >> y2_[i];
-        ys.push_back(y1_[i]); ys.push_back(y2_[i]);
-        xs.push_back(x1_[i]); xs.push_back(x2_[i]);
+        ll x1, y1, x2, y2;
+        cin >> x1 >> y1 >> x2 >> y2;
+        edges.push_back({x1, y1, y2, +1});   // 左边：区间进入
+        edges.push_back({x2, y1, y2, -1});   // 右边：区间离开
+        ys.push_back(y1); ys.push_back(y2);
     }
-    sort(ys.begin(), ys.end()); ys.erase(unique(ys.begin(), ys.end()), ys.end());
-    sort(xs.begin(), xs.end()); xs.erase(unique(xs.begin(), xs.end()), xs.end());
+    sort(ys.begin(), ys.end());
+    ys.erase(unique(ys.begin(), ys.end()), ys.end());
+    int m = ys.size();
+    // 竖边按 x 从小到大；同一 x 处先处理进入(+1)再离开(-1)，避免竖直边贡献少算
+    sort(edges.begin(), edges.end(), [](const Edge& a, const Edge& b){
+        return a.x != b.x ? a.x < b.x : a.type > b.type;
+    });
 
-    long long perimeter = 0;
-
-    // ---------- 第一轮：水平线自下而上，算水平边 ----------
-    // cnt_[x] = x 方向每个单位格 [x,x+1) 的覆盖次数
-    for (int x = 0; x < COORD; x++) cnt_[x] = 0;
-    for (int e = 0; e < (int)ys.size(); e++) {
-        int y = ys[e];
-        bool before[COORD];
-        for (int x = 0; x < COORD; x++) before[x] = cnt_[x] > 0;  // 处理前的覆盖状态
-        for (int i = 0; i < n; i++) {           // 应用 y 处的横边
-            if (y1_[i] == y) for (int x = x1_[i]; x < x2_[i]; x++) cnt_[x]++;
-            if (y2_[i] == y) for (int x = x1_[i]; x < x2_[i]; x++) cnt_[x]--;
-        }
-        // 翻转的单位数 = 这条横线贡献的水平边长
-        for (int x = 0; x < COORD; x++)
-            if ((cnt_[x] > 0) != before[x]) perimeter++;
+    ll perimeter = 0, prevCov = 0;
+    for (int i = 0; i < (int)edges.size(); i++) {
+        // 相邻两竖线之间：水平边 += 2 × 连续段数 × Δx
+        if (i > 0) perimeter += 2LL * segs[1] * (edges[i].x - edges[i - 1].x);
+        // 应用该竖边：覆盖 y∈[y1,y2] → 基本段下标 [L, R-1]
+        int L = lower_bound(ys.begin(), ys.end(), edges[i].y1) - ys.begin();
+        int R = lower_bound(ys.begin(), ys.end(), edges[i].y2) - ys.begin();
+        if (L < R) update(1, 0, m - 2, L, R - 1, edges[i].type);
+        // 竖直边 += 覆盖长的变化量
+        perimeter += llabs(covered[1] - prevCov);
+        prevCov = covered[1];
     }
-
-    // ---------- 第二轮：竖直线从左向右，算竖直边 ----------
-    for (int y = 0; y < COORD; y++) cnt_[y] = 0;   // cnt_[y] = y 方向单位格覆盖次数
-    for (int e = 0; e < (int)xs.size(); e++) {
-        int x = xs[e];
-        bool before[COORD];
-        for (int y = 0; y < COORD; y++) before[y] = cnt_[y] > 0;
-        for (int i = 0; i < n; i++) {           // 应用 x 处的竖边
-            if (x1_[i] == x) for (int y = y1_[i]; y < y2_[i]; y++) cnt_[y]++;
-            if (x2_[i] == x) for (int y = y1_[i]; y < y2_[i]; y++) cnt_[y]--;
-        }
-        for (int y = 0; y < COORD; y++)
-            if ((cnt_[y] > 0) != before[y]) perimeter++;
-    }
-
     cout << perimeter << endl;
     return 0;
 }` },
