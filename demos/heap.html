@@ -170,6 +170,7 @@
   </div>
   <button class="btn" id="playBtn" disabled>自动播放</button>
   <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <main>
@@ -449,6 +450,157 @@ document.querySelectorAll(".subtab").forEach(b => b.onclick = () => { if (!runni
 heap = Array.from({ length: 7 }, () => 1 + Math.floor(Math.random() * 99));
 applyType("min");
 setStatus("已随机生成一个乱序序列（对应下方二叉树，未必满足堆性质）。点“建堆”自底向上调整成小根堆。");
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  min: { title: "小根堆 (Min-Heap)：上浮 / 下沉 / 建堆 / 堆排序 — C++", code:
+`// 功能：数组模拟小根堆（堆顶为最小值），手写上浮、下沉、建堆，并用它做堆排序。
+//   下标关系（0 起）：节点 i 的左孩子 2i+1、右孩子 2i+2、父亲 (i-1)/2。
+//   小根堆性质：父节点的值 <= 两个孩子的值，所以 a[0] 恒为最小值。
+// 输入：第一行 n（元素个数）；第二行 n 个整数（乱序）。
+// 输出：第一行 建堆后的数组（层序）；第二行 堆排序得到的升序序列。
+#include <iostream>
+using namespace std;
+
+const int MAXN = 100005;
+int a[MAXN];   // 堆数组
+int sz;        // 当前堆中元素个数
+
+// 上浮：位置 i 的元素不断与父亲比较，比父亲小就交换，直到满足小根堆性质
+void siftUp(int i) {
+    while (i > 0) {
+        int p = (i - 1) / 2;         // 父亲下标
+        if (a[i] < a[p]) {           // 比父亲小 -> 继续上浮
+            swap(a[i], a[p]);
+            i = p;
+        } else break;                // 已就位
+    }
+}
+
+// 下沉：位置 i 与较小的孩子比较，比孩子大就交换下去，直到满足性质。n 为有效堆大小
+void siftDown(int i, int n) {
+    while (true) {
+        int l = 2 * i + 1, r = 2 * i + 2, best = i;
+        if (l < n && a[l] < a[best]) best = l;   // 取更小的孩子
+        if (r < n && a[r] < a[best]) best = r;
+        if (best == i) break;        // 父亲已是三者最小，停止
+        swap(a[i], a[best]);
+        i = best;
+    }
+}
+
+// 插入：放到末尾再上浮
+void push(int x) {
+    a[sz] = x;
+    siftUp(sz);
+    sz++;
+}
+
+// 删除堆顶：末尾补到堆顶，缩小规模后对堆顶下沉，返回原堆顶（最小值）
+int pop() {
+    int top = a[0];
+    a[0] = a[sz - 1];
+    sz--;
+    siftDown(0, sz);
+    return top;
+}
+
+int main() {
+    int n;
+    cin >> n;
+    for (int i = 0; i < n; i++) cin >> a[i];
+    sz = n;
+
+    // 建堆：从最后一个非叶子节点 (n/2 - 1) 开始倒序下沉，整体 O(n)
+    for (int i = n / 2 - 1; i >= 0; i--) siftDown(i, n);
+    for (int i = 0; i < n; i++) cout << a[i] << " ";
+    cout << endl;
+
+    // 堆排序（输出升序）：小根堆每次 pop 得到当前最小值，依次 pop 即为升序。
+    //   pop 会消耗堆，所以先记录 n。
+    for (int i = 0; i < n; i++) cout << pop() << " ";
+    cout << endl;
+    return 0;
+}` },
+  max: { title: "大根堆 (Max-Heap)：上浮 / 下沉 / 建堆 / 堆排序 — C++", code:
+`// 功能：数组模拟大根堆（堆顶为最大值），手写上浮、下沉、建堆，并用它做原地堆排序。
+//   下标关系（0 起）：节点 i 的左孩子 2i+1、右孩子 2i+2、父亲 (i-1)/2。
+//   大根堆性质：父节点的值 >= 两个孩子的值，所以 a[0] 恒为最大值。
+// 输入：第一行 n（元素个数）；第二行 n 个整数（乱序）。
+// 输出：第一行 建堆后的数组（层序）；第二行 原地堆排序得到的升序序列。
+#include <iostream>
+using namespace std;
+
+const int MAXN = 100005;
+int a[MAXN];   // 堆数组
+int sz;        // 当前堆中元素个数
+
+// 上浮：位置 i 的元素不断与父亲比较，比父亲大就交换，直到满足大根堆性质
+void siftUp(int i) {
+    while (i > 0) {
+        int p = (i - 1) / 2;         // 父亲下标
+        if (a[i] > a[p]) {           // 比父亲大 -> 继续上浮
+            swap(a[i], a[p]);
+            i = p;
+        } else break;                // 已就位
+    }
+}
+
+// 下沉：位置 i 与较大的孩子比较，比孩子小就交换下去，直到满足性质。n 为有效堆大小
+void siftDown(int i, int n) {
+    while (true) {
+        int l = 2 * i + 1, r = 2 * i + 2, best = i;
+        if (l < n && a[l] > a[best]) best = l;   // 取更大的孩子
+        if (r < n && a[r] > a[best]) best = r;
+        if (best == i) break;        // 父亲已是三者最大，停止
+        swap(a[i], a[best]);
+        i = best;
+    }
+}
+
+// 插入：放到末尾再上浮
+void push(int x) {
+    a[sz] = x;
+    siftUp(sz);
+    sz++;
+}
+
+// 删除堆顶：末尾补到堆顶，缩小规模后对堆顶下沉，返回原堆顶（最大值）
+int pop() {
+    int top = a[0];
+    a[0] = a[sz - 1];
+    sz--;
+    siftDown(0, sz);
+    return top;
+}
+
+int main() {
+    int n;
+    cin >> n;
+    for (int i = 0; i < n; i++) cin >> a[i];
+    sz = n;
+
+    // 建堆：从最后一个非叶子节点 (n/2 - 1) 开始倒序下沉，整体 O(n)
+    for (int i = n / 2 - 1; i >= 0; i--) siftDown(i, n);
+    for (int i = 0; i < n; i++) cout << a[i] << " ";
+    cout << endl;
+
+    // 原地堆排序（输出升序）：大根堆堆顶是最大值。
+    //   每轮把堆顶(最大)与当前末尾交换，最大值就固定到了数组尾部；
+    //   堆规模减一后对新堆顶下沉，重复。结束后数组正好为升序。
+    int m = n;
+    for (int i = n - 1; i > 0; i--) {
+        swap(a[0], a[i]);            // 把当前最大值放到已排区（数组尾部）
+        m--;
+        siftDown(0, m);              // 对剩余 m 个元素重新下沉
+    }
+    for (int i = 0; i < n; i++) cout << a[i] << " ";
+    cout << endl;
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open(heapType);
 </script>
 </body>
 </html>

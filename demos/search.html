@@ -160,6 +160,7 @@
   <button class="btn" id="playBtn">开始查找</button>
   <button class="btn secondary" id="stepBtn">单步</button>
   <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <div class="legend" id="legend"></div>
@@ -333,6 +334,61 @@ $("stepBtn").onclick = () => { if (!timer && idx === 0) prepare(); stop(); stepO
 $("resetBtn").onclick = () => { stop(); prepare(); };
 
 applyAlgo("seq");
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  seq: { title: "顺序查找 (Sequential Search) — C++", code:
+`// 功能：顺序查找。在数组中从头到尾逐个比较，找到目标值的下标。
+// 输入：第一行 n（元素个数）；第二行 n 个整数（数组，可无序）；第三行 target（要查找的值）。
+// 输出：目标值第一次出现的下标(0 起)；若不存在则输出 -1。
+#include <iostream>
+using namespace std;
+
+int main() {
+    int n;
+    cin >> n;
+    int a[100005];
+    for (int i = 0; i < n; i++) cin >> a[i];
+    int target;
+    cin >> target;
+
+    int pos = -1;
+    for (int i = 0; i < n; i++) {   // 逐个比较
+        if (a[i] == target) { pos = i; break; }
+    }
+
+    cout << pos << endl;
+    return 0;
+}` },
+  bin: { title: "二分查找 (Binary Search) — C++", code:
+`// 功能：二分查找。在【有序】数组中通过不断折半缩小区间，查找目标值的下标。
+// 输入：第一行 n（元素个数）；第二行 n 个【升序】整数；第三行 target（要查找的值）。
+// 输出：目标值的下标(0 起)；若不存在则输出 -1。
+#include <iostream>
+using namespace std;
+
+int main() {
+    int n;
+    cin >> n;
+    int a[100005];
+    for (int i = 0; i < n; i++) cin >> a[i];   // 数组必须已按升序排列
+    int target;
+    cin >> target;
+
+    int lo = 0, hi = n - 1, pos = -1;
+    while (lo <= hi) {
+        int mid = (lo + hi) / 2;               // 取中间位置
+        if (a[mid] == target) { pos = mid; break; }
+        else if (a[mid] < target) lo = mid + 1; // 目标在右半区间
+        else hi = mid - 1;                      // 目标在左半区间
+    }
+
+    cout << pos << endl;
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open(algo);
 </script>
 </body>
 </html>

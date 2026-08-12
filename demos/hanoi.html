@@ -152,6 +152,7 @@
   <button class="btn" id="playBtn">开始移动</button>
   <button class="btn secondary" id="stepBtn">单步</button>
   <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <div class="controls hidden" id="manualControls">
@@ -386,6 +387,42 @@ function applyMode(m) {
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => applyMode(t.dataset.mode));
 
 prepare();
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  hanoi: { title: "汉诺塔 (Hanoi) 递归 — C++", code:
+`// 功能：汉诺塔递归求解。把 n 个圆盘从起始柱借助中转柱全部移到目标柱，
+//   规则：每次只能移动一个圆盘，且任何时候大盘不能压在小盘上。
+//   思路（递归）：要把 n 个盘从 from 移到 to，
+//     ① 先把上面 n-1 个盘从 from 移到 via（借助 to）；
+//     ② 把最大的第 n 个盘从 from 移到 to；
+//     ③ 再把那 n-1 个盘从 via 移到 to（借助 from）。
+// 输入：一个整数 n（圆盘个数，n >= 1）。
+// 输出：每行一步移动 "from -> to"（用柱子名 A/B/C 表示）；最后一行输出总步数（应为 2^n - 1）。
+#include <iostream>
+using namespace std;
+
+int cnt = 0;   // 记录移动步数
+
+// 把 count 个圆盘从 from 柱移到 to 柱，via 为中转柱
+void hanoi(int count, char from, char to, char via) {
+    if (count == 0) return;              // 没有盘可移，递归出口
+    hanoi(count - 1, from, via, to);     // ① 上面 n-1 个：from -> via
+    cnt++;
+    cout << from << " -> " << to << endl;// ② 移动最大的那个盘：from -> to
+    hanoi(count - 1, via, to, from);     // ③ 那 n-1 个：via -> to
+}
+
+int main() {
+    int n;
+    cin >> n;
+    hanoi(n, 'A', 'C', 'B');   // 从 A 经由 B 移到 C
+    cout << "total: " << cnt << endl;
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open("hanoi");
 </script>
 </body>
 </html>

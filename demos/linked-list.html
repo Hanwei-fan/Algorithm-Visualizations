@@ -173,6 +173,7 @@
     <h3>其他</h3>
     <div class="row">
       <button class="btn ghost" id="clearBtn">清空</button>
+      <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
       <div class="speed">
         <label>速度</label>
         <input id="speedInput" type="range" min="120" max="1000" value="500" step="40">
@@ -435,6 +436,126 @@ $("clearBtn").onclick = () => { if (busy) return; reset(); render(); setStatus("
 reset();
 render();
 setStatus("空链表（只有头结点）。输入数据后点头插法或尾插法创建链表。");
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  linkedlist: { title: "带头结点单链表 — C++", code:
+`// 功能：带头结点的单链表，含建表(头插/尾插)、按值查找、按位序插入、按位序删除。
+//       头结点不存数据，只指向首元结点；位序 i 从 1 开始计数。
+// 输入：第一行 m（操作次数）；接下来 m 行，每行一个操作：
+//         head x        头插法插入值 x（插到头结点之后，成为第 1 个）
+//         tail x        尾插法插入值 x（接在表尾）
+//         find x        按值查找 x，输出其位序(1 起)，找不到输出 0
+//         insert i x    在第 i 个位置插入值 x
+//         delete i      删除第 i 个结点
+//         print         从头到尾输出所有元素值(空格分隔)
+// 输出：find 与 print 操作各输出一行结果。
+#include <iostream>
+#include <string>
+using namespace std;
+
+struct Node {
+    int val;        // 数据域(头结点不用)
+    Node* next;     // 指针域
+};
+
+Node* head;         // 头结点
+
+void initList() {                     // 建立带头结点的空表
+    head = new Node;
+    head->next = nullptr;
+}
+
+// 头插法：新结点插到头结点之后
+void insertHead(int x) {
+    Node* s = new Node;
+    s->val = x;
+    s->next = head->next;             // 先接到原首元结点前
+    head->next = s;                   // 头结点再指向新结点
+}
+
+// 尾插法：遍历到表尾，接在其后
+void insertTail(int x) {
+    Node* p = head;
+    while (p->next != nullptr) p = p->next;  // 走到表尾
+    Node* s = new Node;
+    s->val = x;
+    s->next = nullptr;
+    p->next = s;
+}
+
+// 按值查找，返回位序(1 起)，找不到返回 0
+int findVal(int x) {
+    Node* p = head->next;             // 从首元结点开始
+    int pos = 1;
+    while (p != nullptr) {
+        if (p->val == x) return pos;
+        p = p->next;
+        pos++;
+    }
+    return 0;
+}
+
+// 在第 i 个位置插入 x（带头结点：找第 i-1 个结点作前驱）
+bool insertPos(int i, int x) {
+    Node* p = head;                   // p 指向头结点(第 0 个)
+    int j = 0;
+    while (p != nullptr && j < i - 1) {   // 走 i-1 步到前驱
+        p = p->next;
+        j++;
+    }
+    if (p == nullptr) return false;   // 位序过大，插入失败
+    Node* s = new Node;
+    s->val = x;
+    s->next = p->next;                // 先接后继
+    p->next = s;                      // 前驱再指向新结点
+    return true;
+}
+
+// 删除第 i 个结点（带头结点：找第 i-1 个结点作前驱）
+bool deletePos(int i) {
+    Node* p = head;
+    int j = 0;
+    while (p->next != nullptr && j < i - 1) {  // 走到前驱
+        p = p->next;
+        j++;
+    }
+    if (p->next == nullptr) return false;      // 第 i 个不存在
+    Node* q = p->next;                // 待删结点
+    p->next = q->next;                // 前驱跳过待删结点
+    delete q;                         // 释放空间
+    return true;
+}
+
+void printList() {
+    Node* p = head->next;
+    while (p != nullptr) {
+        cout << p->val;
+        if (p->next != nullptr) cout << " ";
+        p = p->next;
+    }
+    cout << endl;
+}
+
+int main() {
+    initList();
+    int m;
+    cin >> m;
+    string op;
+    while (m--) {
+        cin >> op;
+        if (op == "head")        { int x; cin >> x; insertHead(x); }
+        else if (op == "tail")   { int x; cin >> x; insertTail(x); }
+        else if (op == "find")   { int x; cin >> x; cout << findVal(x) << endl; }
+        else if (op == "insert") { int i, x; cin >> i >> x; insertPos(i, x); }
+        else if (op == "delete") { int i; cin >> i; deletePos(i); }
+        else if (op == "print")  { printList(); }
+    }
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open("linkedlist");
 </script>
 </body>
 </html>

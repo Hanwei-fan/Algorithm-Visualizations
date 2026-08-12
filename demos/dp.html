@@ -181,6 +181,7 @@
   <button class="btn secondary" id="stepBtn">单步 ▶</button>
   <button class="btn secondary" id="resetBtn">重置</button>
   <button class="btn secondary" id="randBtn">随机</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <main>
@@ -757,6 +758,280 @@ $("randBtn").onclick = () => randomize();
 const _k = new URLSearchParams(location.search).get("kind");
 const initKind = (_k === "knap" || _k === "tower") ? _k : "seq";
 applyKind(initKind);
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  lis: { title: "最长上升子序列 (LIS) — C++", code:
+`// 功能：求最长【严格】上升子序列的长度（O(n^2) 基础 DP 写法）。
+// 原理：dp[i] = 以 a[i] 结尾的最长上升子序列长度；
+//       枚举前面每个 j，若 a[j] < a[i] 则可接在其后，dp[i] = max(dp[i], dp[j]+1)。
+// 输入：第一行整数 n；第二行 n 个整数（序列 a）。
+// 输出：一行一个整数，最长上升子序列的长度。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+int a[5005], dp[5005];
+
+int main() {
+    int n;
+    cin >> n;
+    for (int i = 0; i < n; i++) cin >> a[i];
+
+    int ans = 0;
+    for (int i = 0; i < n; i++) {
+        dp[i] = 1;                       // 至少是自己一个元素
+        for (int j = 0; j < i; j++)
+            if (a[j] < a[i])             // 可接在 a[j] 之后（严格上升）
+                dp[i] = max(dp[i], dp[j] + 1);
+        ans = max(ans, dp[i]);           // 答案是所有 dp[i] 的最大值
+    }
+
+    cout << ans << endl;
+    return 0;
+}` },
+  lcs: { title: "最长公共子序列 (LCS) — C++", code:
+`// 功能：求两个序列的最长公共子序列(LCS)的长度。
+// 原理：dp[i][j] = A 前 i 个与 B 前 j 个的 LCS 长度；
+//       若 A[i]==B[j]: dp[i][j] = dp[i-1][j-1] + 1；
+//       否则:         dp[i][j] = max(dp[i-1][j], dp[i][j-1])。
+// 输入：第一行两个整数 n m（两序列长度）；
+//       第二行 n 个整数(序列 A)；第三行 m 个整数(序列 B)。
+// 输出：一行一个整数，最长公共子序列的长度。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+int A[1005], B[1005], dp[1005][1005];
+
+int main() {
+    int n, m;
+    cin >> n >> m;
+    for (int i = 1; i <= n; i++) cin >> A[i];
+    for (int j = 1; j <= m; j++) cin >> B[j];
+
+    // dp 第 0 行/列（空串）默认为 0，无需额外赋值
+    for (int i = 1; i <= n; i++)
+        for (int j = 1; j <= m; j++) {
+            if (A[i] == B[j])
+                dp[i][j] = dp[i - 1][j - 1] + 1;        // 字符相等：左上角 +1
+            else
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1]); // 取上方或左方较大者
+        }
+
+    cout << dp[n][m] << endl;
+    return 0;
+}` },
+  mss: { title: "最大子段和 — C++", code:
+`// 功能：求连续子数组(子段)的最大和（可能含负数，至少取一个元素）。
+// 原理：dp[i] = 以 a[i] 结尾的最大子段和 = max(dp[i-1] + a[i], a[i])；
+//       要么接在前一段后面，要么从 a[i] 另起新段。答案 = max(dp[i])。
+// 输入：第一行整数 n；第二行 n 个整数（序列 a，可为负）。
+// 输出：一行一个整数，最大子段和。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+int a[100005], dp[100005];
+
+int main() {
+    int n;
+    cin >> n;
+    for (int i = 0; i < n; i++) cin >> a[i];
+
+    dp[0] = a[0];
+    int ans = a[0];
+    for (int i = 1; i < n; i++) {
+        dp[i] = max(dp[i - 1] + a[i], a[i]);  // 接上前段 或 另起新段
+        ans = max(ans, dp[i]);
+    }
+
+    cout << ans << endl;
+    return 0;
+}` },
+  knap01: { title: "01 背包 — C++", code:
+`// 功能：01 背包。n 件物品各有重量、价值，每件最多取 1 个，求容量 W 内最大价值。
+// 原理：dp[i][w] = 前 i 件物品、容量为 w 时的最大价值；
+//       dp[i][w] = max(不选第 i 件 dp[i-1][w], 选 dp[i-1][w-wt[i]]+val[i])。
+// 输入：第一行两个整数 n W（物品数、背包容量）；
+//       接下来 n 行，每行两个整数 wt val（第 i 件物品的重量、价值）。
+// 输出：一行一个整数，容量 W 内能装的最大价值。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+int wt[105], val[105], dp[105][1005];
+
+int main() {
+    int n, W;
+    cin >> n >> W;
+    for (int i = 1; i <= n; i++) cin >> wt[i] >> val[i];
+
+    // dp 第 0 行（无物品）默认全 0
+    for (int i = 1; i <= n; i++)
+        for (int w = 0; w <= W; w++) {
+            dp[i][w] = dp[i - 1][w];                 // 不选第 i 件
+            if (w >= wt[i])                          // 装得下才考虑选
+                dp[i][w] = max(dp[i][w], dp[i - 1][w - wt[i]] + val[i]);
+        }
+
+    cout << dp[n][W] << endl;
+    return 0;
+}` },
+  knapfull: { title: "完全背包 — C++", code:
+`// 功能：完全背包。n 种物品，每种可取【无限个】，求容量 W 内最大价值。
+// 原理：dp[i][w] = 前 i 种物品、容量 w 的最大价值；
+//       选物品 i 时从【本行】dp[i][w-wt[i]] 转移（因可重复取，与 01 背包的区别在此）。
+//       dp[i][w] = max(不选 dp[i-1][w], 再放一个 dp[i][w-wt[i]]+val[i])。
+// 输入：第一行两个整数 n W（物品种数、背包容量）；
+//       接下来 n 行，每行两个整数 wt val（第 i 种物品的重量、价值）。
+// 输出：一行一个整数，容量 W 内能装的最大价值。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+int wt[105], val[105], dp[105][1005];
+
+int main() {
+    int n, W;
+    cin >> n >> W;
+    for (int i = 1; i <= n; i++) cin >> wt[i] >> val[i];
+
+    for (int i = 1; i <= n; i++)
+        for (int w = 0; w <= W; w++) {
+            dp[i][w] = dp[i - 1][w];                 // 不选第 i 种
+            if (w >= wt[i])                          // 从本行转移 → 可重复取
+                dp[i][w] = max(dp[i][w], dp[i][w - wt[i]] + val[i]);
+        }
+
+    cout << dp[n][W] << endl;
+    return 0;
+}` },
+  knapmulti: { title: "多重背包 — C++", code:
+`// 功能：多重背包。n 种物品，第 i 种最多取 cnt[i] 个，求容量 W 内最大价值。
+// 原理：dp[i][w] = 前 i 种物品、容量 w 的最大价值；
+//       枚举第 i 种取 k 个(0<=k<=min(cnt[i], w/wt[i]))：
+//       dp[i][w] = max{ dp[i-1][w-k*wt[i]] + k*val[i] }。
+// 输入：第一行两个整数 n W（物品种数、背包容量）；
+//       接下来 n 行，每行三个整数 wt val cnt（重量、价值、数量上限）。
+// 输出：一行一个整数，容量 W 内能装的最大价值。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+int wt[105], val[105], cnt[105], dp[105][1005];
+
+int main() {
+    int n, W;
+    cin >> n >> W;
+    for (int i = 1; i <= n; i++) cin >> wt[i] >> val[i] >> cnt[i];
+
+    for (int i = 1; i <= n; i++)
+        for (int w = 0; w <= W; w++) {
+            dp[i][w] = dp[i - 1][w];                 // 一个都不取
+            // 枚举取 k 个第 i 种物品
+            for (int k = 1; k <= cnt[i] && k * wt[i] <= w; k++)
+                dp[i][w] = max(dp[i][w], dp[i - 1][w - k * wt[i]] + k * val[i]);
+        }
+
+    cout << dp[n][W] << endl;
+    return 0;
+}` },
+  tower: { title: "数塔（数字三角形）· 自顶向下 — C++", code:
+`// 功能：数塔(数字三角形)。从顶到底，每步走向下方相邻的两个数之一，求最大路径和。
+// 原理（自顶向下）：dp[i][j] = 从顶部走到第 i 行第 j 列的最大路径和；
+//       dp[i][j] = a[i][j] + max(dp[i-1][j-1], dp[i-1][j])（边缘格只有一个父格）。
+//       答案 = 最底行 dp 的最大值。
+// 输入：第一行整数 R（行数）；接下来 R 行，第 i 行(0 起)有 i+1 个整数。
+// 输出：一行一个整数，最大路径和。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+int a[105][105], dp[105][105];
+
+int main() {
+    int R;
+    cin >> R;
+    for (int i = 0; i < R; i++)
+        for (int j = 0; j <= i; j++) cin >> a[i][j];
+
+    dp[0][0] = a[0][0];                  // 顶点
+    for (int i = 1; i < R; i++)
+        for (int j = 0; j <= i; j++) {
+            int best;
+            if (j == 0)          best = dp[i - 1][j];                    // 每行第一个：只有正上方
+            else if (j == i)     best = dp[i - 1][j - 1];               // 每行最后一个：只有左上方
+            else                 best = max(dp[i - 1][j - 1], dp[i - 1][j]); // 取两个父格较大者
+            dp[i][j] = a[i][j] + best;
+        }
+
+    int ans = 0;                         // 最底行的最大值
+    for (int j = 0; j < R; j++) ans = max(ans, dp[R - 1][j]);
+    cout << ans << endl;
+    return 0;
+}` },
+  gridmax: { title: "矩阵最大路径和 — C++", code:
+`// 功能：n×m 网格，从左上 (0,0) 出发，每次只能向右或向下走，到右下 (n-1,m-1)，
+//       求经过的数字之和最大。
+// 原理：dp[i][j] = 从 (0,0) 走到 (i,j) 的最大和；
+//       dp[i][j] = a[i][j] + max(dp[i-1][j], dp[i][j-1])；
+//       第一行只能从左来、第一列只能从上来。
+// 输入：第一行两个整数 n m（行数、列数）；接下来 n 行，每行 m 个整数（矩阵 a）。
+// 输出：一行一个整数，最大路径和。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+int a[1005][1005], dp[1005][1005];
+
+int main() {
+    int n, m;
+    cin >> n >> m;
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++) cin >> a[i][j];
+
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++) {
+            if (i == 0 && j == 0)      dp[i][j] = a[i][j];                 // 起点
+            else if (i == 0)           dp[i][j] = dp[i][j - 1] + a[i][j];  // 第一行：只能从左
+            else if (j == 0)           dp[i][j] = dp[i - 1][j] + a[i][j];  // 第一列：只能从上
+            else dp[i][j] = max(dp[i - 1][j], dp[i][j - 1]) + a[i][j];     // 上、左取较大者
+        }
+
+    cout << dp[n - 1][m - 1] << endl;
+    return 0;
+}` },
+  gridcount: { title: "矩阵路径方案数 — C++", code:
+`// 功能：n×m 网格，从左上 (0,0) 出发，每次只能向右或向下走，
+//       问走到右下 (n-1,m-1) 共有多少条不同路径。
+// 原理：dp[i][j] = 到达 (i,j) 的路径条数 = dp[i-1][j] + dp[i][j-1]；
+//       起点 dp[0][0]=1；第一行、第一列都只有 1 条路径。
+// 输入：一行两个整数 n m（行数、列数）。
+// 输出：一行一个整数，从左上到右下的不同路径条数。
+#include <iostream>
+using namespace std;
+
+long long dp[1005][1005];   // 方案数可能很大，用 long long
+
+int main() {
+    int n, m;
+    cin >> n >> m;
+
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++) {
+            if (i == 0 && j == 0) dp[i][j] = 1;              // 起点只有一条空路径
+            else if (i == 0)      dp[i][j] = dp[i][j - 1];   // 第一行：只能从左
+            else if (j == 0)      dp[i][j] = dp[i - 1][j];   // 第一列：只能从上
+            else dp[i][j] = dp[i - 1][j] + dp[i][j - 1];     // 上方 + 左方路径数
+        }
+
+    cout << dp[n - 1][m - 1] << endl;
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open(algo);
 </script>
 </body>
 </html>

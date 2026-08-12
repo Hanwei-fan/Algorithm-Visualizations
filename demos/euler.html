@@ -147,6 +147,7 @@
   <button class="btn secondary" id="stepBtn">单步</button>
   <button class="btn secondary" id="resetBtn">重置</button>
   <button class="btn secondary" id="randBtn">随机生成</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <main>
@@ -497,6 +498,155 @@ $("resetBtn").onclick = () => { stop(); prepare(); };
 $("randBtn").onclick = () => regenerate();
 
 applyType("undirected");
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  undirected: { title: "欧拉路径 / 回路（无向图，判定 + Hierholzer）— C++", code:
+`// 功能：无向图求欧拉路径 / 欧拉回路(一笔画走遍每条边恰好一次)。
+//       先判定，再用 Hierholzer 算法构造路径。
+// 判定(在连通前提下)：奇度顶点数为 0 → 欧拉回路(任意点起)；
+//                     奇度顶点数为 2 → 欧拉路径(从一个奇度点到另一个)；
+//                     其余情况 → 无解。
+// 输入：第一行 n m —— n 个点(编号 0~n-1)、m 条无向边；
+//       接下来 m 行，每行 u v 表示一条无向边 u—v(允许重边)。
+// 输出：若存在，输出一行经过的顶点序列(边数+1 个点)；否则输出 "无解"。
+#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+
+int n, m;
+// 邻接表存 {邻居, 边编号}；无向边两端都存同一个编号，靠 used[] 标记走过
+vector<pair<int,int>> adj[100005];
+bool used[200005];         // 每条边是否已走过
+int deg[100005];           // 各点的度数
+vector<int> path;          // Hierholzer 得到的顶点序列
+
+void hierholzer(int s) {
+    // 用显式栈模拟递归，避免边多时递归过深
+    vector<int> st, ptr(n, 0);   // ptr[v]：v 下一条待检查的邻接边下标
+    st.push_back(s);
+    while (!st.empty()) {
+        int v = st.back();
+        // 跳过已走过的边，找 v 还没走的一条边
+        while (ptr[v] < (int)adj[v].size() && used[adj[v][ptr[v]].second]) ptr[v]++;
+        if (ptr[v] < (int)adj[v].size()) {
+            int to = adj[v][ptr[v]].first, eid = adj[v][ptr[v]].second;
+            ptr[v]++;
+            used[eid] = true;        // 标记该边已走
+            st.push_back(to);        // 前进到邻居
+        } else {
+            path.push_back(v);       // 无边可走，回退并记录
+            st.pop_back();
+        }
+    }
+    reverse(path.begin(), path.end());
+}
+
+int main() {
+    cin >> n >> m;
+    for (int i = 0; i < m; i++) {
+        int u, v; cin >> u >> v;
+        adj[u].push_back({v, i});    // 同一条边编号 i 在两端各存一次
+        adj[v].push_back({u, i});
+        deg[u]++; deg[v]++;
+    }
+
+    // 统计奇度顶点，并确定起点
+    int oddCnt = 0, start = 0;
+    for (int i = 0; i < n; i++) if (deg[i] > 0) { start = i; break; }  // 默认起点：第一个有边的点
+    for (int i = 0; i < n; i++) {
+        if (deg[i] % 2 == 1) { oddCnt++; start = i; }   // 奇度点作为欧拉路径起点
+    }
+
+    if (oddCnt != 0 && oddCnt != 2) {   // 只有 0 或 2 个奇度点才可能一笔画
+        cout << "无解" << endl;
+        return 0;
+    }
+
+    hierholzer(start);
+
+    // 走过的边数应为 m，即路径含 m+1 个点，否则图不连通
+    if ((int)path.size() != m + 1) {
+        cout << "无解" << endl;
+        return 0;
+    }
+    for (int i = 0; i < (int)path.size(); i++)
+        cout << path[i] << (i + 1 < (int)path.size() ? " " : "\\n");
+    return 0;
+}` },
+  directed: { title: "欧拉路径 / 回路（有向图，判定 + Hierholzer）— C++", code:
+`// 功能：有向图求欧拉路径 / 欧拉回路(沿边方向走遍每条边恰好一次)。
+//       先判定，再用 Hierholzer 算法构造路径。
+// 判定(在连通前提下)：每点入度=出度 → 欧拉回路；
+//   恰好一点 出度-入度=1(起点)、一点 入度-出度=1(终点)、其余入=出 → 欧拉路径；
+//   其余情况 → 无解。
+// 输入：第一行 n m —— n 个点(编号 0~n-1)、m 条有向边；
+//       接下来 m 行，每行 u v 表示一条有向边 u→v(允许重边)。
+// 输出：若存在，输出一行经过的顶点序列(边数+1 个点)；否则输出 "无解"。
+#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+
+int n, m;
+vector<int> adj[100005];   // 有向邻接表，adj[u] 存所有 u→v 的终点 v
+int outd[100005], ind[100005];   // 出度、入度
+vector<int> path;
+
+void hierholzer(int s) {
+    vector<int> st, ptr(n, 0);   // ptr[v]：v 下一条待走的出边下标
+    st.push_back(s);
+    while (!st.empty()) {
+        int v = st.back();
+        if (ptr[v] < (int)adj[v].size()) {
+            int to = adj[v][ptr[v]];   // 有向图每条出边只属于 v，无需 used[]
+            ptr[v]++;
+            st.push_back(to);          // 沿出边前进
+        } else {
+            path.push_back(v);         // 无出边可走，回退记录
+            st.pop_back();
+        }
+    }
+    reverse(path.begin(), path.end());
+}
+
+int main() {
+    cin >> n >> m;
+    for (int i = 0; i < m; i++) {
+        int u, v; cin >> u >> v;
+        adj[u].push_back(v);   // 有向边 u→v
+        outd[u]++; ind[v]++;
+    }
+
+    // 判定：统计 出度-入度，确定起点
+    int start = 0, startCnt = 0, endCnt = 0, ok = 1;
+    for (int i = 0; i < n; i++) if (outd[i] > 0) { start = i; break; }  // 默认起点
+    for (int i = 0; i < n; i++) {
+        int d = outd[i] - ind[i];
+        if (d == 1) { startCnt++; start = i; }        // 起点：出度比入度多 1
+        else if (d == -1) { endCnt++; }               // 终点：入度比出度多 1
+        else if (d != 0) { ok = 0; }                  // 其余必须入=出
+    }
+    // 合法：全平衡(回路) 或 恰好一个起点一个终点(路径)
+    if (!(ok && ((startCnt == 0 && endCnt == 0) || (startCnt == 1 && endCnt == 1)))) {
+        cout << "无解" << endl;
+        return 0;
+    }
+
+    hierholzer(start);
+
+    if ((int)path.size() != m + 1) {   // 边未走全 → 不连通
+        cout << "无解" << endl;
+        return 0;
+    }
+    for (int i = 0; i < (int)path.size(); i++)
+        cout << path[i] << (i + 1 < (int)path.size() ? " " : "\\n");
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open(graphType);
 </script>
 </body>
 </html>

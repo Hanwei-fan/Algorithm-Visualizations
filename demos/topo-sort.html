@@ -145,12 +145,14 @@
   <button class="btn secondary" id="stepBtn">单步</button>
   <button class="btn secondary" id="resetBtn">重置</button>
   <button class="btn secondary" id="randBtn">随机生成</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <div class="controls hidden" id="manualControls">
   <button class="btn secondary" id="undoBtn">悔一步</button>
   <button class="btn secondary" id="restartBtn">重新挑战</button>
   <button class="btn secondary" id="randBtnM">随机生成</button>
+  <button class="cppview-btn" id="cppBtnM">查看 C++ 代码</button>
 </div>
 
 <main>
@@ -564,6 +566,63 @@ setGraph({ ...DEFAULT_NODES }, DEFAULT_EDGES.map(e => [...e]));
 buildSVG();
 bindNodeClicks();
 applyMode("auto");
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  kahn: { title: "拓扑排序 Kahn 算法（入度 + 队列）— C++", code:
+`// 功能：有向无环图(DAG)的拓扑排序，Kahn 算法。反复取出入度为 0 的
+//       顶点加入结果，删除其出边使邻居入度减 1，直到全部排完。
+//       若最终排出的顶点数 < n，说明图中存在环，无拓扑序。
+// 输入：第一行 n m —— n 个点(编号 0~n-1)、m 条有向边；
+//       接下来 m 行，每行 u v 表示一条有向边 u→v(u 须排在 v 前)。
+// 输出：若存在拓扑序，输出一行排序结果(编号间空格分隔)；
+//       若存在环，输出一行 "存在环"。
+// 说明：为得到字典序最小的拓扑序，这里用小根优先队列取入度为 0 的点，
+//       与演示中"每次取编号最小的可选点"一致；若无此要求可换普通队列。
+#include <iostream>
+#include <vector>
+#include <queue>
+using namespace std;
+
+int n, m;
+vector<int> adj[100005];   // 邻接表，存有向边 u→v
+int indeg[100005];         // 每个点的入度
+
+int main() {
+    cin >> n >> m;
+    for (int i = 0; i < m; i++) {
+        int u, v; cin >> u >> v;
+        adj[u].push_back(v);   // 有向边 u→v
+        indeg[v]++;            // v 的入度加 1
+    }
+
+    // 小根堆：每次取出编号最小的入度为 0 的顶点
+    priority_queue<int, vector<int>, greater<int>> pq;
+    for (int i = 0; i < n; i++)
+        if (indeg[i] == 0) pq.push(i);   // 初始入度为 0 的点入队
+
+    vector<int> order;                   // 拓扑序结果
+    while (!pq.empty()) {
+        int u = pq.top(); pq.pop();      // 取出入度为 0 的点
+        order.push_back(u);
+        for (int v : adj[u]) {           // 删除 u 的出边
+            if (--indeg[v] == 0)         // 邻居入度减 1，降为 0 则入队
+                pq.push(v);
+        }
+    }
+
+    if ((int)order.size() < n) {         // 有点没排出 → 有环
+        cout << "存在环" << endl;
+    } else {
+        for (int i = 0; i < (int)order.size(); i++)   // 输出拓扑序
+            cout << order[i] << (i + 1 < (int)order.size() ? " " : "\\n");
+    }
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open("kahn");
+document.getElementById("cppBtnM").onclick = () => CppView.open("kahn");
 </script>
 </body>
 </html>

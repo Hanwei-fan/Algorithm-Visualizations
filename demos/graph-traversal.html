@@ -159,6 +159,7 @@
   <button class="btn secondary" id="stepBtn">单步</button>
   <button class="btn secondary" id="resetBtn">重置</button>
   <button class="btn secondary" id="randBtn">随机生成</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <main>
@@ -529,6 +530,134 @@ setGraph({ ...DEFAULT_NODES }, JSON.parse(JSON.stringify(DEFAULT_ADJ)));
 buildGraphSVG();
 populateStartSelect();
 applyMode("dfs");
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  dfsr: { title: "DFS 深度优先遍历（递归实现）— C++", code:
+`// 功能：无向图的深度优先遍历(DFS)，递归实现。从起点 s 出发，
+//       沿一条路径尽量深入，走到尽头再回溯换分支，输出访问顺序。
+// 输入：第一行 n m s —— n 个点(编号 0~n-1)、m 条无向边、起点 s；
+//       接下来 m 行，每行 u v 表示一条无向边 u—v。
+// 输出：一行，DFS 访问到的顶点顺序(按邻接表升序优先)。
+#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+
+int n, m, s;
+vector<int> adj[100005];   // 邻接表
+bool vis[100005];          // 是否已访问
+
+void dfs(int u) {
+    vis[u] = true;                 // 访问 u，标记已访问
+    cout << u << " ";              // 记录访问顺序
+    for (int v : adj[u]) {         // 遍历 u 的所有邻居(已升序)
+        if (!vis[v]) dfs(v);       // 未访问则递归下探
+    }
+    // 邻居都处理完，本层 dfs 返回(回溯)
+}
+
+int main() {
+    cin >> n >> m >> s;
+    for (int i = 0; i < m; i++) {
+        int u, v; cin >> u >> v;
+        adj[u].push_back(v);       // 无向边：两个方向都加
+        adj[v].push_back(u);
+    }
+    for (int i = 0; i < n; i++)    // 让邻居按编号升序访问
+        sort(adj[i].begin(), adj[i].end());
+
+    dfs(s);
+    cout << endl;
+    return 0;
+}` },
+  dfs: { title: "DFS 深度优先遍历（显式栈实现）— C++", code:
+`// 功能：无向图的深度优先遍历(DFS)，用显式栈代替递归。
+//       弹出栈顶顶点访问它，再把未访问邻居压栈，输出访问顺序。
+// 输入：第一行 n m s —— n 个点(编号 0~n-1)、m 条无向边、起点 s；
+//       接下来 m 行，每行 u v 表示一条无向边 u—v。
+// 输出：一行，DFS 访问到的顶点顺序(与递归实现一致，按邻接表升序优先)。
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <stack>
+using namespace std;
+
+int n, m, s;
+vector<int> adj[100005];
+bool vis[100005];
+
+int main() {
+    cin >> n >> m >> s;
+    for (int i = 0; i < m; i++) {
+        int u, v; cin >> u >> v;
+        adj[u].push_back(v);
+        adj[v].push_back(u);
+    }
+    for (int i = 0; i < n; i++)
+        sort(adj[i].begin(), adj[i].end());
+
+    stack<int> st;
+    st.push(s);                        // 起点入栈
+    while (!st.empty()) {
+        int u = st.top(); st.pop();    // 弹出栈顶
+        if (vis[u]) continue;          // 已访问过则跳过
+        vis[u] = true;
+        cout << u << " ";              // 访问 u
+        // 逆序压栈：这样栈顶恰好是编号最小的邻居，
+        // 弹出顺序与递归 DFS 一致
+        for (int i = (int)adj[u].size() - 1; i >= 0; i--) {
+            int v = adj[u][i];
+            if (!vis[v]) st.push(v);   // 未访问的邻居压栈
+        }
+    }
+    cout << endl;
+    return 0;
+}` },
+  bfs: { title: "BFS 广度优先遍历（队列实现）— C++", code:
+`// 功能：无向图的广度优先遍历(BFS)。从起点 s 出发，一层一层由近及远
+//       访问，用队列实现，输出访问顺序。可用于求无权图最短路。
+// 输入：第一行 n m s —— n 个点(编号 0~n-1)、m 条无向边、起点 s；
+//       接下来 m 行，每行 u v 表示一条无向边 u—v。
+// 输出：一行，BFS 访问到的顶点顺序(按邻接表升序优先)。
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <queue>
+using namespace std;
+
+int n, m, s;
+vector<int> adj[100005];
+bool vis[100005];
+
+int main() {
+    cin >> n >> m >> s;
+    for (int i = 0; i < m; i++) {
+        int u, v; cin >> u >> v;
+        adj[u].push_back(v);
+        adj[v].push_back(u);
+    }
+    for (int i = 0; i < n; i++)
+        sort(adj[i].begin(), adj[i].end());
+
+    queue<int> q;
+    q.push(s); vis[s] = true;          // 起点入队并立即标记
+    while (!q.empty()) {
+        int u = q.front(); q.pop();    // 取出队首
+        cout << u << " ";              // 访问 u
+        for (int v : adj[u]) {         // 遍历邻居
+            if (!vis[v]) {
+                vis[v] = true;         // 入队时标记，避免重复入队
+                q.push(v);
+            }
+        }
+    }
+    cout << endl;
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open(mode);
 </script>
 </body>
 </html>

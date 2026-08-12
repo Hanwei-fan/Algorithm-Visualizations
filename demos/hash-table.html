@@ -150,6 +150,7 @@
   <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1100" value="550" step="50"></div>
   <button class="btn" id="playBtn" disabled>自动播放</button>
   <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <main>
@@ -360,6 +361,139 @@ document.querySelectorAll(".subtab").forEach(b => b.onclick = () => applyMode(b.
 
 
 applyMode("chain");
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  chain: { title: "哈希表 · 链地址法（拉链法）— C++", code:
+`// 功能：哈希表（链地址法/拉链法），支持插入、查找、删除整数键。
+// 原理：哈希函数 h(k)=k mod M 把键映射到 M 个桶；同一桶的键串成一条链表，
+//       冲突（不同键映到同一桶）时挂到链尾。
+// 输入：第一行两个整数 M op（桶数、操作次数）；
+//       接下来 op 行，每行一个操作："I k"=插入 k，"F k"=查找 k，"D k"=删除 k。
+// 输出：对每个查找 F，输出 "found" 或 "not found"；
+//       对每个删除 D，输出 "deleted" 或 "not found"。
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int M;                       // 桶数
+vector<int> bucket_[100005]; // 每个桶一条链（用 vector 模拟链表）
+
+int hashFunc(int k) { return ((k % M) + M) % M; }  // 保证非负
+
+// 插入：若已存在则不重复插入，否则挂到链尾
+void insertKey(int k) {
+    int b = hashFunc(k);
+    for (int x : bucket_[b]) if (x == k) return;   // 已存在
+    bucket_[b].push_back(k);                        // 挂到链尾
+}
+
+// 查找：在对应桶的链上逐个比较
+bool findKey(int k) {
+    int b = hashFunc(k);
+    for (int x : bucket_[b]) if (x == k) return true;
+    return false;
+}
+
+// 删除：找到后从链中移除
+bool eraseKey(int k) {
+    int b = hashFunc(k);
+    for (int i = 0; i < (int)bucket_[b].size(); i++) {
+        if (bucket_[b][i] == k) {
+            bucket_[b].erase(bucket_[b].begin() + i);
+            return true;
+        }
+    }
+    return false;
+}
+
+int main() {
+    int op;
+    cin >> M >> op;
+    while (op--) {
+        char c; int k;
+        cin >> c >> k;
+        if (c == 'I') insertKey(k);
+        else if (c == 'F') cout << (findKey(k) ? "found" : "not found") << endl;
+        else if (c == 'D') cout << (eraseKey(k) ? "deleted" : "not found") << endl;
+    }
+    return 0;
+}` },
+  linear: { title: "哈希表 · 开放寻址（线性探测）— C++", code:
+`// 功能：哈希表（开放寻址-线性探测），支持插入、查找、删除整数键。
+// 原理：哈希函数 h(k)=k mod M；冲突时依次看下一个槽 (h(k)+i) mod M，直到空位。
+//       删除用【墓碑(TOMB)】标记，不能直接置空，否则会截断后面的探测链。
+// 输入：第一行两个整数 M op（槽数、操作次数）；
+//       接下来 op 行，每行一个操作："I k"=插入 k，"F k"=查找 k，"D k"=删除 k。
+// 输出：对每个查找 F，输出 "found" 或 "not found"；
+//       对每个删除 D，输出 "deleted" 或 "not found"。
+#include <iostream>
+using namespace std;
+
+const int EMPTY = -1000000001;  // 空槽标记
+const int TOMB  = -1000000002;  // 墓碑标记（曾有元素、已删除）
+
+int M;                  // 槽数
+int slot[100005];       // 哈希表数组
+int cnt = 0;            // 已有元素个数
+
+int hashFunc(int k) { return ((k % M) + M) % M; }
+
+// 插入：从 h(k) 起线性探测，遇到第一个空槽/墓碑放入；已存在则不重复
+void insertKey(int k) {
+    if (cnt >= M) return;               // 表满
+    int h = hashFunc(k), firstTomb = -1;
+    for (int i = 0; i < M; i++) {
+        int p = (h + i) % M;
+        if (slot[p] == k) return;       // 已存在
+        if (slot[p] == EMPTY) {         // 找到空位
+            int target = (firstTomb >= 0) ? firstTomb : p;  // 优先复用墓碑位
+            slot[target] = k; cnt++;
+            return;
+        }
+        if (slot[p] == TOMB && firstTomb < 0) firstTomb = p; // 记住第一个墓碑
+    }
+    if (firstTomb >= 0) { slot[firstTomb] = k; cnt++; }      // 绕一圈用墓碑位
+}
+
+// 查找：探测直到命中或遇到空槽（空槽说明后面不会再有 k）
+bool findKey(int k) {
+    int h = hashFunc(k);
+    for (int i = 0; i < M; i++) {
+        int p = (h + i) % M;
+        if (slot[p] == EMPTY) return false;  // 探测链到此为止
+        if (slot[p] == k) return true;
+    }
+    return false;
+}
+
+// 删除：找到后置为墓碑
+bool eraseKey(int k) {
+    int h = hashFunc(k);
+    for (int i = 0; i < M; i++) {
+        int p = (h + i) % M;
+        if (slot[p] == EMPTY) return false;
+        if (slot[p] == k) { slot[p] = TOMB; cnt--; return true; }
+    }
+    return false;
+}
+
+int main() {
+    int op;
+    cin >> M >> op;
+    for (int i = 0; i < M; i++) slot[i] = EMPTY;  // 初始化全为空
+    while (op--) {
+        char c; int k;
+        cin >> c >> k;
+        if (c == 'I') insertKey(k);
+        else if (c == 'F') cout << (findKey(k) ? "found" : "not found") << endl;
+        else if (c == 'D') cout << (eraseKey(k) ? "deleted" : "not found") << endl;
+    }
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open(mode);
 </script>
 </body>
 </html>

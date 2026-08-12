@@ -165,6 +165,7 @@
   <button class="btn" id="playBtn">开始</button>
   <button class="btn secondary" id="stepBtn">单步</button>
   <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <main>
@@ -547,6 +548,162 @@ $("resetBtn").onclick = () => { stop(); prepare(); };
 
 buildTreeSVG();
 applyMode("pre");
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  pre: { title: "前序遍历 (Preorder) — C++", code:
+`// 功能：二叉树前序遍历（根 -> 左子树 -> 右子树）。
+// 输入：第一行 n（节点个数，节点编号 1..n，1 号为根）；
+//       接下来 n 行，每行两个整数 l r，表示编号 i 的左、右孩子编号（0 表示没有该孩子）。
+// 输出：一行，前序遍历得到的节点编号序列（空格分隔）。
+#include <iostream>
+using namespace std;
+
+const int MAXN = 100005;
+int lch[MAXN], rch[MAXN];   // 左孩子、右孩子编号，0 表示空
+
+void preorder(int u) {
+    if (u == 0) return;     // 空节点，直接返回
+    cout << u << " ";       // 先访问根
+    preorder(lch[u]);       // 再递归左子树
+    preorder(rch[u]);       // 最后递归右子树
+}
+
+int main() {
+    int n;
+    cin >> n;
+    for (int i = 1; i <= n; i++) cin >> lch[i] >> rch[i];
+    preorder(1);            // 从根节点 1 开始
+    cout << endl;
+    return 0;
+}` },
+  in: { title: "中序遍历 (Inorder) — C++", code:
+`// 功能：二叉树中序遍历（左子树 -> 根 -> 右子树）。对二叉搜索树可得升序序列。
+// 输入：第一行 n（节点个数，节点编号 1..n，1 号为根）；
+//       接下来 n 行，每行两个整数 l r，表示编号 i 的左、右孩子编号（0 表示没有该孩子）。
+// 输出：一行，中序遍历得到的节点编号序列（空格分隔）。
+#include <iostream>
+using namespace std;
+
+const int MAXN = 100005;
+int lch[MAXN], rch[MAXN];   // 左孩子、右孩子编号，0 表示空
+
+void inorder(int u) {
+    if (u == 0) return;     // 空节点，直接返回
+    inorder(lch[u]);        // 先递归左子树
+    cout << u << " ";       // 再访问根
+    inorder(rch[u]);        // 最后递归右子树
+}
+
+int main() {
+    int n;
+    cin >> n;
+    for (int i = 1; i <= n; i++) cin >> lch[i] >> rch[i];
+    inorder(1);             // 从根节点 1 开始
+    cout << endl;
+    return 0;
+}` },
+  post: { title: "后序遍历 (Postorder) — C++", code:
+`// 功能：二叉树后序遍历（左子树 -> 右子树 -> 根）。常用于释放整棵树、求后缀表达式。
+// 输入：第一行 n（节点个数，节点编号 1..n，1 号为根）；
+//       接下来 n 行，每行两个整数 l r，表示编号 i 的左、右孩子编号（0 表示没有该孩子）。
+// 输出：一行，后序遍历得到的节点编号序列（空格分隔）。
+#include <iostream>
+using namespace std;
+
+const int MAXN = 100005;
+int lch[MAXN], rch[MAXN];   // 左孩子、右孩子编号，0 表示空
+
+void postorder(int u) {
+    if (u == 0) return;     // 空节点，直接返回
+    postorder(lch[u]);      // 先递归左子树
+    postorder(rch[u]);      // 再递归右子树
+    cout << u << " ";       // 最后访问根
+}
+
+int main() {
+    int n;
+    cin >> n;
+    for (int i = 1; i <= n; i++) cin >> lch[i] >> rch[i];
+    postorder(1);           // 从根节点 1 开始
+    cout << endl;
+    return 0;
+}` },
+  "rebuild-pre": { title: "由前序 + 中序还原二叉树 — C++", code:
+`// 功能：已知二叉树的前序遍历和中序遍历，还原这棵树并输出它的后序遍历。
+//   原理：前序序列的首元素一定是当前子树的根；在中序序列里找到这个根，
+//         它左边的元素构成左子树的中序、右边构成右子树的中序，由此递归。
+// 输入：第一行 n（节点个数）；第二行 n 个整数（前序序列）；第三行 n 个整数（中序序列）。
+//       假定节点值互不相同。
+// 输出：一行，还原后二叉树的后序遍历序列（空格分隔）。
+#include <iostream>
+using namespace std;
+
+const int MAXN = 100005;
+int pre[MAXN], in[MAXN];    // 前序、中序序列
+int n;
+
+// 用前序区间 [pl,pr] 与中序区间 [il,ir] 还原子树，边还原边输出后序
+void build(int pl, int pr, int il, int ir) {
+    if (pl > pr) return;    // 区间为空，子树不存在
+    int rootVal = pre[pl];  // 前序首元素是根
+    int k = il;
+    while (in[k] != rootVal) k++;   // 在中序里定位根
+    int leftSize = k - il;          // 左子树节点数
+    // 递归左子树：前序 [pl+1, pl+leftSize]，中序 [il, k-1]
+    build(pl + 1, pl + leftSize, il, k - 1);
+    // 递归右子树：前序 [pl+leftSize+1, pr]，中序 [k+1, ir]
+    build(pl + leftSize + 1, pr, k + 1, ir);
+    cout << rootVal << " "; // 左、右子树输出完再输出根 => 后序
+}
+
+int main() {
+    cin >> n;
+    for (int i = 0; i < n; i++) cin >> pre[i];
+    for (int i = 0; i < n; i++) cin >> in[i];
+    build(0, n - 1, 0, n - 1);
+    cout << endl;
+    return 0;
+}` },
+  "rebuild-post": { title: "由后序 + 中序还原二叉树 — C++", code:
+`// 功能：已知二叉树的后序遍历和中序遍历，还原这棵树并输出它的前序遍历。
+//   原理：后序序列的末元素一定是当前子树的根；在中序序列里找到这个根，
+//         它左边的元素构成左子树的中序、右边构成右子树的中序，由此递归。
+// 输入：第一行 n（节点个数）；第二行 n 个整数（后序序列）；第三行 n 个整数（中序序列）。
+//       假定节点值互不相同。
+// 输出：一行，还原后二叉树的前序遍历序列（空格分隔）。
+#include <iostream>
+using namespace std;
+
+const int MAXN = 100005;
+int post[MAXN], in[MAXN];   // 后序、中序序列
+int n;
+
+// 用后序区间 [pl,pr] 与中序区间 [il,ir] 还原子树，边还原边输出前序
+void build(int pl, int pr, int il, int ir) {
+    if (pl > pr) return;    // 区间为空，子树不存在
+    int rootVal = post[pr]; // 后序末元素是根
+    int k = il;
+    while (in[k] != rootVal) k++;   // 在中序里定位根
+    int leftSize = k - il;          // 左子树节点数
+    cout << rootVal << " "; // 先输出根，再输出左右子树 => 前序
+    // 递归左子树：后序 [pl, pl+leftSize-1]，中序 [il, k-1]
+    build(pl, pl + leftSize - 1, il, k - 1);
+    // 递归右子树：后序 [pl+leftSize, pr-1]，中序 [k+1, ir]
+    build(pl + leftSize, pr - 1, k + 1, ir);
+}
+
+int main() {
+    cin >> n;
+    for (int i = 0; i < n; i++) cin >> post[i];
+    for (int i = 0; i < n; i++) cin >> in[i];
+    build(0, n - 1, 0, n - 1);
+    cout << endl;
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open(mode);
 </script>
 </body>
 </html>

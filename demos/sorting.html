@@ -236,6 +236,7 @@
   <button class="btn secondary" id="stepBtn">单步</button>
   <button class="btn secondary" id="resetBtn">重置</button>
   <button class="btn secondary" id="randBtn">随机生成</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <main>
@@ -742,6 +743,190 @@ $("randBtn").onclick = () => { stop(); $("dataInput").value = ""; arr = randomDa
 arr = randomData();
 applyAlgo("bubble");
 </script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  bubble: { title: "冒泡排序 (Bubble Sort) — C++", code:
+`// 功能：冒泡排序。相邻元素两两比较，逆序则交换，每趟把最大值“冒”到末尾，升序排序。
+// 输入：第一行 n（元素个数）；第二行 n 个整数。
+// 输出：一行，排序后的 n 个整数（升序，空格分隔）。
+#include <iostream>
+using namespace std;
 
+int main() {
+    int n;
+    cin >> n;
+    int a[1005];
+    for (int i = 0; i < n; i++) cin >> a[i];
+
+    for (int i = 0; i < n; i++) {                 // 共 n 趟
+        for (int j = 0; j < n - 1 - i; j++) {     // 每趟比较相邻元素
+            if (a[j] > a[j + 1]) {                // 逆序则交换
+                int t = a[j]; a[j] = a[j + 1]; a[j + 1] = t;
+            }
+        }
+        // 一趟结束后，末尾 a[n-1-i] 已就位
+    }
+
+    for (int i = 0; i < n; i++) cout << a[i] << " \\n"[i == n - 1];
+    return 0;
+}` },
+  selection: { title: "选择排序 (Selection Sort) — C++", code:
+`// 功能：选择排序。每趟从未排序区间选出最小值，放到已排序区间末尾，升序排序。
+// 输入：第一行 n（元素个数）；第二行 n 个整数。
+// 输出：一行，排序后的 n 个整数（升序，空格分隔）。
+#include <iostream>
+using namespace std;
+
+int main() {
+    int n;
+    cin >> n;
+    int a[1005];
+    for (int i = 0; i < n; i++) cin >> a[i];
+
+    for (int i = 0; i < n; i++) {
+        int min = i;                          // 假设当前最小是 a[i]
+        for (int j = i + 1; j < n; j++)       // 在未排序部分找更小的
+            if (a[j] < a[min]) min = j;        // 更新最小值下标
+        if (min != i) {                       // 把最小值交换到位置 i
+            int t = a[i]; a[i] = a[min]; a[min] = t;
+        }
+    }
+
+    for (int i = 0; i < n; i++) cout << a[i] << " \\n"[i == n - 1];
+    return 0;
+}` },
+  insertion: { title: "插入排序 (Insertion Sort) — C++", code:
+`// 功能：插入排序。把每个元素插入到前面已排序序列的正确位置，升序排序。
+// 输入：第一行 n（元素个数）；第二行 n 个整数。
+// 输出：一行，排序后的 n 个整数（升序，空格分隔）。
+#include <iostream>
+using namespace std;
+
+int main() {
+    int n;
+    cin >> n;
+    int a[1005];
+    for (int i = 0; i < n; i++) cin >> a[i];
+
+    for (int i = 1; i < n; i++) {             // a[0] 视为已排序
+        int key = a[i];                       // 取出待插入值
+        int j = i - 1;
+        while (j >= 0 && a[j] > key) {         // 比 key 大的元素依次后移
+            a[j + 1] = a[j];
+            j--;
+        }
+        a[j + 1] = key;                        // 找到位置，插入 key
+    }
+
+    for (int i = 0; i < n; i++) cout << a[i] << " \\n"[i == n - 1];
+    return 0;
+}` },
+  quick: { title: "快速排序 (Quick Sort) — C++", code:
+`// 功能：快速排序。取区间首元素为基准(pivot)，用对撞双指针分区后递归两侧，升序排序。
+// 输入：第一行 n（元素个数）；第二行 n 个整数。
+// 输出：一行，排序后的 n 个整数（升序，空格分隔）。
+#include <iostream>
+using namespace std;
+
+int a[1005];
+
+void quicksort(int lo, int hi) {
+    if (lo >= hi) return;                      // 区间只有 0 或 1 个元素
+    int pivot = a[lo];                         // 首元素为基准
+    int i = lo, j = hi;
+    while (i < j) {
+        while (i < j && a[j] >= pivot) j--;    // 右→左找第一个 < 基准的
+        while (i < j && a[i] <= pivot) i++;    // 左→右找第一个 > 基准的
+        if (i < j) { int t = a[i]; a[i] = a[j]; a[j] = t; }  // 交换
+    }
+    int t = a[lo]; a[lo] = a[i]; a[i] = t;      // 基准归位到相遇点 i
+    quicksort(lo, i - 1);                       // 递归左侧
+    quicksort(i + 1, hi);                       // 递归右侧
+}
+
+int main() {
+    int n;
+    cin >> n;
+    for (int i = 0; i < n; i++) cin >> a[i];
+    quicksort(0, n - 1);
+    for (int i = 0; i < n; i++) cout << a[i] << " \\n"[i == n - 1];
+    return 0;
+}` },
+  mergeTD: { title: "归并排序·自顶向下(递归) — C++", code:
+`// 功能：归并排序（自顶向下·递归）。把区间对半拆到最小，再回溯时两两有序合并，升序排序。
+// 输入：第一行 n（元素个数）；第二行 n 个整数。
+// 输出：一行，排序后的 n 个整数（升序，空格分隔）。
+#include <iostream>
+using namespace std;
+
+int a[1005], tmp[1005];   // tmp 为辅助数组
+
+// 合并两个有序段 [lo,mid] 与 [mid+1,hi]
+void merge(int lo, int mid, int hi) {
+    int i = lo, j = mid + 1, k = lo;
+    while (i <= mid && j <= hi)                // 每次取较小者放入辅助数组
+        tmp[k++] = (a[i] <= a[j]) ? a[i++] : a[j++];
+    while (i <= mid) tmp[k++] = a[i++];        // 左段剩余
+    while (j <= hi)  tmp[k++] = a[j++];        // 右段剩余
+    for (int t = lo; t <= hi; t++) a[t] = tmp[t];  // 还原回原数组
+}
+
+void mergesort(int lo, int hi) {
+    if (lo >= hi) return;
+    int mid = (lo + hi) / 2;
+    mergesort(lo, mid);                        // 递归左半
+    mergesort(mid + 1, hi);                    // 递归右半
+    merge(lo, mid, hi);                        // 合并两个有序段
+}
+
+int main() {
+    int n;
+    cin >> n;
+    for (int i = 0; i < n; i++) cin >> a[i];
+    mergesort(0, n - 1);
+    for (int i = 0; i < n; i++) cout << a[i] << " \\n"[i == n - 1];
+    return 0;
+}` },
+  mergeBU: { title: "归并排序·自底向上(迭代) — C++", code:
+`// 功能：归并排序（自底向上·迭代）。按子段长度 1,2,4,8… 逐层两两合并，无递归，升序排序。
+// 输入：第一行 n（元素个数）；第二行 n 个整数。
+// 输出：一行，排序后的 n 个整数（升序，空格分隔）。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+int a[1005], tmp[1005];   // tmp 为辅助数组
+
+// 合并两个有序段 [lo,mid] 与 [mid+1,hi]
+void merge(int lo, int mid, int hi) {
+    int i = lo, j = mid + 1, k = lo;
+    while (i <= mid && j <= hi)
+        tmp[k++] = (a[i] <= a[j]) ? a[i++] : a[j++];
+    while (i <= mid) tmp[k++] = a[i++];
+    while (j <= hi)  tmp[k++] = a[j++];
+    for (int t = lo; t <= hi; t++) a[t] = tmp[t];
+}
+
+int main() {
+    int n;
+    cin >> n;
+    for (int i = 0; i < n; i++) cin >> a[i];
+
+    // 子段长度 width 每轮翻倍：1,2,4,8...
+    for (int width = 1; width < n; width *= 2) {
+        for (int lo = 0; lo < n; lo += 2 * width) {
+            int mid = lo + width - 1;
+            int hi = min(lo + 2 * width - 1, n - 1);
+            if (mid < hi) merge(lo, mid, hi);  // 合并相邻两段
+        }
+    }
+
+    for (int i = 0; i < n; i++) cout << a[i] << " \\n"[i == n - 1];
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open(algo);
+</script>
 </body>
 </html>

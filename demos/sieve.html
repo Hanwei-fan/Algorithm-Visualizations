@@ -140,6 +140,7 @@
   <button class="btn" id="playBtn">自动播放</button>
   <button class="btn secondary" id="stepBtn">单步 ▶</button>
   <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <main>
@@ -292,6 +293,75 @@ $("resetBtn").onclick = () => prepare();
 $("nInput").onchange = () => prepare();
 
 applyMode("era");
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  era: { title: "埃氏筛 (埃拉托斯特尼筛法) — C++", code:
+`// 功能：埃氏筛，求出 1..n 内所有质数。
+// 原理：从小到大遍历，遇到没被标记的数就是质数，再把它的所有倍数标记为合数。
+// 输入：一行一个整数 n（筛的范围上界，n >= 2）。
+// 输出：第一行 n 以内质数的个数；第二行按升序输出所有质数（空格分隔）。
+#include <iostream>
+using namespace std;
+
+const int MAXN = 1000005;
+bool isComposite[MAXN];   // isComposite[i]=true 表示 i 是合数(被筛掉)
+
+int main() {
+    int n;
+    cin >> n;
+
+    // 埃氏筛主体
+    for (int i = 2; i <= n; i++) {
+        if (!isComposite[i]) {              // i 没被标记 → i 是质数
+            // 从 i*i 开始划倍数：更小的倍数已被更小的质数划过（常见优化）
+            // 用 long long 防止 i*i 溢出
+            for (long long j = (long long)i * i; j <= n; j += i)
+                isComposite[j] = true;      // i 的倍数都是合数
+        }
+    }
+
+    // 统计并输出
+    int cnt = 0;
+    for (int i = 2; i <= n; i++) if (!isComposite[i]) cnt++;
+    cout << cnt << endl;
+    for (int i = 2; i <= n; i++) if (!isComposite[i]) cout << i << " ";
+    cout << endl;
+    return 0;
+}` },
+  lin: { title: "线性筛 (欧拉筛) — C++", code:
+`// 功能：线性筛(欧拉筛)，求出 1..n 内所有质数。
+// 原理：每个合数只被它的【最小质因子】筛掉一次，总操作数是 O(n)。
+// 输入：一行一个整数 n（筛的范围上界，n >= 2）。
+// 输出：第一行 n 以内质数的个数；第二行按升序输出所有质数（空格分隔）。
+#include <iostream>
+using namespace std;
+
+const int MAXN = 1000005;
+bool isComposite[MAXN];   // 是否为合数
+int primes[MAXN], pc = 0; // 已找到的质数表，pc 为个数
+
+int main() {
+    int n;
+    cin >> n;
+
+    for (int i = 2; i <= n; i++) {
+        if (!isComposite[i]) primes[pc++] = i;   // i 未标记 → 质数，入表
+        // 用 i 去乘每个已知质数 p，筛掉 i*p
+        for (int j = 0; j < pc && (long long)i * primes[j] <= n; j++) {
+            isComposite[i * primes[j]] = true;   // i*p 是合数，p 是它的最小质因子
+            if (i % primes[j] == 0) break;       // 关键：p 整除 i 时停止，保证每个合数只被筛一次
+        }
+    }
+
+    cout << pc << endl;
+    for (int i = 0; i < pc; i++) cout << primes[i] << " ";
+    cout << endl;
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open(mode);
 </script>
 </body>
 </html>

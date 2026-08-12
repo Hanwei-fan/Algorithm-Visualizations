@@ -147,6 +147,7 @@
   <button class="btn secondary" id="stepBtn">单步</button>
   <button class="btn secondary" id="resetBtn">重置</button>
   <button class="btn secondary" id="randBtn">随机生成</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <main>
@@ -336,6 +337,108 @@ $("resetBtn").onclick = () => { stop(); prepare(); };
 $("randBtn").onclick = () => regenerate();
 
 applyType("undirected");
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  undirected: { title: "Dijkstra 最短路（无向图，邻接表 + 优先队列）— C++", code:
+`// 功能：非负权无向图的单源最短路(Dijkstra)。求源点 s 到每个点的最短距离。
+//       用邻接表存图，用小根堆(优先队列)每次取出 dist 最小的未确定点。
+//       注意：Dijkstra 要求所有边权非负。
+// 输入：第一行 n m s —— n 个点(编号 0~n-1)、m 条无向边、源点 s；
+//       接下来 m 行，每行 u v w 表示 u—v 间有一条权值 w(≥0) 的无向边。
+// 输出：n 个整数(空格分隔)，第 i 个是 s 到点 i 的最短距离；不可达输出 -1。
+#include <iostream>
+#include <vector>
+#include <queue>
+using namespace std;
+
+const long long INF = 1e18;
+int n, m, s;
+vector<pair<int,int>> adj[100005];   // adj[u] = {邻居 v, 边权 w}
+long long dist[100005];              // 源点到各点的最短距离
+bool done_[100005];                  // 是否已确定最短距离
+
+int main() {
+    cin >> n >> m >> s;
+    for (int i = 0; i < m; i++) {
+        int u, v, w; cin >> u >> v >> w;
+        adj[u].push_back({v, w});    // 无向边：两个方向都加
+        adj[v].push_back({u, w});
+    }
+
+    for (int i = 0; i < n; i++) dist[i] = INF;
+    dist[s] = 0;
+    // 小根堆，元素 {当前距离, 顶点}，按距离从小到大弹出
+    priority_queue<pair<long long,int>, vector<pair<long long,int>>,
+                   greater<pair<long long,int>>> pq;
+    pq.push({0, s});
+
+    while (!pq.empty()) {
+        auto [d, u] = pq.top(); pq.pop();
+        if (done_[u]) continue;      // 已确定过，跳过(懒删除)
+        done_[u] = true;             // u 的最短距离就此确定
+        for (auto [v, w] : adj[u]) { // 用 u 松弛每个邻居
+            if (!done_[v] && dist[u] + w < dist[v]) {
+                dist[v] = dist[u] + w;   // 找到更短的路，更新
+                pq.push({dist[v], v});
+            }
+        }
+    }
+
+    for (int i = 0; i < n; i++)
+        cout << (dist[i] == INF ? -1 : dist[i]) << (i + 1 < n ? " " : "\\n");
+    return 0;
+}` },
+  directed: { title: "Dijkstra 最短路（有向图，邻接表 + 优先队列）— C++", code:
+`// 功能：非负权有向图的单源最短路(Dijkstra)。求源点 s 到每个点的最短距离。
+//       与无向图版本几乎相同，区别仅在于建图时边只加 u→v 一个方向。
+//       注意：Dijkstra 要求所有边权非负。
+// 输入：第一行 n m s —— n 个点(编号 0~n-1)、m 条有向边、源点 s；
+//       接下来 m 行，每行 u v w 表示一条 u→v、权值 w(≥0) 的有向边。
+// 输出：n 个整数(空格分隔)，第 i 个是 s 到点 i 的最短距离；不可达输出 -1。
+#include <iostream>
+#include <vector>
+#include <queue>
+using namespace std;
+
+const long long INF = 1e18;
+int n, m, s;
+vector<pair<int,int>> adj[100005];   // adj[u] = {终点 v, 边权 w}
+long long dist[100005];
+bool done_[100005];
+
+int main() {
+    cin >> n >> m >> s;
+    for (int i = 0; i < m; i++) {
+        int u, v, w; cin >> u >> v >> w;
+        adj[u].push_back({v, w});    // 有向边：只加 u→v 一个方向
+    }
+
+    for (int i = 0; i < n; i++) dist[i] = INF;
+    dist[s] = 0;
+    priority_queue<pair<long long,int>, vector<pair<long long,int>>,
+                   greater<pair<long long,int>>> pq;
+    pq.push({0, s});
+
+    while (!pq.empty()) {
+        auto [d, u] = pq.top(); pq.pop();
+        if (done_[u]) continue;      // 懒删除：已确定则跳过
+        done_[u] = true;
+        for (auto [v, w] : adj[u]) { // 沿出边松弛
+            if (!done_[v] && dist[u] + w < dist[v]) {
+                dist[v] = dist[u] + w;
+                pq.push({dist[v], v});
+            }
+        }
+    }
+
+    for (int i = 0; i < n; i++)
+        cout << (dist[i] == INF ? -1 : dist[i]) << (i + 1 < n ? " " : "\\n");
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open(graphType);
 </script>
 </body>
 </html>

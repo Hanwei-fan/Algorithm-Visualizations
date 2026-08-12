@@ -136,6 +136,7 @@
   <button class="btn ghost" id="inorderBtn">中序遍历</button>
   <button class="btn ghost" id="randBtn">随机生成</button>
   <button class="btn ghost" id="clearBtn">清空</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <div class="controls" style="padding-top:0">
@@ -479,6 +480,96 @@ function insertSilently(val) {
 
 render();
 setStatus("空树。输入数值后点“插入”，或点“随机生成”。用「单步 ▶」逐步、或「自动播放」连续演示。");
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  bst: { title: "二叉搜索树 (BST)：插入 / 查找 / 删除 / 中序遍历 — C++", code:
+`// 功能：二叉搜索树（BST）的完整实现，支持插入、查找、删除、中序遍历。
+//   BST 性质：任意节点左子树的值都比它小、右子树的值都比它大；中序遍历即得升序序列。
+// 输入：第一行整数 m（操作条数）；接下来 m 行，每行一个操作：
+//       I x  -> 插入值 x（重复值忽略）
+//       F x  -> 查找值 x，输出 found / not found
+//       D x  -> 删除值 x
+//       P    -> 中序遍历，按升序输出当前所有值
+// 输出：F、P 操作各输出一行对应结果。
+#include <iostream>
+using namespace std;
+
+struct Node {
+    int val;
+    Node *left, *right;
+    Node(int v) : val(v), left(nullptr), right(nullptr) {}
+};
+
+// 插入：小往左、大往右，走到空位处新建节点；重复值不插入
+Node* insert(Node* root, int x) {
+    if (root == nullptr) return new Node(x);   // 找到空位，建新节点
+    if (x < root->val) root->left = insert(root->left, x);
+    else if (x > root->val) root->right = insert(root->right, x);
+    // x == root->val：已存在，忽略
+    return root;
+}
+
+// 查找：从根出发，按大小关系一路向左/向右
+bool find(Node* root, int x) {
+    while (root != nullptr) {
+        if (x == root->val) return true;       // 命中
+        root = (x < root->val) ? root->left : root->right;
+    }
+    return false;                              // 走到空位仍未找到
+}
+
+// 删除：分三种情况处理
+Node* removeNode(Node* root, int x) {
+    if (root == nullptr) return nullptr;       // 没找到，树不变
+    if (x < root->val) root->left = removeNode(root->left, x);
+    else if (x > root->val) root->right = removeNode(root->right, x);
+    else {
+        // 找到待删节点 root
+        if (root->left == nullptr) {           // 情况1/2：无左孩子，用右孩子顶替（右孩子可能为空=叶子）
+            Node* r = root->right;
+            delete root;
+            return r;
+        }
+        if (root->right == nullptr) {          // 情况2：只有左孩子，用左孩子顶替
+            Node* l = root->left;
+            delete root;
+            return l;
+        }
+        // 情况3：有两个孩子。找右子树最小值（中序后继）替换当前值，再删掉那个后继
+        Node* succ = root->right;
+        while (succ->left != nullptr) succ = succ->left;
+        root->val = succ->val;                 // 用后继值覆盖
+        root->right = removeNode(root->right, succ->val);   // 删掉右子树里的后继
+    }
+    return root;
+}
+
+// 中序遍历：左 -> 根 -> 右，输出升序序列
+void inorder(Node* root) {
+    if (root == nullptr) return;
+    inorder(root->left);
+    cout << root->val << " ";
+    inorder(root->right);
+}
+
+int main() {
+    int m;
+    cin >> m;
+    Node* root = nullptr;
+    while (m--) {
+        char op;
+        cin >> op;
+        if (op == 'I') { int x; cin >> x; root = insert(root, x); }
+        else if (op == 'F') { int x; cin >> x; cout << (find(root, x) ? "found" : "not found") << endl; }
+        else if (op == 'D') { int x; cin >> x; root = removeNode(root, x); }
+        else if (op == 'P') { inorder(root); cout << endl; }
+    }
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open("bst");
 </script>
 </body>
 </html>
