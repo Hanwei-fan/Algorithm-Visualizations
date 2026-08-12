@@ -459,10 +459,10 @@ void init(int n) {
     for (int i = 0; i < n; i++) parent[i] = i;
 }
 
-// 查找代表元：沿 parent 一路向上，直到根（不做路径压缩）
+// 查找代表元（递归实现）：到根就返回；否则递归查父亲的根（不做路径压缩）
 int find(int x) {
-    while (parent[x] != x) x = parent[x];
-    return x;
+    if (parent[x] == x) return x;   // x 就是根
+    return find(parent[x]);         // 递归向上找根
 }
 
 // 合并：各自找根后，直接把 y 的根挂到 x 的根下（不按秩）
