@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>质数筛法演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .subtabs { display: flex; align-items: center; gap: 10px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .sublabel { font-size: 12px; color: var(--muted); letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace; }
+  .subtab {
+    padding: 8px 18px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 14px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .subtab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .subtab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 90px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 130px; accent-color: var(--magenta); }
+  .btn {
+    padding: 10px 18px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 14px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.7fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  /* 数字网格 */
+  .numgrid { display: grid; gap: 5px; }
+  .num {
+    aspect-ratio: 1; min-width: 30px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 5px; background: rgba(0,240,255,0.03);
+    font-family: "SF Mono", Menlo, monospace; font-size: 14px; font-weight: 700; color: var(--text);
+    transition: all .15s; position: relative;
+  }
+  .num.prime { background: rgba(0,255,156,0.18); border-color: var(--green); color: var(--green); box-shadow: 0 0 8px rgba(0,255,156,.3); }
+  .num.comp { background: rgba(255,255,255,0.02); border-color: #2a2350; color: #5a5480; }
+  .num.base { background: var(--magenta); border-color: var(--magenta); color: #fff; box-shadow: 0 0 12px rgba(255,43,214,.7); transform: scale(1.08); }
+  .num.mark { background: var(--yellow); border-color: var(--yellow); color: #120e00; box-shadow: 0 0 12px rgba(255,212,0,.7); }
+  .num.factor { background: rgba(0,240,255,0.25); border-color: var(--cyan); color: var(--cyan); }
+  .num.one { color: #5a5480; border-style: dashed; }
+  .num .pf { position: absolute; bottom: -1px; right: 2px; font-size: 8px; font-weight: 400; color: var(--muted); }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: #8fb8c9; margin: 0 0 16px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .stats { display: flex; gap: 22px; font-size: 14px; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; }
+  .stats b { font-size: 20px; color: var(--green); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .plist { display: flex; flex-wrap: wrap; gap: 5px; min-height: 34px; }
+  .pchip {
+    padding: 3px 8px; border: 1px solid var(--green); border-radius: 5px; background: rgba(0,255,156,0.12);
+    color: var(--green); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 13px;
+  }
+  .status { margin-top: 10px; font-size: 14.5px; min-height: 44px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .tlegend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tlegend .dot { width: 12px; height: 12px; border-radius: 3px; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>质数筛法演示</h1>
+  <p id="subtitle"></p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="subtabs">
+  <span class="sublabel">算法：</span>
+  <button class="subtab active" data-mode="era">埃氏筛 (Eratosthenes)</button>
+  <button class="subtab" data-mode="lin">线性筛 (欧拉筛)</button>
+</div>
+
+<div class="controls">
+  <div class="field"><label>范围 n</label><input id="nInput" type="number" value="40" min="10" max="120"></div>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="60" max="900" value="450" step="40"></div>
+  <button class="btn" id="playBtn">自动播放</button>
+  <button class="btn secondary" id="stepBtn">单步 ▶</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="numgrid" id="grid"></div>
+    <div class="tlegend">
+      <span><i class="dot" style="background:#ff2bd6"></i>当前质数/基准</span>
+      <span><i class="dot" style="background:#00f0ff"></i>参与相乘的质数</span>
+      <span><i class="dot" style="background:#ffd400"></i>正被筛掉</span>
+      <span><i class="dot" style="background:#00ff9c"></i>质数</span>
+      <span><i class="dot" style="background:#5a5480"></i>合数</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel">算法</div>
+    <div class="formula" id="formula"></div>
+    <div class="stats" id="stats"></div>
+    <div class="plabel">已找到的质数</div>
+    <div class="plist" id="plist"></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let mode = "era";     // era / lin
+let N = 40;
+let steps = [], idx = 0, timer = null, running = false;
+
+function setStatus(t) { $("status").innerHTML = t; }
+
+// state[i]: 0=未定, 1=质数, 2=合数；marks[i]: base/factor/mark；minP[i]: 最小质因子(线性筛用)
+// ======== 埃氏筛 ========
+function genEra() {
+  const state = new Array(N + 1).fill(0);
+  const list = [];
+  const primes = [];
+  const snap = (marks, desc) => list.push({ state: [...state], marks: { ...marks }, primes: [...primes], desc });
+  snap({}, `埃氏筛：从 2 开始，遇到未被标记的数就是质数，然后把它的所有倍数标记为合数。`);
+  for (let i = 2; i <= N; i++) {
+    if (state[i] === 0) {
+      state[i] = 1; primes.push(i);
+      snap({ base: i }, `${i} 还没被标记 → 它是质数。接下来划掉它的倍数。`);
+      // 从 i*i 开始（更小的倍数已被更小质数划过），但为直观从 2i 起也可；用 i*i 优化
+      let first = i * i;
+      if (first > N) {
+        snap({ base: i }, `${i}² = ${i*i} > ${N}，没有需要新划的倍数。`);
+      } else {
+        for (let j = first; j <= N; j += i) {
+          const already = state[j] === 2;
+          state[j] = 2;
+          snap({ base: i, mark: j }, `划掉 ${j} = ${i}×${j/i}${already ? "（已被更小质数划过）" : ""}，它是合数。`);
+        }
+      }
+    }
+  }
+  snap({}, `完成！${N} 以内共有 <b>${primes.length}</b> 个质数。`);
+  return list;
+}
+
+// ======== 线性筛（欧拉筛）========
+function genLin() {
+  const state = new Array(N + 1).fill(0);
+  const minP = new Array(N + 1).fill(0);   // 最小质因子
+  const primes = [];
+  const list = [];
+  const snap = (marks, desc) => list.push({ state: [...state], marks: { ...marks }, primes: [...primes], desc });
+  snap({}, `线性筛：每个合数只被它的<b>最小质因子</b>筛掉一次，所以是 O(n)。`);
+  for (let i = 2; i <= N; i++) {
+    if (state[i] === 0) { state[i] = 1; primes.push(i); minP[i] = i;
+      snap({ base: i }, `${i} 未被标记 → 质数，加入质数表。`);
+    } else {
+      snap({ base: i }, `${i} 已是合数，但仍用它去筛 i×质数。`);
+    }
+    // 用 i 乘每个已知质数去筛
+    for (const p of primes) {
+      const prod = i * p;
+      if (prod > N) { snap({ base: i, factor: p }, `${i}×${p} = ${prod} > ${N}，停止。`); break; }
+      state[prod] = 2; minP[prod] = p;
+      if (i % p === 0) {
+        snap({ base: i, factor: p, mark: prod }, `筛掉 ${prod} = ${i}×${p}。因为 ${p} | ${i}，${p} 是 ${prod} 的最小质因子 → 到此停止（保证每个合数只筛一次）。`);
+        break;   // 关键：i 能整除 p 时停止
+      } else {
+        snap({ base: i, factor: p, mark: prod }, `筛掉 ${prod} = ${i}×${p}，${p} 是 ${prod} 的最小质因子。`);
+      }
+    }
+  }
+  snap({}, `完成！${N} 以内共有 <b>${primes.length}</b> 个质数。`);
+  return list;
+}
+
+// ======== 渲染 ========
+function draw(k) {
+  const s = steps[k];
+  const cols = N <= 30 ? 10 : N <= 60 ? 12 : 15;
+  $("grid").style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+  let html = "";
+  for (let i = 1; i <= N; i++) {
+    let cls = "num";
+    if (i === 1) cls += " one";
+    else if (s.marks.base === i) cls += " base";
+    else if (s.marks.factor === i) cls += " factor";
+    else if (s.marks.mark === i) cls += " mark";
+    else if (s.state[i] === 1) cls += " prime";
+    else if (s.state[i] === 2) cls += " comp";
+    html += `<div class="${cls}">${i}</div>`;
+  }
+  $("grid").innerHTML = html;
+  $("stats").innerHTML = `已找到质数：<b>${s.primes.length}</b> 个`;
+  $("plist").innerHTML = s.primes.map(p => `<span class="pchip">${p}</span>`).join("") || '<span style="color:var(--muted);font-family:monospace">（暂无）</span>';
+  setStatus(s.desc);
+}
+
+// ======== 单步引擎 ========
+function stepOnce() { if (!running) return false; if (idx < steps.length - 1) { idx++; draw(idx); } if (idx >= steps.length - 1) endRun(); return true; }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 960 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+function prepare() {
+  stopTimer();
+  N = Math.max(10, Math.min(120, parseInt($("nInput").value, 10) || 40));
+  $("nInput").value = N;
+  steps = mode === "era" ? genEra() : genLin();
+  idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  draw(0);
+}
+
+function applyMode(m) {
+  mode = m; stopTimer(); running = false;
+  document.querySelectorAll(".subtab").forEach(b => b.classList.toggle("active", b.dataset.mode === m));
+  $("subtitle").textContent = m === "era"
+    ? "埃拉托斯特尼筛法：从小到大，遇到质数就划掉它的所有倍数。简单直观，复杂度 O(n log log n)。"
+    : "线性筛（欧拉筛）：每个合数只被其最小质因子筛掉一次，复杂度 O(n)。";
+  $("formula").innerHTML = m === "era"
+    ? `for i = 2..n：<br>&nbsp;&nbsp;若 i 未被标记 → i 是<b>质数</b>；<br>&nbsp;&nbsp;把 i², i²+i, i²+2i, … 全标记为<b>合数</b>。<br><span style="color:var(--muted)">缺点：合数会被多个质因子重复划掉。</span>`
+    : `for i = 2..n：<br>&nbsp;&nbsp;若 i 未标记 → 质数，入表；<br>&nbsp;&nbsp;for 每个质数 p（从小到大）：<br>&nbsp;&nbsp;&nbsp;&nbsp;标记 i×p 为合数；<br>&nbsp;&nbsp;&nbsp;&nbsp;<b>若 p | i 则 break</b>（保证 i×p 只被最小质因子 p 筛）。`;
+  $("note").innerHTML = m === "era"
+    ? "从 i² 开始划倍数是常见优化（更小的倍数已被更小质数处理）。同一合数可能被多个质数划到，故非线性。"
+    : "线性筛的精髓在 <code>if (i % p == 0) break</code>：它保证每个合数只由其最小质因子筛除一次，总操作数是线性的。";
+  prepare();
+}
+
+document.querySelectorAll(".subtab").forEach(b => b.onclick = () => applyMode(b.dataset.mode));
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) prepare(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("resetBtn").onclick = () => prepare();
+$("nInput").onchange = () => prepare();
+
+applyMode("era");
+</script>
+</body>
+</html>

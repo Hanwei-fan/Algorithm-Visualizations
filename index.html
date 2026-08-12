@@ -200,6 +200,13 @@ const SECTIONS = [
         desc: "竖直扫描线求矩形面积并 / 周长并，可切换。展示覆盖区间、事件表与逐段累加，随机矩形，单步/自动。" },
     ],
   },
+  {
+    id: "math", icon: "🔢", title: "数论 / 数学", desc: "质数筛法",
+    items: [
+      { icon: "🔢", tag: "数论", title: "质数筛法", file: "sieve.html", ready: true,
+        desc: "埃氏筛 / 线性筛(欧拉筛)可切换。数字网格逐个标记合数，展示线性筛“每个合数只被最小质因子筛一次”，可调 n。" },
+    ],
+  },
 ];
 
 const nav = document.getElementById("nav");
