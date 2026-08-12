@@ -143,11 +143,9 @@
 </div>
 
 <div class="controls">
-  <div class="field"><label>查找的元素</label><input id="findInput" type="number" placeholder="x"></div>
-  <button class="btn cy" id="findBtn">查找 find(x)</button>
-  <span style="align-self:center;color:var(--muted)">|</span>
   <div class="field"><label>元素 x</label><input id="xInput" type="number" placeholder="x"></div>
-  <div class="field"><label>元素 y</label><input id="yInput" type="number" placeholder="y"></div>
+  <div class="field"><label>元素 y（合并/比较用）</label><input id="yInput" type="number" placeholder="y"></div>
+  <button class="btn cy" id="findBtn">查找 find(x)</button>
   <button class="btn" id="unionBtn">合并 union(x,y)</button>
   <button class="btn cy" id="sameBtn">同集合? (x,y)</button>
 </div>
@@ -348,7 +346,7 @@ function validIdx(v) { return Number.isInteger(v) && v >= 0 && v < N; }
 function opGuard() { return !running; }
 
 $("unionBtn").onclick = () => { if (!opGuard()) return; const { x, y } = readXY(); if (!validIdx(x) || !validIdx(y)) { setStatus(`请输入 0~${N-1} 的元素 x 和 y。`); return; } loadSteps(buildUnion(x, y)); };
-$("findBtn").onclick = () => { if (!opGuard()) return; const x = parseInt($("findInput").value, 10); if (!validIdx(x)) { setStatus(`请在“查找的元素”里输入 0~${N-1} 的一个元素。`); return; } loadSteps(buildFind(x)); };
+$("findBtn").onclick = () => { if (!opGuard()) return; const x = parseInt($("xInput").value, 10); if (!validIdx(x)) { setStatus(`请在“元素 x”里输入 0~${N-1} 的一个元素。`); return; } loadSteps(buildFind(x)); };
 $("sameBtn").onclick = () => { if (!opGuard()) return; const { x, y } = readXY(); if (!validIdx(x) || !validIdx(y)) { setStatus(`请输入 0~${N-1} 的元素 x 和 y。`); return; } loadSteps(buildSame(x, y)); };
 $("resetBtn").onclick = () => { if (running) return; initSets(); };
 $("randBtn").onclick = () => {
@@ -389,7 +387,7 @@ function applyOpt(o) {
 }
 
 document.querySelectorAll(".subtab").forEach(b => b.onclick = () => applyOpt(b.dataset.opt));
-$("findInput").addEventListener("keydown", e => { if (e.key === "Enter") $("findBtn").click(); });
+$("xInput").addEventListener("keydown", e => { if (e.key === "Enter") $("findBtn").click(); });
 
 applyOpt("both");
 </script>
