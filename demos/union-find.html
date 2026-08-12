@@ -64,6 +64,7 @@
     font-family: "SF Mono", Menlo, monospace; width: 70px;
   }
   .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .field input:disabled { opacity: .35; cursor: not-allowed; background: rgba(5,4,15,0.4); }
   .speed { display: flex; flex-direction: column; gap: 5px; }
   .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
   .speed input { width: 120px; accent-color: var(--magenta); }
@@ -161,9 +162,10 @@
 
 <main>
   <section class="card">
-    <svg id="forest" viewBox="0 0 680 360" preserveAspectRatio="xMidYMid meet"></svg>
     <div class="arrlabel">parent 数组（每个元素的父亲；根指向自己）</div>
     <div class="arr" id="arr"></div>
+    <div class="arrlabel" style="margin-top:16px">对应的森林</div>
+    <svg id="forest" viewBox="0 0 680 340" preserveAspectRatio="xMidYMid meet"></svg>
     <div class="tlegend">
       <span><i class="dot" style="background:#ffd400"></i>代表元(根)/查找路径</span>
       <span><i class="dot" style="background:#ff2bd6"></i>当前元素</span>
@@ -261,7 +263,7 @@ function applyStep(i) {
   setStatus(s.desc);
 }
 function stepOnce() { if (!running) return false; if (idx < steps.length - 1) { idx++; applyStep(idx); } if (idx >= steps.length - 1) endRun(); return true; }
-function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; lockOps(false); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; lockOps(false); $("yInput").disabled = false; }
 function playAll() { if (!running) return; stopTimer(); const spd = 1200 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; applyStep(idx); } else endRun(); }, spd); }
 function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
 function lockOps(v) { ["unionBtn","findBtn","sameBtn","resetBtn","randBtn"].forEach(id => $(id).disabled = v); }
@@ -346,7 +348,7 @@ function validIdx(v) { return Number.isInteger(v) && v >= 0 && v < N; }
 function opGuard() { return !running; }
 
 $("unionBtn").onclick = () => { if (!opGuard()) return; const { x, y } = readXY(); if (!validIdx(x) || !validIdx(y)) { setStatus(`请输入 0~${N-1} 的元素 x 和 y。`); return; } loadSteps(buildUnion(x, y)); };
-$("findBtn").onclick = () => { if (!opGuard()) return; const x = parseInt($("xInput").value, 10); if (!validIdx(x)) { setStatus(`请在“元素 x”里输入 0~${N-1} 的一个元素。`); return; } loadSteps(buildFind(x)); };
+$("findBtn").onclick = () => { if (!opGuard()) return; const x = parseInt($("xInput").value, 10); if (!validIdx(x)) { setStatus(`请在“元素 x”里输入 0~${N-1} 的一个元素。`); return; } $("yInput").disabled = true; loadSteps(buildFind(x)); };
 $("sameBtn").onclick = () => { if (!opGuard()) return; const { x, y } = readXY(); if (!validIdx(x) || !validIdx(y)) { setStatus(`请输入 0~${N-1} 的元素 x 和 y。`); return; } loadSteps(buildSame(x, y)); };
 $("resetBtn").onclick = () => { if (running) return; initSets(); };
 $("randBtn").onclick = () => {
