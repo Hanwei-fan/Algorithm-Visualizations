@@ -223,7 +223,7 @@ function genArea() {
       slabs.push({ y1: y, y2: ny, segs: segs.map(g => [...g]) });
       snap({ scanY: y, covSegs: segs.map(g => [...g]), evIdx: e, doneEv,
         slabs: slabs.map(s => ({ ...s, segs: s.segs.map(g => [...g]) })),
-        desc: `带状区间 y∈[${y}, ${ny}]：覆盖 x 长 = ${after}，高 = ${dy}，本带面积 = ${after} × ${dy} = ${after * dy}，累计面积 ${area}。` });
+        desc: `带状区间 y∈[${y}, ${ny}]：宽 = ${after}，高 = ${dy}，本带面积 = ${after} × ${dy} = ${after * dy}，累计面积 ${area}。` });
     }
   }
   snap({ scanY: null, covSegs: [], evIdx: -1, doneEv: ys.slice(),
