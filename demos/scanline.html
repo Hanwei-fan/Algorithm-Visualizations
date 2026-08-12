@@ -232,47 +232,64 @@ function genArea() {
   return list;
 }
 
-// 周长并：竖直扫描线（保持原逻辑）
+// 周长并：两轮扫描。
+// 第一轮 水平线自下而上 → 水平边贡献；第二轮 竖直线从左向右 → 竖直边贡献。
+// 某条扫描线在某方向上的“边界长度” = 处理该线的边后，垂直方向每个单位格覆盖状态发生翻转(0↔覆盖)的数量。
 function genPeri() {
-  const xs = [...new Set(rects.flatMap(r => [r.x1, r.x2]))].sort((a, b) => a - b);
-  const cnt = new Array(DMAX).fill(0);
   const list = [];
   let peri = 0;
   const snap = (o) => list.push(Object.assign({
-    scanX: null, covSegs: [], slabs: [], area: 0, peri, evIdx: -1, doneEv: [], desc: ""
+    scanX: null, scanY: null, dir: "v", covSegs: [], slabs: [], area: 0, peri, evIdx: -1, doneEv: [], round: 1, desc: ""
   }, o));
 
-  snap({ desc: `扫描线求周长并：竖直边贡献 = 覆盖长的变化量 |Δ|；水平边贡献 = 2 × 连续覆盖段数 × Δx。` });
+  snap({ dir: "h", desc: `周长并 = 水平边总长 + 竖直边总长，分两轮扫描分别累加。` });
 
+  // ---------- 第一轮：水平线自下而上，算水平边 ----------
+  const ys = [...new Set(rects.flatMap(r => [r.y1, r.y2]))].sort((a, b) => a - b);
+  const cntX = new Array(DMAX).fill(0);   // 每个 x 单位被覆盖次数
+  let horiz = 0;
+  snap({ dir: "h", round: 1, desc: `第一轮（水平线自下而上）：每到一条横线，处理其横边，统计 x 方向覆盖状态翻转的单位数 = 这条横线上的水平边界长度。` });
+  for (let e = 0; e < ys.length; e++) {
+    const y = ys[e];
+    const beforeCov = cntX.map(c => c > 0);
+    rects.forEach(r => {
+      if (r.y1 === y) for (let x = r.x1; x < r.x2; x++) cntX[x]++;
+      if (r.y2 === y) for (let x = r.x1; x < r.x2; x++) cntX[x]--;
+    });
+    let dH = 0;
+    for (let x = 0; x < DMAX; x++) if ((cntX[x] > 0) !== beforeCov[x]) dH++;
+    horiz += dH;
+    const segs = coverSegs(cntX);
+    snap({ dir: "h", round: 1, scanY: y, covSegs: segs.map(g => [...g]), evIdx: e, doneEv: ys.slice(0, e),
+      desc: `横线 y=${y}：处理横边后，x 方向覆盖状态翻转 ${dH} 单位 → 这条横线贡献 ${dH} 的水平边长，累计水平边 ${horiz}。` });
+  }
+  peri = horiz;
+  snap({ dir: "h", round: 1, scanY: null, covSegs: [], evIdx: -1, doneEv: ys.slice(),
+    desc: `第一轮结束：水平边总长 = <b>${horiz}</b>。` });
+
+  // ---------- 第二轮：竖直线从左向右，算竖直边 ----------
+  const xs = [...new Set(rects.flatMap(r => [r.x1, r.x2]))].sort((a, b) => a - b);
+  const cntY = new Array(DMAX).fill(0);   // 每个 y 单位被覆盖次数
+  let vert = 0;
+  snap({ dir: "v", round: 2, scanX: null, covSegs: [], evIdx: -1, doneEv: [],
+    desc: `第二轮（竖直线从左向右）：每到一条竖线，处理其竖边，统计 y 方向覆盖状态翻转的单位数 = 这条竖线上的竖直边界长度。` });
   for (let e = 0; e < xs.length; e++) {
     const x = xs[e];
-    const coveredBefore = cnt.map(c => c > 0);
-    const beforeLen = coverLen(cnt);
+    const beforeCov = cntY.map(c => c > 0);
     rects.forEach(r => {
-      if (r.x1 === x) for (let y = r.y1; y < r.y2; y++) cnt[y]++;
-      if (r.x2 === x) for (let y = r.y1; y < r.y2; y++) cnt[y]--;
+      if (r.x1 === x) for (let y = r.y1; y < r.y2; y++) cntY[y]++;
+      if (r.x2 === x) for (let y = r.y1; y < r.y2; y++) cntY[y]--;
     });
-    const after = coverLen(cnt);
-    const segs = coverSegs(cnt);
-    const doneEv = xs.slice(0, e);
-
     let dV = 0;
-    for (let y = 0; y < DMAX; y++) if ((cnt[y] > 0) !== coveredBefore[y]) dV++;
-    peri += dV;
-    snap({ scanX: x, covSegs: segs.map(g => [...g]), evIdx: e, doneEv,
-      desc: `扫描线到 x=${x}：处理竖边后覆盖长 ${beforeLen} → ${after}，此处新增/消失的竖直边界共 ${dV} 单位长，累计周长 ${peri}。` });
-
-    if (e < xs.length - 1) {
-      const nx = xs[e + 1], dx = nx - x;
-      const sc = segCount(cnt);
-      const add = 2 * sc * dx;
-      peri += add;
-      snap({ scanX: x, covSegs: segs.map(g => [...g]), evIdx: e, doneEv,
-        desc: `区间 [${x}, ${nx}]：连续覆盖段 ${sc} 段，水平边贡献 2×${sc}×${dx}=${add}，累计周长 ${peri}。` });
-    }
+    for (let y = 0; y < DMAX; y++) if ((cntY[y] > 0) !== beforeCov[y]) dV++;
+    vert += dV;
+    peri = horiz + vert;
+    const segs = coverSegs(cntY);
+    snap({ dir: "v", round: 2, scanX: x, covSegs: segs.map(g => [...g]), evIdx: e, doneEv: xs.slice(0, e),
+      desc: `竖线 x=${x}：处理竖边后，y 方向覆盖状态翻转 ${dV} 单位 → 这条竖线贡献 ${dV} 的竖直边长，累计竖直边 ${vert}（总周长 ${peri}）。` });
   }
-  snap({ scanX: null, covSegs: [], evIdx: -1, doneEv: xs.slice(),
-    desc: `完成！矩形周长并 = <b>${peri}</b>。` });
+  snap({ dir: "v", round: 2, scanX: null, covSegs: [], evIdx: -1, doneEv: xs.slice(),
+    desc: `完成！水平边 ${horiz} + 竖直边 ${vert} = 矩形周长并 <b>${peri}</b>。` });
   return list;
 }
 
@@ -307,14 +324,15 @@ function draw(k) {
     svg += `<rect class="rect" x="${sx(r.x1)}" y="${sy(r.y2)}" width="${sx(r.x2)-sx(r.x1)}" height="${sy(r.y1)-sy(r.y2)}"/>`;
   });
 
-  if (mode === "area") {
+  // 扫描方向：面积并恒为水平(h)；周长并按步骤 s.dir
+  const dir = mode === "area" ? "h" : (s.dir || "v");
+  if (dir === "h") {
     // 事件横边虚线（各矩形上下边）
     const ys = [...new Set(rects.flatMap(r => [r.y1, r.y2]))].sort((a, b) => a - b);
     ys.forEach(y => { svg += `<line class="evline" x1="${sx(0)}" y1="${sy(y)}" x2="${sx(DMAX)}" y2="${sy(y)}"/>`; });
-    // 水平扫描线
-    if (s.scanY !== null) {
+    // 水平扫描线 + 被覆盖的 x 段
+    if (s.scanY != null) {
       svg += `<line class="scan" x1="${sx(0)}" y1="${sy(s.scanY)}" x2="${sx(DMAX)}" y2="${sy(s.scanY)}"/>`;
-      // 扫描线上被覆盖的 x 段（绿色粗线）
       (s.covSegs || []).forEach(([lo, hi]) => {
         svg += `<line class="cover" x1="${sx(lo)}" y1="${sy(s.scanY)}" x2="${sx(hi)}" y2="${sy(s.scanY)}"/>`;
       });
@@ -323,7 +341,7 @@ function draw(k) {
     // 事件竖边虚线
     const xs = [...new Set(rects.flatMap(r => [r.x1, r.x2]))].sort((a, b) => a - b);
     xs.forEach(x => { svg += `<line class="evline" x1="${sx(x)}" y1="${sy(0)}" x2="${sx(x)}" y2="${sy(DMAX)}"/>`; });
-    if (s.scanX !== null) {
+    if (s.scanX != null) {
       svg += `<line class="scan" x1="${sx(s.scanX)}" y1="${sy(0)}" x2="${sx(s.scanX)}" y2="${sy(DMAX)}"/>`;
       (s.covSegs || []).forEach(([lo, hi]) => {
         svg += `<line class="cover" x1="${sx(s.scanX)}" y1="${sy(lo)}" x2="${sx(s.scanX)}" y2="${sy(hi)}"/>`;
@@ -336,8 +354,8 @@ function draw(k) {
   $("stats").innerHTML = mode === "area"
     ? `面积并：<b>${s.area}</b>`
     : `周长并：<b>${s.peri}</b>`;
-  // 事件表
-  if (mode === "area") {
+  // 事件表：按当前步骤的扫描方向
+  if (dir === "h") {
     const ys = [...new Set(rects.flatMap(r => [r.y1, r.y2]))].sort((a, b) => a - b);
     let rows = `<tr><th>y</th><th>下边(+)</th><th>上边(−)</th></tr>`;
     ys.forEach((y, i) => {
@@ -388,20 +406,20 @@ function applyMode(m) {
   document.querySelectorAll(".subtab").forEach(b => b.classList.toggle("active", b.dataset.mode === m));
   $("subtitle").textContent = m === "area"
     ? "用水平扫描线自下而上扫过所有矩形的上下边，累加各带状区间的覆盖面积，求若干矩形的面积并（重叠只算一次）。"
-    : "扫描线求若干矩形的周长并：分别累加竖直边与水平边对总周长的贡献。";
+    : "扫描线求周长并：分两轮扫描——第一轮水平线自下而上算水平边，第二轮竖直线从左向右算竖直边，相加即总周长。";
   $("formula").innerHTML = m === "area"
     ? `事件 = 每个矩形的<b>上下横边</b>（下边 +1，上边 −1），按 y <b>从小到大</b>排序。<br>用覆盖计数数组维护每段 x 是否被覆盖；<b>覆盖长</b> = 被覆盖的 x 总长。<br>相邻两条横线之间覆盖长不变：<b>面积 += 覆盖长 × Δy</b>（从第 2 条横线开始累加）。`
-    : `<b>竖直边贡献</b>：处理一条竖边后覆盖长的变化量 <b>|Δ覆盖长|</b> 累加（新增/消失的竖直边界）。<br><b>水平边贡献</b>：相邻两事件间，覆盖区间的<b>连续段数 × 2 × Δx</b>（每段上下两条水平边）。`;
+    : `周长 = 水平边总长 + 竖直边总长，两轮扫描分别求：<br><b>第一轮</b>（水平线自下而上）：每到一条横线，x 方向覆盖状态<b>翻转的单位数</b> = 该横线上的水平边界长度，累加。<br><b>第二轮</b>（竖直线从左向右）：每到一条竖线，y 方向覆盖状态翻转的单位数 = 该竖线上的竖直边界长度，累加。`;
   $("note").innerHTML = m === "area"
     ? "面积并：重叠区域只计一次。水平扫描线自下而上，每上升到一条横线就结算下方那条带的面积。工程实现用<code>线段树</code>维护覆盖长；这里用小网格计数便于观察原理。"
-    : "周长并把总周长拆成竖直、水平两部分分别累加。竖直看覆盖长的突变，水平看连续覆盖段的上下边界。";
-  $("evLabel").textContent = m === "area" ? "事件（按 y 从小到大的横边）" : "事件（按 x 排序的竖边）";
+    : "周长并把总周长拆成水平、竖直两部分，用两轮方向相反的扫描分别累加。每条扫描线上的边界长度 = 垂直方向覆盖状态发生翻转（0↔覆盖）的单位数。";
+  $("evLabel").textContent = m === "area" ? "事件（按 y 从小到大的横边）" : "事件（随扫描轮次切换）";
   $("tlegend").innerHTML = m === "area"
     ? `<span><i class="bar" style="background:#ff2bd6"></i>扫描线（水平，自下而上）</span>`
       + `<span><i class="bar" style="background:#00ff9c"></i>扫描线上被覆盖的 x 段</span>`
       + `<span><i class="dot" style="background:#ff2bd6"></i>已累加的带状区间</span>`
-    : `<span><i class="bar" style="background:#ff2bd6"></i>扫描线（竖直，从左向右）</span>`
-      + `<span><i class="bar" style="background:#00ff9c"></i>扫描线上被覆盖的 y 段</span>`;
+    : `<span><i class="bar" style="background:#ff2bd6"></i>扫描线（第一轮水平↑ / 第二轮竖直→）</span>`
+      + `<span><i class="bar" style="background:#00ff9c"></i>扫描线上被覆盖的段</span>`;
   if (rects.length === 0) randomRects();
   prepare();
 }
