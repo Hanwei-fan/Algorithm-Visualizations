@@ -8,13 +8,21 @@
   function injectStyle() {
     if (document.getElementById("cppview-style")) return;
     const css = `
+      /* 悬浮固定到右上角，与左上「返回门户」对称，不再挤在控制区 */
       .cppview-btn {
-        padding: 9px 16px; border: 1px solid #00f0ff; border-radius: 4px;
-        background: rgba(0,240,255,0.08); color: #00f0ff; font-size: 13px;
-        letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+        position: fixed; top: 16px; right: 24px; z-index: 50;
+        padding: 8px 18px; border: 1px solid #00f0ff; border-radius: 999px;
+        background: rgba(7,6,15,0.85); color: #00f0ff; font-size: 13px;
+        letter-spacing: 1px; cursor: pointer;
         font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+        box-shadow: 0 0 0 1px rgba(0,240,255,.15), 0 4px 20px rgba(0,0,0,.5);
+        backdrop-filter: blur(6px);
       }
-      .cppview-btn:hover { background: #00f0ff; color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+      .cppview-btn::before { content: "‹ › "; opacity: .8; }
+      .cppview-btn:hover { background: #00f0ff; color: #05060f; box-shadow: 0 0 18px rgba(0,240,255,.7); }
+      /* 同页多个按钮时(如拓扑排序的自动/手动两处)只保留第一个悬浮显示 */
+      #cppBtnM { display: none; }
+      @media (max-width: 640px) { .cppview-btn { top: 10px; right: 12px; padding: 6px 12px; font-size: 12px; } }
       .cppview-mask {
         position: fixed; inset: 0; background: rgba(3,2,10,0.72); backdrop-filter: blur(3px);
         display: flex; align-items: center; justify-content: center; z-index: 999; padding: 30px;
