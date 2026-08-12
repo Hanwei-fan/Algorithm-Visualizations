@@ -172,4 +172,8 @@
       return b;
     },
   };
+
+  // 页面加载即注入样式，让右上角悬浮定位立刻生效（避免按钮先在原位、点击后才跳位）
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", injectStyle);
+  else injectStyle();
 })();
