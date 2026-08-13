@@ -208,10 +208,12 @@ const SECTIONS = [
     ],
   },
   {
-    id: "math", icon: "🔢", title: "数论 / 数学", desc: "质数筛法",
+    id: "math", icon: "🔢", title: "数论 / 数学", desc: "质数筛法 · 质因数分解",
     items: [
       { icon: "🔢", tag: "数论", title: "质数筛法", file: "sieve.html", ready: true,
         desc: "埃氏筛 / 线性筛(欧拉筛)可切换。数字网格逐个标记合数，展示线性筛“每个合数只被最小质因子筛一次”，可调 n。" },
+      { icon: "🧮", tag: "数论", title: "质因数分解", file: "factorize.html", ready: true,
+        desc: "试除法分解 n = p₁·p₂·…·pₘ。从最小质数试除，整除即记录并 n/=p；完整分解式随过程把已约掉的因子置灰，剩余高亮相乘 = 当前 n。含 C++。" },
     ],
   },
 ];

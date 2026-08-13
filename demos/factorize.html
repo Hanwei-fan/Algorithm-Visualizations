@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>质因数分解演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 130px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 130px; accent-color: var(--magenta); }
+  .btn {
+    padding: 10px 18px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 14px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  /* 状态大屏 */
+  .bignum { text-align: center; font-family: "SF Mono", Menlo, monospace; margin: 10px 0 20px; }
+  .bignum .lbl { font-size: 12px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; }
+  .bignum .val { font-size: 44px; font-weight: 800; color: var(--cyan); text-shadow: 0 0 16px rgba(0,240,255,.5); }
+  .bignum .val.done { color: var(--green); text-shadow: 0 0 16px rgba(0,255,156,.6); }
+  /* 原数完整分解式：已约掉的因子置灰，剩下高亮的相乘 = 当前 n */
+  .decomp { margin-top: 10px; font-family: "SF Mono", Menlo, monospace; font-size: 22px; letter-spacing: 1px; }
+  .decomp .orig { color: var(--muted); font-weight: 700; }
+  .decomp .op { color: var(--muted); margin: 0 2px; }
+  .decomp .fx { font-weight: 800; transition: all .25s; }
+  .decomp .fx.active { color: var(--cyan); text-shadow: 0 0 10px rgba(0,240,255,.5); }
+  .decomp .fx.gone { color: #4a4478; text-decoration: line-through; text-shadow: none; }
+  .decomp .fx.justgone { animation: fade 0.5s ease; }
+  @keyframes fade { 0% { color: var(--magenta); text-shadow: 0 0 12px rgba(255,43,214,.7); } 100% { color: #4a4478; } }
+  .trydiv { text-align: center; font-family: "SF Mono", Menlo, monospace; font-size: 16px; margin-bottom: 8px; }
+  .trydiv b { font-size: 22px; }
+  .trydiv .d { color: var(--yellow); }
+  .trydiv .hit { color: var(--magenta); }
+  /* 质因子累乘展示 */
+  .factlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 18px 0 8px; text-align: center; }
+  .facts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; align-items: center; min-height: 46px; }
+  .fchip {
+    padding: 6px 12px; border: 1px solid var(--green); border-radius: 6px; background: rgba(0,255,156,0.14);
+    color: var(--green); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 18px;
+    box-shadow: 0 0 8px rgba(0,255,156,.3);
+  }
+  .fchip.newp { animation: pop .4s ease; border-color: var(--magenta); background: rgba(255,43,214,0.2); color: #fff; }
+  @keyframes pop { 0% { transform: scale(.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+  .mul { color: var(--muted); font-size: 18px; font-family: "SF Mono", Menlo, monospace; }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: #8fb8c9; margin: 0 0 14px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .stats { display: flex; gap: 22px; font-size: 14px; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; }
+  .stats b { font-size: 18px; color: var(--green); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .status { margin-top: 8px; font-size: 14.5px; min-height: 44px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>质因数分解演示</h1>
+  <p>任何整数都能唯一分解为质数之积 n = p₁·p₂·…·pₘ。从最小质数试除：一旦 d 整除 n，就记下 d 并令 n /= d，反复进行。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="controls">
+  <div class="field"><label>要分解的整数 n</label><input id="nInput" type="number" value="360" min="2" max="1000000"></div>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1100" value="600" step="50"></div>
+  <button class="btn" id="playBtn">自动播放</button>
+  <button class="btn secondary" id="stepBtn">单步 ▶</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="btn secondary" id="randBtn">随机 n</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="bignum">
+      <div class="lbl">当前剩余的 n</div>
+      <div class="val" id="curN">360</div>
+      <div class="decomp" id="decomp"></div>
+    </div>
+    <div class="trydiv" id="tryDiv"></div>
+    <div class="factlabel">已分解出的质因子（乘起来 = 原数）</div>
+    <div class="facts" id="facts"></div>
+  </section>
+  <section class="card">
+    <div class="plabel">算法</div>
+    <div class="formula" id="formula"></div>
+    <div class="stats" id="stats"></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note">核心观察：<code>n = p₁·p₂·…·pₘ</code>。从 d=2 开始试除，只要 d 能整除 n 就说明 d 是一个质因子——记录它并 <code>n /= d</code>（把这个因子"约掉"）；除不尽再让 d 增大。因为小因子先被除净，遇到的每个能整除的 d 必然是质数。当 <code>d·d > n</code> 时，剩下的 n（若 &gt;1）本身就是最后一个质因子。复杂度 O(√n)。</div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+
+CppView.register({
+  factorize: {
+    title: "质因数分解（试除法，O(√n)）",
+    code: `#include <iostream>
+#include <vector>
+using namespace std;
+
+// 返回 n 的所有质因子（升序，含重复）
+// 核心观察：n = p1 * p2 * ... * pm
+// 从最小的 d=2 开始试除，只要 d 整除 n，
+// d 必是质数（更小的因子已被除净）——记录并 n /= d。
+vector<int> factorize(int n) {
+    vector<int> factors;
+    for (int d = 2; (long long)d * d <= n; d++) {
+        while (n % d == 0) {   // d 能整除 → d 是质因子
+            factors.push_back(d);
+            n /= d;            // 把这个因子约掉
+        }
+    }
+    if (n > 1) factors.push_back(n);  // 剩下的大质因子（至多一个）
+    return factors;
+}
+
+int main() {
+    int n;
+    cin >> n;
+    vector<int> f = factorize(n);
+    for (int i = 0; i < (int)f.size(); i++)
+        cout << f[i] << " \\n"[i + 1 == (int)f.size()];
+    return 0;
+}`
+  }
+});
+
+let steps = [], idx = 0, timer = null, running = false;
+
+function setStatus(t) { $("status").innerHTML = t; }
+
+// 完整质因数分解（升序、含重复），用于渲染置灰式子
+function fullFactorize(N) {
+  const res = []; let n = N, d = 2;
+  while (d * d <= n) { while (n % d === 0) { res.push(d); n /= d; } d++; }
+  if (n > 1) res.push(n);
+  return res;
+}
+
+// ======== 生成分步：试除法质因数分解 ========
+// 每步 { n(当前剩余), d(当前试除数), facts[](已得质因子), mark:'try'|'hit'|'done', desc }
+function genSteps(N) {
+  const list = [];
+  const facts = [];
+  let n = N;
+  const orig = N;
+  const allFacts = fullFactorize(N); // 完整分解（升序，含重复），用于展示置灰
+  const snap = (o) => list.push(Object.assign({ n, d: null, facts: [...facts], mark: "", newp: null, desc: "", allFacts, orig }, o));
+
+  snap({ desc: `目标：把 ${orig} 分解为质数之积。核心观察 n = p₁·p₂·…·pₘ —— 从最小的 d=2 开始试除。` });
+
+  let d = 2;
+  while (d * d <= n) {
+    if (n % d === 0) {
+      // d 整除 n → d 是一个质因子，不断除净
+      snap({ d, mark: "hit", desc: `d=${d} 能整除 n=${n}（${n} % ${d} = 0）→ ${d} 是一个质因子。记录它，并令 n /= ${d}。` });
+      facts.push(d);
+      n = n / d;
+      snap({ d, mark: "hit", newp: d, desc: `记下质因子 ${d}，n 变为 ${n}。继续用同一个 d=${d} 试除（可能有重复因子）。` });
+    } else {
+      snap({ d, mark: "try", desc: `d=${d} 不能整除 n=${n}（${n} % ${d} = ${n % d} ≠ 0），d 增大到 ${d + 1}。` });
+      d++;
+    }
+  }
+  if (n > 1) {
+    // 剩余的 n 本身是质数
+    facts.push(n);
+    snap({ d, mark: "hit", newp: n, n: 1, desc: `此时 d·d = ${d}·${d} > n=${n}，剩下的 ${n} 本身就是一个质因子（大于 √原n 的质因子至多一个）。` });
+  } else {
+    snap({ d, mark: "", desc: `n 已被除到 1，分解结束。` });
+  }
+  snap({ mark: "done", n: 1, facts: [...facts], desc: `完成！${orig} = ${facts.join(" × ")}。` });
+  return list;
+}
+
+// ======== 渲染 ========
+function draw(k) {
+  const s = steps[k];
+  // 当前 n
+  const nEl = $("curN");
+  nEl.textContent = s.n;
+  nEl.className = "val" + (s.mark === "done" ? " done" : "");
+  renderDecomp(s);
+  // 试除行
+  if (s.d != null && s.mark !== "done") {
+    const rem = s.n % s.d;
+    $("tryDiv").innerHTML = s.mark === "hit"
+      ? `试除数 d = <b class="hit">${s.d}</b>　|　${s.n} % ${s.d} = <b class="hit">0</b>（整除！）`
+      : `试除数 d = <b class="d">${s.d}</b>　|　${s.n} % ${s.d} = ${rem}`;
+  } else {
+    $("tryDiv").innerHTML = "";
+  }
+  // 质因子累乘
+  $("facts").innerHTML = s.facts.length
+    ? s.facts.map((p, i) => (i ? `<span class="mul">×</span>` : "") + `<span class="fchip${s.newp === p && i === s.facts.length - 1 ? " newp" : ""}">${p}</span>`).join("")
+    : '<span style="color:var(--muted);font-family:monospace">（暂无）</span>';
+  // 统计
+  $("stats").innerHTML = `质因子个数：<b>${s.facts.length}</b>` + (s.mark === "done" ? `　不同质因子：<b>${new Set(s.facts).size}</b>` : "");
+  setStatus(s.desc);
+}
+
+// 渲染「原数 = f1 × f2 × …」，已约掉的置灰，剩余高亮（其积 = 当前 n）
+function renderDecomp(s) {
+  const all = s.allFacts, goneCount = s.facts.length;
+  if (all.length <= 1) { $("decomp").innerHTML = `<span class="orig">${s.orig}</span> <span class="op">是质数</span>`; return; }
+  const justIdx = s.newp != null ? goneCount - 1 : -1; // 本步刚约掉的因子下标
+  const parts = all.map((f, i) => {
+    let cls = "fx";
+    if (i < goneCount) cls += (i === justIdx ? " gone justgone" : " gone");
+    else cls += " active";
+    return `<span class="${cls}">${f}</span>`;
+  }).join('<span class="op">×</span>');
+  $("decomp").innerHTML = `<span class="orig">${s.orig}</span><span class="op"> = </span>${parts}`;
+}
+
+// ======== 单步引擎 ========
+function stepOnce() { if (!running) return false; if (idx < steps.length - 1) { idx++; draw(idx); } if (idx >= steps.length - 1) endRun(); return true; }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 1200 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+function prepare() {
+  stopTimer();
+  let N = parseInt($("nInput").value, 10);
+  if (isNaN(N) || N < 2) { N = 2; $("nInput").value = 2; }
+  if (N > 1000000) { N = 1000000; $("nInput").value = N; }
+  steps = genSteps(N);
+  idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  $("formula").innerHTML = `d = 2<br>while (d·d ≤ n):<br>&nbsp;&nbsp;while (n % d == 0): 记录 d, n /= d<br>&nbsp;&nbsp;d++<br>if (n &gt; 1): 记录 n  <span style="color:var(--muted)">// 剩下的大质因子</span>`;
+  draw(0);
+}
+
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) prepare(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("resetBtn").onclick = () => prepare();
+$("randBtn").onclick = () => { $("nInput").value = 2 + Math.floor(Math.random() * 998); prepare(); };
+$("nInput").addEventListener("keydown", e => { if (e.key === "Enter") prepare(); });
+$("cppBtn").onclick = () => CppView.open("factorize");
+
+prepare();
+</script>
+</body>
+</html>
