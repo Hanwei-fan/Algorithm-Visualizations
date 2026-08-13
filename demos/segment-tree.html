@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>线段树演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 70px;
+  }
+  .field input.wide { width: 220px; }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .field input:disabled { opacity: .35; cursor: not-allowed; }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.ghost { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.ghost:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.7fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  /* 原数组视图 */
+  .arrlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .arr { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 14px; }
+  .acell { display: flex; flex-direction: column; align-items: center; gap: 3px; font-family: "SF Mono", Menlo, monospace; }
+  .acell .box {
+    min-width: 36px; height: 38px; padding: 0 6px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 5px; background: rgba(0,240,255,0.04);
+    font-size: 15px; font-weight: 700; transition: all .15s;
+  }
+  .acell .ix { font-size: 10px; color: var(--muted); }
+  .acell.qrange .box { border-color: var(--yellow); background: rgba(255,212,0,0.12); color: var(--yellow); }
+  .acell.hit .box { background: var(--magenta); border-color: var(--magenta); color: #fff; }
+  /* 线段树 SVG */
+  svg { width: 100%; height: auto; display: block; }
+  .edge { stroke: #4a4478; stroke-width: 1.5; }
+  .tnode rect { fill: rgba(0,240,255,0.06); stroke: var(--border); stroke-width: 1.5; transition: all .2s; }
+  .tnode text.sum { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700; }
+  .tnode text.rng { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 9px; }
+  .tnode text.lazy { fill: var(--yellow); font-family: "SF Mono", Menlo, monospace; font-size: 9px; font-weight: 700; }
+  .tnode.visit rect { fill: rgba(255,212,0,0.2); stroke: var(--yellow); filter: drop-shadow(0 0 6px rgba(255,212,0,.5)); }
+  .tnode.full rect { fill: rgba(0,255,156,0.22); stroke: var(--green); filter: drop-shadow(0 0 8px rgba(0,255,156,.6)); }
+  .tnode.update rect { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 10px rgba(255,43,214,.7)); }
+  .tnode.update text.sum { fill: #fff; }
+  .tnode.haslazy rect { stroke: var(--yellow); stroke-dasharray: 4 2; }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: #8fb8c9; margin: 0 0 14px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .stats { display: flex; gap: 22px; font-size: 14px; align-items: baseline; margin-bottom: 8px; flex-wrap: wrap; }
+  .stats b { font-size: 20px; color: var(--green); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .status { margin-top: 8px; font-size: 14.5px; min-height: 44px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .tlegend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tlegend .dot { width: 12px; height: 12px; border-radius: 3px; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>线段树演示（区间和）</h1>
+  <p>把数组建成一棵二叉树，每个节点存一段区间的和。支持 O(log n) 的单点修改、区间修改（懒标记）与区间查询。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="controls">
+  <div class="field"><label>数组（逗号分隔）</label><input id="arrInput" class="wide" type="text" value="1, 3, 5, 7, 9, 11"></div>
+  <button class="btn cy" id="buildBtn">建树</button>
+</div>
+<div class="controls" style="padding-top:0">
+  <div class="field"><label>位置 p</label><input id="posInput" type="number" placeholder="p"></div>
+  <div class="field"><label>新值 v</label><input id="valInput" type="number" placeholder="v"></div>
+  <button class="btn" id="pointBtn">单点修改 a[p]=v</button>
+  <span style="align-self:center;color:var(--muted)">|</span>
+  <div class="field"><label>区间 L</label><input id="lInput" type="number" placeholder="L"></div>
+  <div class="field"><label>区间 R</label><input id="rInput" type="number" placeholder="R"></div>
+  <div class="field"><label>增量 d</label><input id="addInput" type="number" placeholder="d"></div>
+  <button class="btn" id="rangeAddBtn">区间修改 +d</button>
+  <button class="btn cy" id="queryBtn">区间查询 求和</button>
+</div>
+<div class="controls" style="padding-top:0">
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1100" value="550" step="50"></div>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="arrlabel">原数组（下标 0..n-1）</div>
+    <div class="arr" id="arr"></div>
+    <div class="arrlabel">线段树（每个节点 = 一段区间的和；黄色虚线框 = 带懒标记）</div>
+    <svg id="tree" viewBox="0 0 720 360" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="tlegend">
+      <span><i class="dot" style="background:#ffd400"></i>递归经过</span>
+      <span><i class="dot" style="background:#00ff9c"></i>完全覆盖(直接用)</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>更新/命中</span>
+      <span style="color:var(--yellow)">节点内 +x = 懒标记</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel">当前操作</div>
+    <div class="formula" id="formula"></div>
+    <div class="stats" id="stats"></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note">线段树把区间 [0,n-1] 递归二分成一棵二叉树，节点 o 管区间 [l,r]，存该段的和。单点/区间修改与区间查询都沿树递归，只访问 O(log n) 个节点。区间修改用<code>懒标记</code>：整段被覆盖时先在节点打标记、暂不下推，等需要访问子节点时再下传，从而保证效率。</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+let A = [];              // 原数组
+let n = 0;
+let sum = [], lazy = []; // 线段树：区间和、懒标记（1-indexed，o 从 1）
+let nodeRange = {};      // o -> [l, r]
+let steps = [], idx = 0, timer = null, running = false;
+
+function setStatus(t) { $("status").innerHTML = t; }
+
+// ======== 建树（结构，不分步；建树过程也生成步骤单独展示）========
+function buildTree() {
+  sum = new Array(4 * n).fill(0);
+  lazy = new Array(4 * n).fill(0);
+  nodeRange = {};
+  (function build(o, l, r) {
+    nodeRange[o] = [l, r];
+    if (l === r) { sum[o] = A[l]; return; }
+    const mid = (l + r) >> 1;
+    build(o << 1, l, mid);
+    build(o << 1 | 1, mid + 1, r);
+    sum[o] = sum[o << 1] + sum[o << 1 | 1];
+  })(1, 0, n - 1);
+}
+
+// ======== 渲染 ========
+// marks: o -> class（visit/full/update）；arrMark: 原数组高亮 {range:[L,R], hit:[..]}
+// snap: 该步的 {A, sum, lazy} 快照；缺省用全局（初次渲染）
+function render(marks = {}, arrMark = {}, snap) {
+  const sA = snap ? snap.A : A;
+  const sSum = snap ? snap.sum : sum;
+  const sLazy = snap ? snap.lazy : lazy;
+  // 原数组
+  $("arr").innerHTML = sA.map((v, i) => {
+    let cls = "acell";
+    if (arrMark.range && i >= arrMark.range[0] && i <= arrMark.range[1]) cls += " qrange";
+    if (arrMark.hit && arrMark.hit.includes(i)) cls += " hit";
+    return `<div class="${cls}"><div class="box">${v}</div><div class="ix">${i}</div></div>`;
+  }).join("");
+
+  // 线段树 SVG：按满二叉树层次布局
+  const svg = $("tree");
+  const nodes = Object.keys(nodeRange).map(Number).sort((a, b) => a - b);
+  if (nodes.length === 0) { svg.innerHTML = ""; return; }
+  const maxO = Math.max(...nodes);
+  const depth = Math.floor(Math.log2(maxO)) + 1;
+  const W = 720, topY = 26, dy = Math.min(70, (350 - topY) / Math.max(depth - 1, 1));
+  const pos = {};
+  nodes.forEach(o => {
+    const lvl = Math.floor(Math.log2(o));
+    const idxInLvl = o - (1 << lvl);
+    const cnt = 1 << lvl;
+    pos[o] = { x: W * (idxInLvl + 0.5) / cnt, y: topY + lvl * dy };
+  });
+  let edges = "", boxes = "";
+  nodes.forEach(o => {
+    [o << 1, o << 1 | 1].forEach(c => {
+      if (nodeRange[c]) edges += `<line class="edge" x1="${pos[o].x}" y1="${pos[o].y}" x2="${pos[c].x}" y2="${pos[c].y}"/>`;
+    });
+  });
+  nodes.forEach(o => {
+    const [l, r] = nodeRange[o];
+    let cls = "tnode" + (marks[o] ? " " + marks[o] : "") + (sLazy[o] ? " haslazy" : "");
+    const w = 44, hgt = 30, x = pos[o].x, y = pos[o].y;
+    boxes += `<g class="${cls}">`
+      + `<rect x="${x - w/2}" y="${y - hgt/2}" width="${w}" height="${hgt}" rx="5"/>`
+      + `<text class="sum" x="${x}" y="${y + 2}" text-anchor="middle">${sSum[o]}</text>`
+      + `<text class="rng" x="${x}" y="${y - hgt/2 - 3}" text-anchor="middle">[${l},${r}]</text>`
+      + (sLazy[o] ? `<text class="lazy" x="${x}" y="${y + hgt/2 + 9}" text-anchor="middle">+${sLazy[o]}</text>` : "")
+      + `</g>`;
+  });
+  svg.innerHTML = edges + boxes;
+}
+
+// ======== 单步引擎 ========
+// step: { mutate, marks, arrMark, desc, stat }
+function loadSteps(list) {
+  steps = list; idx = 0; running = true;
+  lockOps(true);
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  applyStep(0);
+  if (steps.length <= 1) endRun();
+}
+function applyStep(i) {
+  const s = steps[i];
+  render(s.marks || {}, s.arrMark || {}, s.snap);
+  if (s.stat !== undefined) $("stats").innerHTML = s.stat;
+  setStatus(s.desc);
+}
+// 快照当前全局状态，供某一步渲染用（避免生成/执行时序错位）
+function snapshot() { return { A: [...A], sum: [...sum], lazy: [...lazy] }; }
+function stepOnce() { if (!running) return false; if (idx < steps.length - 1) { idx++; applyStep(idx); } if (idx >= steps.length - 1) endRun(); return true; }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; lockOps(false); }
+function playAll() { stopTimer(); const spd = 1200 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; applyStep(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+function lockOps(v) { ["buildBtn","pointBtn","rangeAddBtn","queryBtn"].forEach(id => $(id).disabled = v); }
+
+// ======== 懒标记下推（供区间修改/查询共用）========
+function pushDown(o) {
+  if (!lazy[o]) return;
+  const [l, r] = nodeRange[o], mid = (l + r) >> 1;
+  const lc = o << 1, rc = o << 1 | 1;
+  sum[lc] += lazy[o] * (mid - l + 1); lazy[lc] += lazy[o];
+  sum[rc] += lazy[o] * (r - mid);     lazy[rc] += lazy[o];
+  lazy[o] = 0;
+}
+
+// ---- 建树：分步展示自底向上 pushUp ----
+// 说明：以下各操作在【生成阶段】就地真实计算 sum/lazy/A，每步用 snapshot() 记录当时状态，
+// 渲染时读该快照——彻底避免「生成时读旧值、执行时才更新」的时序错位。
+function buildSteps() {
+  const list = [];
+  sum = new Array(4 * n).fill(0); lazy = new Array(4 * n).fill(0); nodeRange = {};
+  (function shape(o, l, r) { nodeRange[o] = [l, r]; if (l < r) { const m = (l + r) >> 1; shape(o << 1, l, m); shape(o << 1 | 1, m + 1, r); } })(1, 0, n - 1);
+  list.push({ marks: {}, snap: snapshot(), desc: `建树：把区间 [0,${n-1}] 递归二分，叶子存单个元素，父节点存两个孩子之和（自底向上 pushUp）。` });
+  (function build(o, l, r) {
+    if (l === r) {
+      sum[o] = A[l];
+      list.push({ marks: { [o]: "update" }, arrMark: { hit: [l] }, snap: snapshot(), desc: `叶子节点 [${l},${l}] = a[${l}] = ${A[l]}。` });
+      return;
+    }
+    const mid = (l + r) >> 1;
+    build(o << 1, l, mid);
+    build(o << 1 | 1, mid + 1, r);
+    sum[o] = sum[o << 1] + sum[o << 1 | 1];
+    list.push({ marks: { [o]: "update", [o<<1]: "full", [o<<1|1]: "full" }, snap: snapshot(),
+      desc: `节点 [${l},${r}] = 左子 [${l},${mid}]:${sum[o<<1]} + 右子 [${mid+1},${r}]:${sum[o<<1|1]} = ${sum[o]}。` });
+  })(1, 0, n - 1);
+  list.push({ marks: {}, snap: snapshot(), desc: `建树完成，根节点存整段区间和 = ${sum[1]}。` });
+  return list;
+}
+
+// ---- 单点修改 a[p] = v ----
+function pointSteps(p, v) {
+  const list = [];
+  const delta = v - A[p];
+  A[p] = v;
+  list.push({ marks: {}, arrMark: { hit: [p] }, snap: snapshot(), desc: `单点修改：a[${p}] 改为 ${v}（增量 ${delta >= 0 ? "+" : ""}${delta}）。从根递归到叶子，沿途先下推懒标记，回溯时更新区间和。` });
+  const path = [];
+  (function go(o, l, r) {
+    path.push(o);
+    const mk = {}; path.forEach(x => mk[x] = "visit"); mk[o] = "update";
+    if (l === r) {
+      sum[o] = v;
+      list.push({ marks: { ...mk }, arrMark: { hit: [p] }, snap: snapshot(), desc: `到达叶子 [${l},${l}]，把它的值改为 ${v}。` });
+      return;
+    }
+    const mid = (l + r) >> 1;
+    pushDown(o);   // 进入子节点前下推懒标记（无标记则空操作）
+    list.push({ marks: { ...mk }, arrMark: { hit: [p] }, snap: snapshot(),
+      desc: `节点 [${l},${r}]（如有懒标记先下推给孩子）：p=${p} ${p <= mid ? `≤ mid=${mid}，进入左子` : `> mid=${mid}，进入右子`}。` });
+    if (p <= mid) go(o << 1, l, mid); else go(o << 1 | 1, mid + 1, r);
+    sum[o] = sum[o << 1] + sum[o << 1 | 1];
+    list.push({ marks: { ...mk }, arrMark: { hit: [p] }, snap: snapshot(),
+      desc: `回溯：更新节点 [${l},${r}] = 左子 + 右子 = ${sum[o << 1]} + ${sum[o << 1 | 1]}。` });
+  })(1, 0, n - 1);
+  list.push({ marks: {}, arrMark: { hit: [p] }, snap: snapshot(), desc: `单点修改完成。` });
+  return list;
+}
+
+// ---- 区间修改 [L,R] 每个数 +d（懒标记）----
+function rangeAddSteps(L, R, d) {
+  const list = [];
+  for (let i = L; i <= R; i++) A[i] += d;   // 原数组同步（仅用于原数组视图展示）
+  list.push({ marks: {}, arrMark: { range: [L, R] }, snap: snapshot(), desc: `区间修改：给 [${L},${R}] 每个数 +${d}。递归时若节点区间被完全覆盖，就打懒标记、暂不下推。` });
+  (function upd(o, l, r) {
+    const mk = { [o]: "visit" };
+    if (L <= l && r <= R) {
+      sum[o] += d * (r - l + 1); lazy[o] += d;
+      list.push({ marks: { [o]: "full" }, arrMark: { range: [L, R] }, snap: snapshot(),
+        desc: `节点 [${l},${r}] 被修改区间完全覆盖：区间和 += ${d}×${r-l+1}，并打上懒标记 +${d}（暂不下推给孩子）。` });
+      return;
+    }
+    pushDown(o);
+    list.push({ marks: { ...mk }, arrMark: { range: [L, R] }, snap: snapshot(),
+      desc: `节点 [${l},${r}] 只被部分覆盖：先下推它的懒标记给两个孩子，再递归。` });
+    const mid = (l + r) >> 1;
+    if (L <= mid) upd(o << 1, l, mid);
+    if (R > mid) upd(o << 1 | 1, mid + 1, r);
+    sum[o] = sum[o << 1] + sum[o << 1 | 1];
+    list.push({ marks: { [o]: "update" }, arrMark: { range: [L, R] }, snap: snapshot(),
+      desc: `回溯：更新 [${l},${r}] = 左子 + 右子 = ${sum[o << 1]} + ${sum[o << 1 | 1]}。` });
+  })(1, 0, n - 1);
+  list.push({ marks: {}, arrMark: { range: [L, R] }, snap: snapshot(), desc: `区间修改完成。` });
+  return list;
+}
+
+// ---- 区间查询 [L,R] 求和 ----
+function querySteps(L, R) {
+  const list = [];
+  let acc = 0;
+  list.push({ marks: {}, arrMark: { range: [L, R] }, stat: `当前累加和：<b>0</b>`, snap: snapshot(), desc: `区间查询：求 [${L},${R}] 的和。完全覆盖的节点直接取用区间和；部分覆盖先下推懒标记再递归。` });
+  (function qry(o, l, r) {
+    if (L <= l && r <= R) {
+      acc += sum[o];
+      list.push({ marks: { [o]: "full" }, arrMark: { range: [L, R] }, stat: `当前累加和：<b>${acc}</b>`, snap: snapshot(),
+        desc: `节点 [${l},${r}] 完全在查询区间内：直接累加它的区间和 ${sum[o]}，累计 ${acc}。` });
+      return;
+    }
+    pushDown(o);
+    list.push({ marks: { [o]: "visit" }, arrMark: { range: [L, R] }, stat: `当前累加和：<b>${acc}</b>`, snap: snapshot(),
+      desc: `节点 [${l},${r}] 部分覆盖：先下推懒标记，再递归左右子。` });
+    const mid = (l + r) >> 1;
+    if (L <= mid) qry(o << 1, l, mid);
+    if (R > mid) qry(o << 1 | 1, mid + 1, r);
+  })(1, 0, n - 1);
+  list.push({ marks: {}, arrMark: { range: [L, R] }, stat: `查询结果：<b>${acc}</b>`, snap: snapshot(), desc: `查询完成！[${L},${R}] 的和 = <b>${acc}</b>。` });
+  return list;
+}
+
+// ======== 交互 ========
+function buildFromInput() {
+  stopTimer(); running = false; $("stepBtn").disabled = true; $("playBtn").disabled = true; lockOps(false);
+  A = $("arrInput").value.split(/[,，\s]+/).map(x => parseInt(x, 10)).filter(x => !isNaN(x)).slice(0, 8);
+  if (A.length === 0) { setStatus("请输入数组（逗号分隔，最多 8 个）。"); return; }
+  $("arrInput").value = A.join(", ");
+  n = A.length;
+  buildTree();
+  render();
+  $("stats").innerHTML = `区间和(根) = <b>${sum[1]}</b>`;
+  $("formula").innerHTML = `节点 o 管区间 [l,r]，存该段和 sum[o]；左孩子 <b>2o</b>、右孩子 <b>2o+1</b>。<br>建树 O(n)；单点修改、区间修改、区间查询均 O(log n)。<br>区间修改用<b>懒标记</b> lazy[]，整段覆盖时先记标记、访问子节点前才下推。`;
+  setStatus(`已对 ${n} 个数建好线段树。试试单点修改、区间修改(+d) 或区间查询。`);
+}
+function opGuard() { return !running; }
+function readInt(id) { const v = parseInt($(id).value, 10); return isNaN(v) ? null : v; }
+function validIdx(v) { return v !== null && v >= 0 && v < n; }
+
+$("buildBtn").onclick = () => { if (!opGuard()) return; buildFromInput(); if (n > 0) loadSteps(buildSteps()); };
+$("pointBtn").onclick = () => {
+  if (!opGuard()) return;
+  const p = readInt("posInput"), v = readInt("valInput");
+  if (!validIdx(p) || v === null) { setStatus(`请输入位置 p(0~${n-1}) 和新值 v。`); return; }
+  loadSteps(pointSteps(p, v));
+};
+$("rangeAddBtn").onclick = () => {
+  if (!opGuard()) return;
+  const L = readInt("lInput"), R = readInt("rInput"), d = readInt("addInput");
+  if (!validIdx(L) || !validIdx(R) || d === null || L > R) { setStatus(`请输入合法区间 0≤L≤R≤${n-1} 与增量 d。`); return; }
+  loadSteps(rangeAddSteps(L, R, d));
+};
+$("queryBtn").onclick = () => {
+  if (!opGuard()) return;
+  const L = readInt("lInput"), R = readInt("rInput");
+  if (!validIdx(L) || !validIdx(R) || L > R) { setStatus(`请输入合法区间 0≤L≤R≤${n-1}。`); return; }
+  loadSteps(querySteps(L, R));
+};
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("playBtn").onclick = () => playAll();
+$("arrInput").addEventListener("keydown", e => { if (e.key === "Enter") $("buildBtn").click(); });
+
+
+buildFromInput();
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  segtree: { title: "线段树（区间和 + 懒标记）— C++", code:
+`// 功能：线段树，支持 建树 / 单点修改 / 区间修改(区间加) / 区间求和 查询，均 O(log n)。
+//       区间修改用【懒标记 lazy】：整段被覆盖时先在节点记标记、暂不下推，
+//       等递归需要访问子节点前才 pushDown 下传，保证效率。
+// 输入：第一行两个整数 n q（n 个元素，q 次操作）；第二行 n 个整数（初始数组 a[1..n]）；
+//       接下来 q 行，每行一种操作：
+//         1 p v      -> 单点修改：a[p] = v
+//         2 L R d    -> 区间修改：把 a[L..R] 每个数 +d
+//         3 L R      -> 区间查询：输出 a[L..R] 的和
+//       （下标从 1 开始）
+// 输出：每条「3 L R」查询各输出一行，为该区间的和。
+#include <iostream>
+using namespace std;
+typedef long long ll;
+
+const int MAXN = 100005;
+int n, q;
+ll a[MAXN];
+ll sum[MAXN << 2];    // 线段树：区间和
+ll lazy[MAXN << 2];   // 懒标记：待下推给子区间的「每个数 +lazy」
+
+// 由左右子区间的和更新当前节点
+void pushUp(int o) { sum[o] = sum[o << 1] + sum[o << 1 | 1]; }
+
+// 下推懒标记：把 o 的标记加到两个孩子上
+void pushDown(int o, int l, int r) {
+    if (lazy[o] == 0) return;
+    int mid = (l + r) >> 1;
+    int lc = o << 1, rc = o << 1 | 1;
+    sum[lc] += lazy[o] * (mid - l + 1); lazy[lc] += lazy[o];
+    sum[rc] += lazy[o] * (r - mid);     lazy[rc] += lazy[o];
+    lazy[o] = 0;
+}
+
+// 建树：节点 o 管区间 [l,r]
+void build(int o, int l, int r) {
+    if (l == r) { sum[o] = a[l]; return; }
+    int mid = (l + r) >> 1;
+    build(o << 1, l, mid);
+    build(o << 1 | 1, mid + 1, r);
+    pushUp(o);
+}
+
+// 单点修改：把 a[p] 改为 v
+void pointUpdate(int o, int l, int r, int p, ll v) {
+    if (l == r) { sum[o] = v; return; }
+    pushDown(o, l, r);
+    int mid = (l + r) >> 1;
+    if (p <= mid) pointUpdate(o << 1, l, mid, p, v);
+    else pointUpdate(o << 1 | 1, mid + 1, r, p, v);
+    pushUp(o);
+}
+
+// 区间修改：给 [ql,qr] 每个数 +d
+void rangeAdd(int o, int l, int r, int ql, int qr, ll d) {
+    if (ql <= l && r <= qr) {          // 完全覆盖：打懒标记
+        sum[o] += d * (r - l + 1);
+        lazy[o] += d;
+        return;
+    }
+    pushDown(o, l, r);                 // 部分覆盖：先下推再递归
+    int mid = (l + r) >> 1;
+    if (ql <= mid) rangeAdd(o << 1, l, mid, ql, qr, d);
+    if (qr > mid)  rangeAdd(o << 1 | 1, mid + 1, r, ql, qr, d);
+    pushUp(o);
+}
+
+// 区间查询：求 [ql,qr] 的和
+ll query(int o, int l, int r, int ql, int qr) {
+    if (ql <= l && r <= qr) return sum[o];   // 完全覆盖：直接返回
+    pushDown(o, l, r);
+    int mid = (l + r) >> 1;
+    ll res = 0;
+    if (ql <= mid) res += query(o << 1, l, mid, ql, qr);
+    if (qr > mid)  res += query(o << 1 | 1, mid + 1, r, ql, qr);
+    return res;
+}
+
+int main() {
+    cin >> n >> q;
+    for (int i = 1; i <= n; i++) cin >> a[i];
+    build(1, 1, n);
+    while (q--) {
+        int op;
+        cin >> op;
+        if (op == 1) {                 // 单点修改
+            int p; ll v; cin >> p >> v;
+            pointUpdate(1, 1, n, p, v);
+        } else if (op == 2) {          // 区间修改
+            int L, R; ll d; cin >> L >> R >> d;
+            rangeAdd(1, 1, n, L, R, d);
+        } else {                       // 区间查询
+            int L, R; cin >> L >> R;
+            cout << query(1, 1, n, L, R) << "\\n";
+        }
+    }
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open("segtree");
+</script>
+</body>
+</html>
