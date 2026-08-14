@@ -79,11 +79,12 @@
     border-radius: 0 0 14px 14px; background: rgba(0,240,255,0.03); overflow: hidden;
     box-shadow: 0 0 16px rgba(0,240,255,.2), inset 0 0 20px rgba(0,240,255,.06);
   }
+  /* 保留层：本次操作前后都在容器里的那部分水 */
   .water {
     position: absolute; left: 0; bottom: 0; width: 100%;
     background: linear-gradient(180deg, rgba(0,240,255,0.55), rgba(0,120,255,0.7));
     box-shadow: 0 -2px 10px rgba(0,240,255,.5);
-    transition: height .45s cubic-bezier(.4,0,.2,1);
+    transition: height .5s cubic-bezier(.4,0,.2,1);
   }
   .water::before {
     content: ""; position: absolute; top: -5px; left: 0; width: 100%; height: 8px;
@@ -91,6 +92,30 @@
   }
   .water.full { background: linear-gradient(180deg, rgba(0,255,156,0.6), rgba(0,180,120,0.75)); box-shadow: 0 -2px 12px rgba(0,255,156,.6); }
   .water.target { background: linear-gradient(180deg, rgba(255,212,0,0.6), rgba(220,160,0,0.75)); box-shadow: 0 -2px 12px rgba(255,212,0,.6); }
+  /* 变化层：本次操作新增(流入)或减少(流出)的水量，叠在保留层之上 */
+  .delta {
+    position: absolute; left: 0; width: 100%; z-index: 2;
+    display: flex; align-items: center; justify-content: center;
+    font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 800; color: #fff;
+    text-shadow: 0 0 4px rgba(0,0,0,.6);
+  }
+  /* 流入(装满/被倒入)：绿色，从下往上涨 */
+  .delta.inflow { background: repeating-linear-gradient(45deg, rgba(0,255,156,.75), rgba(0,255,156,.75) 6px, rgba(0,200,120,.85) 6px, rgba(0,200,120,.85) 12px); box-shadow: 0 0 10px rgba(0,255,156,.6) inset; animation: risein .55s ease; }
+  /* 流出(倒空)：橙黄，即将消失 */
+  .delta.outflow { background: repeating-linear-gradient(45deg, rgba(255,180,0,.7), rgba(255,180,0,.7) 6px, rgba(230,140,0,.8) 6px, rgba(230,140,0,.8) 12px); box-shadow: 0 0 10px rgba(255,180,0,.6) inset; animation: fadeup .8s ease forwards; }
+  /* 互倒转移：两容器用同一洋红色，标出是同一批水 */
+  .delta.transfer-out { background: repeating-linear-gradient(45deg, rgba(255,43,214,.7), rgba(255,43,214,.7) 6px, rgba(200,20,160,.82) 6px, rgba(200,20,160,.82) 12px); box-shadow: 0 0 12px rgba(255,43,214,.7) inset; animation: fadeup .8s ease forwards; }
+  .delta.transfer-in { background: repeating-linear-gradient(45deg, rgba(255,43,214,.72), rgba(255,43,214,.72) 6px, rgba(200,20,160,.85) 6px, rgba(200,20,160,.85) 12px); box-shadow: 0 0 12px rgba(255,43,214,.7) inset; animation: risein .55s ease; }
+  @keyframes risein { 0% { transform: translateY(18px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+  @keyframes fadeup { 0% { opacity: 1; transform: translateY(0); } 70% { opacity: .85; } 100% { opacity: 0; transform: translateY(-14px); } }
+  /* 流动箭头，标在两容器之间 */
+  .flowarrow { display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 40px; }
+  .flowarrow .amt { font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 800; color: var(--magenta); text-shadow: 0 0 8px rgba(255,43,214,.6); }
+  .flowarrow .ar { font-size: 26px; color: var(--magenta); animation: pulsear 1s ease infinite; }
+  .flowarrow.rev .ar { transform: scaleX(-1); }
+  @keyframes pulsear { 0%,100% { opacity: .5; transform: translateX(0); } 50% { opacity: 1; transform: translateX(4px); } }
+  .flowarrow.rev .ar { animation: pulsearRev 1s ease infinite; }
+  @keyframes pulsearRev { 0%,100% { opacity: .5; transform: scaleX(-1) translateX(0); } 50% { opacity: 1; transform: scaleX(-1) translateX(4px); } }
   .ticks { position: absolute; right: 3px; top: 0; height: 100%; width: 14px; }
   .tick { position: absolute; right: 0; width: 7px; border-top: 1px solid rgba(255,255,255,0.25); }
   .jug .val { font-family: "SF Mono", Menlo, monospace; font-size: 20px; font-weight: 800; color: var(--cyan); }
@@ -341,43 +366,96 @@ function genSteps(algo) {
   ops.forEach((op, i) => {
     const [x, y] = op.to;
     const reachC = x === C || y === C;
-    list.push({ x, y, opIdx: i, ops, visited: res.visited, algoName,
+    const kind = actToKind(op.act);
+    list.push({ x, y, prev: [op.from[0], op.from[1]], kind, opIdx: i, ops, visited: res.visited, algoName,
       desc: reachC
         ? `第 ${i + 1} 步 ${op.act.split(" ")[0]}：状态变为 (${x}, ${y})。<span class="hl">✓ 某容器已达目标 ${C}！</span>`
-        : `第 ${i + 1} 步 ${op.act.split(" ")[0]}：${op.act.split(" ").slice(1).join(" ")}，状态 (${op.from[0]},${op.from[1]}) → (${x}, ${y})。`,
+        : `第 ${i + 1} 步 ${op.act.split(" ")[0]}：${describeOp(op)}`,
       done: i === ops.length - 1 });
   });
   return { list, ops };
+}
+// 把操作名（FILL(A)... / POUR(A,B)...）映射到 drawJugs 用的 kind
+function actToKind(act) {
+  const head = act.split(" ")[0];
+  return { "FILL(A)": "fillA", "FILL(B)": "fillB", "DROP(A)": "dropA", "DROP(B)": "dropB", "POUR(A,B)": "pourAB", "POUR(B,A)": "pourBA" }[head] || null;
+}
+// 更详细的文字描述（说明流动了多少水、流向哪里）
+function describeOp(op) {
+  const [px, py] = op.from, [x, y] = op.to;
+  const head = op.act.split(" ")[0];
+  switch (head) {
+    case "FILL(A)": return `把容器 A 装满，加入 ${x - px} 升 → (${x}, ${y})。`;
+    case "FILL(B)": return `把容器 B 装满，加入 ${y - py} 升 → (${x}, ${y})。`;
+    case "DROP(A)": return `把容器 A 倒空，倒掉 ${px - x} 升 → (${x}, ${y})。`;
+    case "DROP(B)": return `把容器 B 倒空，倒掉 ${py - y} 升 → (${x}, ${y})。`;
+    case "POUR(A,B)": return `A 向 B 倒水：转移 <span style="color:var(--magenta);font-weight:700">${y - py} 升</span>（倒到 B 满或 A 空为止）→ (${x}, ${y})。`;
+    case "POUR(B,A)": return `B 向 A 倒水：转移 <span style="color:var(--magenta);font-weight:700">${x - px} 升</span>（倒到 A 满或 B 空为止）→ (${x}, ${y})。`;
+  }
+  return `状态 (${px},${py}) → (${x}, ${y})。`;
 }
 function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
 
 // ======== 渲染容器 ========
 const GLASS_H = 150;  // 容器最大像素高
+// s: { x, y, prev:[px,py]?, kind:'fillA'|'fillB'|'dropA'|'dropB'|'pourAB'|'pourBA'? }
+// 有 prev+kind 时把水柱拆成「保留层」+「变化层」并高亮
 function drawJugs(s) {
-  const conf = [
-    { cap: A, val: s.x, label: "A", max: A },
-    { cap: B, val: s.y, label: "B", max: B },
-  ];
   const maxCap = Math.max(A, B);
-  $("jugs").innerHTML = conf.map(j => {
-    const h = GLASS_H * j.cap / maxCap;                 // 容器高度按容量比例
-    const wh = j.cap > 0 ? (j.val / j.cap * 100) : 0;   // 水位百分比
-    const isFull = j.val === j.cap && j.val > 0;
-    const isTarget = j.val === C && C > 0;
-    let waterCls = "water" + (isTarget ? " target" : (isFull ? " full" : ""));
-    let jugCls = "jug" + (isTarget ? " hasTarget" : (isFull ? " isFull" : ""));
-    // 刻度
+  const px = s.prev ? s.prev[0] : null, py = s.prev ? s.prev[1] : null;
+  const kind = s.kind || null;
+
+  // 计算每个容器的变化层：{keep, delta, dir:'in'|'out', role:'transfer'|'fill'|'drop'}
+  function layers(label, cur, prev) {
+    if (prev === null || kind === null || cur === prev) return { keep: cur, delta: 0 };
+    const diff = cur - prev;
+    const isTransfer = kind === "pourAB" || kind === "pourBA";
+    if (diff > 0) {   // 流入：保留原有 prev，新增 diff 叠在上面
+      return { keep: prev, delta: diff, dir: "in", transfer: isTransfer };
+    } else {          // 流出：保留 cur，减少的 -diff 高亮在 cur 之上（即将消失）
+      return { keep: cur, delta: -diff, dir: "out", transfer: isTransfer };
+    }
+  }
+
+  const jugsHTML = [
+    { cap: A, cur: s.x, prev: px, label: "A" },
+    { cap: B, cur: s.y, prev: py, label: "B" },
+  ].map(j => {
+    const h = GLASS_H * j.cap / maxCap;
+    const isFull = j.cur === j.cap && j.cur > 0;
+    const isTarget = j.cur === C && C > 0;
+    const waterCls = "water" + (isTarget ? " target" : (isFull ? " full" : ""));
+    const jugCls = "jug" + (isTarget ? " hasTarget" : (isFull ? " isFull" : ""));
+    const L = layers(j.label, j.cur, j.prev);
+    const pct = v => j.cap > 0 ? (v / j.cap * 100) : 0;
     let ticks = "";
     for (let t = 1; t < j.cap; t++) ticks += `<div class="tick" style="bottom:${t / j.cap * 100}%"></div>`;
+    // 保留层
+    let waterLayers = `<div class="${waterCls}" style="height:${pct(L.keep)}%"></div>`;
+    // 变化层：叠在保留层之上
+    if (L.delta > 0) {
+      const dcls = L.transfer ? (L.dir === "in" ? "delta transfer-in" : "delta transfer-out") : (L.dir === "in" ? "delta inflow" : "delta outflow");
+      const dh = pct(L.delta);            // 变化层高度百分比
+      const base = pct(L.keep);           // 叠放起点（从保留层顶部往上）
+      waterLayers += `<div class="${dcls}" style="height:${dh}%;bottom:${base}%">${L.dir === "in" ? "+" : "−"}${L.delta}</div>`;
+    }
     return `<div class="${jugCls}">
-      <div class="val">${j.val}</div>
+      <div class="val">${j.cur}</div>
       <div class="glass" style="height:${h}px">
-        <div class="${waterCls}" style="height:${wh}%"></div>
+        ${waterLayers}
         <div class="ticks">${ticks}</div>
       </div>
       <div class="name">容器 ${j.label}（容量 ${j.cap}）</div>
     </div>`;
-  }).join("");
+  });
+
+  // 互倒时在两容器间插入流动箭头
+  let arrow = "";
+  if (kind === "pourAB" || kind === "pourBA") {
+    const amt = kind === "pourAB" ? (s.y - py) : (s.x - px);  // 转移量
+    arrow = `<div class="flowarrow${kind === "pourBA" ? " rev" : ""}"><div class="amt">${amt}</div><div class="ar">➜</div></div>`;
+  }
+  $("jugs").innerHTML = jugsHTML[0] + arrow + jugsHTML[1];
 }
 
 // ======== 渲染操作序列 ========
@@ -448,14 +526,16 @@ function manualReset() {
 
 function doManualOp(op) {
   if (mode !== "manual" || solved) return;
+  const pxv = curX, pyv = curY;
   const [nx, ny] = applyOp(curX, curY, A, B, op);
   const nameMap = { fillA: "FILL(A) 装满 A", fillB: "FILL(B) 装满 B", dropA: "DROP(A) 倒空 A", dropB: "DROP(B) 倒空 B", pourAB: "POUR(A,B) A 倒入 B", pourBA: "POUR(B,A) B 倒入 A" };
   if (nx === curX && ny === curY) { renderManual(`这一步没有改变状态（${nameMap[op].split(" ")[0]} 对当前状态无效），换一个操作。`); return; }
   curX = nx; curY = ny;
-  history.push({ x: nx, y: ny, act: nameMap[op] });
+  history.push({ x: nx, y: ny, act: nameMap[op], prev: [pxv, pyv], kind: op });
   const win = nx === C || ny === C;
   if (win) { solved = true; checkWin(); }
-  renderManual(win ? `<span class="hl">达成目标！</span>` : `执行 ${nameMap[op].split(" ")[0]} → (${nx}, ${ny})。`);
+  const detail = describeOp({ from: [pxv, pyv], to: [nx, ny], act: nameMap[op] });
+  renderManual(win ? `<span class="hl">达成目标！</span> ${detail}` : detail, { prev: [pxv, pyv], kind: op });
 }
 
 function manualUndo() {
@@ -478,8 +558,8 @@ function checkWin() {
   $("winBanner").innerHTML = `<div class="win-banner">${msg}</div>`;
 }
 
-function renderManual(statusText) {
-  drawJugs({ x: curX, y: curY });
+function renderManual(statusText, anim) {
+  drawJugs({ x: curX, y: curY, prev: anim ? anim.prev : null, kind: anim ? anim.kind : null });
   $("stats").innerHTML = `当前状态：<b>(${curX}, ${curY})</b>　你的步数：<b>${history.length}</b>　目标：某容器 = ${C}`;
   setStatus(statusText);
   // 操作记录
