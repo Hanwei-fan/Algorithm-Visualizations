@@ -181,6 +181,36 @@
   .win-banner { text-align: center; padding: 12px; border: 1px solid var(--green); border-radius: 8px; background: rgba(0,255,156,0.12); color: var(--green); font-weight: 700; font-family: "SF Mono", Menlo, monospace; margin-top: 12px; box-shadow: 0 0 16px rgba(0,255,156,.3); }
   .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
   .note code { color: var(--cyan); }
+  /* 关联题目 */
+  .related { padding: 0 30px 40px; }
+  .related h2 {
+    font-size: 15px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase;
+    margin: 0 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .related h2::before { content: "🔗 "; }
+  .probs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 760px) { .probs { grid-template-columns: 1fr; } }
+  .prob {
+    border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px;
+    background: rgba(18,15,38,0.5); transition: all .18s;
+  }
+  .prob:hover { border-color: var(--cyan); box-shadow: 0 0 14px rgba(0,240,255,.2); }
+  .prob .tag {
+    display: inline-block; font-size: 11px; font-family: "SF Mono", Menlo, monospace;
+    color: var(--magenta); border: 1px solid var(--magenta); border-radius: 999px;
+    padding: 2px 10px; margin-bottom: 8px; letter-spacing: .5px;
+  }
+  .prob .tag.usaco { color: var(--green); border-color: var(--green); }
+  .prob h3 { margin: 0 0 8px; font-size: 15px; color: var(--text); font-weight: 700; }
+  .prob p { margin: 0 0 10px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .prob .lk { display: inline-flex; gap: 12px; flex-wrap: wrap; }
+  .prob .lk a {
+    font-size: 12.5px; color: var(--cyan); text-decoration: none;
+    font-family: "SF Mono", Menlo, monospace; border-bottom: 1px dashed rgba(0,240,255,.4);
+  }
+  .prob .lk a:hover { color: #fff; border-bottom-color: var(--cyan); }
+  .prob .why { font-size: 12px; color: #8fb8c9; margin-top: 8px; }
+  .prob .why b { color: var(--yellow); }
   .hidden { display: none; }
 </style>
 </head>
@@ -253,6 +283,30 @@
   </section>
 </main>
 <div class="note">状态用二元组 <code>(x,y)</code> 表示两容器当前水量，初始 (0,0)。六种操作：<code>装满A / 装满B / 倒空A / 倒空B / A倒入B / B倒入A</code>，每个状态最多衍生 6 个新状态。<b>BFS</b>（队列逐层扩展）第一次到达"某容器 = c"时步数<b>一定最短</b>；<b>DFS</b>（栈/递归一条路走到底）能找到<b>一条可行路径但不保证最短</b>。可解的充要条件：<code>c ≤ max(a,b)</code> 且 <code>c 能被 gcd(a,b) 整除</code>。手动模式里你可以自己点操作按钮挑战，看能否用更少步数达到目标。</div>
+
+<section class="related">
+  <h2>关联题目</h2>
+  <div class="probs">
+    <div class="prob">
+      <span class="tag">CSP-S 2022 · 完善程序</span>
+      <h3>2022 CSP-S（提高组）第一轮 · 完善程序 第二题</h3>
+      <p>题面就是本演示的「容器分水」：两个容量 a、b 的容器，三种操作 FILL / DROP / POUR，求量出恰好 c 升的<b style="color:var(--yellow)">最少操作数与操作序列</b>。</p>
+      <div class="lk">
+        <a href="https://ti.luogu.com.cn/" target="_blank" rel="noopener">洛谷初赛题库（搜「CSP-S 2022 完善程序」）</a>
+      </div>
+      <div class="why">考点：官方标程用的是 <b>记忆化搜索（DFS + f[N][N] 缓存）</b> 求最少操作数，再回溯输出方案。与本页 BFS/DFS 求解同属「状态 (x,y) + 六种操作」的状态空间搜索，思路互通。</div>
+    </div>
+    <div class="prob">
+      <span class="tag usaco">USACO Training 1.4</span>
+      <h3>Mother's Milk（母亲的牛奶）</h3>
+      <p>三个容量 a、b、c 的桶，初始只有第三个桶装满，反复把一个桶倒入另一个桶（倒满或倒空为止）。求当<b style="color:var(--yellow)">第一个桶为空</b>时，第三个桶可能剩下的所有水量。</p>
+      <div class="lk">
+        <a href="https://www.luogu.com.cn/problem/P1215" target="_blank" rel="noopener">洛谷 P1215（USACO 1.4 Mother's Milk）</a>
+      </div>
+      <div class="why">本演示的<b>三桶进阶版</b>：状态由 (x,y) 扩展到 (x,y,z)（因总量固定，实际两维即可），用 <b>DFS/BFS 枚举所有可达状态</b>，收集第一桶为空时第三桶的取值。掌握本页后可直接迁移。</div>
+    </div>
+  </div>
+</section>
 
 <script src="../assets/cppview.js"></script>
 <script>
