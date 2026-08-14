@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>容器分水 BFS // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 66px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 940px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  .rowlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; }
+  .rowlabel.mt { margin-top: 20px; }
+  /* 两个容器 */
+  .jugs { display: flex; gap: 44px; justify-content: center; align-items: flex-end; padding: 10px 0 6px; }
+  .jug { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .glass {
+    position: relative; width: 96px; border: 3px solid var(--cyan); border-top: none;
+    border-radius: 0 0 14px 14px; background: rgba(0,240,255,0.03); overflow: hidden;
+    box-shadow: 0 0 16px rgba(0,240,255,.2), inset 0 0 20px rgba(0,240,255,.06);
+  }
+  .water {
+    position: absolute; left: 0; bottom: 0; width: 100%;
+    background: linear-gradient(180deg, rgba(0,240,255,0.55), rgba(0,120,255,0.7));
+    box-shadow: 0 -2px 10px rgba(0,240,255,.5);
+    transition: height .45s cubic-bezier(.4,0,.2,1);
+  }
+  .water::before {
+    content: ""; position: absolute; top: -5px; left: 0; width: 100%; height: 8px;
+    background: rgba(180,240,255,0.8); border-radius: 50%;
+  }
+  .water.full { background: linear-gradient(180deg, rgba(0,255,156,0.6), rgba(0,180,120,0.75)); box-shadow: 0 -2px 12px rgba(0,255,156,.6); }
+  .water.target { background: linear-gradient(180deg, rgba(255,212,0,0.6), rgba(220,160,0,0.75)); box-shadow: 0 -2px 12px rgba(255,212,0,.6); }
+  .ticks { position: absolute; right: 3px; top: 0; height: 100%; width: 14px; }
+  .tick { position: absolute; right: 0; width: 7px; border-top: 1px solid rgba(255,255,255,0.25); }
+  .jug .val { font-family: "SF Mono", Menlo, monospace; font-size: 20px; font-weight: 800; color: var(--cyan); }
+  .jug .name { font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--muted); }
+  .jug.hasTarget .val { color: var(--yellow); text-shadow: 0 0 10px rgba(255,212,0,.6); }
+  .jug.isFull .val { color: var(--green); }
+  /* 操作序列 */
+  .ops { display: flex; flex-direction: column; gap: 6px; }
+  .op {
+    display: flex; align-items: center; gap: 10px; padding: 7px 12px; border: 1px solid var(--border);
+    border-radius: 6px; background: rgba(255,255,255,0.02); font-family: "SF Mono", Menlo, monospace;
+    font-size: 13px; transition: all .18s;
+  }
+  .op .num { color: var(--muted); min-width: 22px; }
+  .op .act { color: var(--cyan); font-weight: 700; flex: 1; }
+  .op .st { color: var(--muted); font-size: 12px; }
+  .op.cur { border-color: var(--yellow); background: rgba(255,212,0,0.12); box-shadow: 0 0 10px rgba(255,212,0,.3); }
+  .op.cur .act { color: var(--yellow); }
+  .op.done { border-color: rgba(0,255,156,.4); }
+  .op.done .act { color: var(--green); }
+  /* BFS 状态说明 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12px; color: #8fb8c9; margin: 0 0 14px; line-height: 1.65;
+  }
+  .formula b { color: var(--yellow); }
+  .stats { display: flex; gap: 20px; font-size: 14px; margin-bottom: 8px; flex-wrap: wrap; font-family: "SF Mono", Menlo, monospace; }
+  .stats b { font-size: 18px; color: var(--green); text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .status { margin-top: 8px; font-size: 14.5px; min-height: 46px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .hl { color: var(--green); font-weight: 700; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>容器分水 · BFS 最短操作</h1>
+  <p>用容量 a、b 两个容器量出恰好 c 升水。把每个状态 (x,y) 看作一个节点，六种操作是连边，从 (0,0) 出发 BFS，最先到达"某容器 = c"的路径就是最少操作数。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="controls">
+  <div class="field"><label>容器 A 容量 a</label><input id="aInput" type="number" value="5" min="1" max="20"></div>
+  <div class="field"><label>容器 B 容量 b</label><input id="bInput" type="number" value="3" min="1" max="20"></div>
+  <div class="field"><label>目标 c 升</label><input id="cInput" type="number" value="4" min="0" max="20"></div>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="150" max="1400" value="750" step="50"></div>
+  <button class="btn cy" id="solveBtn">求解并演示</button>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="rowlabel">两个容器（蓝=有水，绿=装满，黄=达到目标 c）</div>
+    <div class="jugs" id="jugs"></div>
+    <div class="stats" id="stats" style="justify-content:center;margin-top:14px"></div>
+    <div class="status" id="status" style="text-align:center"></div>
+  </section>
+  <section class="card">
+    <div class="plabel">最少操作序列</div>
+    <div class="ops" id="ops"></div>
+    <div class="plabel mt">算法</div>
+    <div class="formula" id="formula"></div>
+  </section>
+</main>
+<div class="note">状态用二元组 <code>(x,y)</code> 表示两容器当前水量，初始 (0,0)。六种操作：<code>装满A / 装满B / 倒空A / 倒空B / A倒入B / B倒入A</code>。每个状态最多衍生 6 个新状态，用 <b>BFS</b>（队列 + 已访问标记）逐层扩展，第一次遇到"某容器水量 = c"时，走过的层数就是最少操作数。可解的充要条件：<code>c 能被 gcd(a,b) 整除</code> 且 <code>c ≤ max(a,b)</code>。</div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let A = 5, B = 3, C = 4;
+let steps = [], idx = 0, timer = null, running = false;
+
+function setStatus(t) { $("status").innerHTML = t; }
+
+// ======== BFS 求最短操作序列 ========
+function bfsSolve(a, b, c) {
+  const dist = Array.from({ length: a + 1 }, () => Array(b + 1).fill(-1));
+  const pre = {};   // "x,y" -> {px,py,act}
+  const q = [[0, 0]];
+  dist[0][0] = 0;
+  let goal = null, visited = 0;
+  while (q.length) {
+    const [x, y] = q.shift();
+    visited++;
+    if (x === c || y === c) { goal = [x, y]; break; }
+    const pourAB = Math.min(x, b - y), pourBA = Math.min(y, a - x);
+    const succ = [
+      { s: [a, y], name: "FILL(A) 装满 A" },
+      { s: [x, b], name: "FILL(B) 装满 B" },
+      { s: [0, y], name: "DROP(A) 倒空 A" },
+      { s: [x, 0], name: "DROP(B) 倒空 B" },
+      { s: [x - pourAB, y + pourAB], name: "POUR(A,B) A 倒入 B" },
+      { s: [x + pourBA, y - pourBA], name: "POUR(B,A) B 倒入 A" },
+    ];
+    for (const { s, name } of succ) {
+      const [nx, ny] = s;
+      if (dist[nx][ny] === -1) {
+        dist[nx][ny] = dist[x][y] + 1;
+        pre[nx + "," + ny] = { px: x, py: y, act: name };
+        q.push([nx, ny]);
+      }
+    }
+  }
+  if (!goal) return { ok: false, visited };
+  // 回溯路径
+  const path = [];
+  let [cx, cy] = goal;
+  while (!(cx === 0 && cy === 0)) {
+    const p = pre[cx + "," + cy];
+    path.push({ from: [p.px, p.py], to: [cx, cy], act: p.act });
+    cx = p.px; cy = p.py;
+  }
+  path.reverse();
+  return { ok: true, path, visited, dist };
+}
+
+// 生成演示分步：每步一个状态 (x,y) + 刚执行的操作
+function genSteps() {
+  const res = bfsSolve(A, B, C);
+  const list = [];
+  if (!res.ok) {
+    list.push({ x: 0, y: 0, opIdx: -1, ops: [], visited: res.visited, done: true, noSol: true,
+      desc: `无解：目标 ${C} 无法用容量 ${A} 和 ${B} 量出（需 c ≤ max(a,b) 且 c 能被 gcd(a,b)=${gcd(A,B)} 整除）。` });
+    return { list, ops: [] };
+  }
+  const ops = res.path;
+  // 起始状态
+  list.push({ x: 0, y: 0, opIdx: -1, ops, visited: res.visited,
+    desc: `初始状态 (0, 0)：两容器都空。BFS 共探索 ${res.visited} 个状态找到最短路，最少 ${ops.length} 步。` });
+  ops.forEach((op, i) => {
+    const [x, y] = op.to;
+    const reachC = x === C || y === C;
+    list.push({ x, y, opIdx: i, ops, visited: res.visited,
+      desc: reachC
+        ? `第 ${i + 1} 步 ${op.act.split(" ")[0]}：状态变为 (${x}, ${y})。<span class="hl">✓ 某容器已达目标 ${C}！</span>`
+        : `第 ${i + 1} 步 ${op.act.split(" ")[0]}：${op.act.split(" ").slice(1).join(" ")}，状态 (${op.from[0]},${op.from[1]}) → (${x}, ${y})。`,
+      done: i === ops.length - 1 });
+  });
+  return { list, ops };
+}
+function gcd(a, b) { return b === 0 ? a : gcd(b, a % b); }
+
+// ======== 渲染容器 ========
+const GLASS_H = 150;  // 容器最大像素高
+function drawJugs(s) {
+  const conf = [
+    { cap: A, val: s.x, label: "A", max: A },
+    { cap: B, val: s.y, label: "B", max: B },
+  ];
+  const maxCap = Math.max(A, B);
+  $("jugs").innerHTML = conf.map(j => {
+    const h = GLASS_H * j.cap / maxCap;                 // 容器高度按容量比例
+    const wh = j.cap > 0 ? (j.val / j.cap * 100) : 0;   // 水位百分比
+    const isFull = j.val === j.cap && j.val > 0;
+    const isTarget = j.val === C && C > 0;
+    let waterCls = "water" + (isTarget ? " target" : (isFull ? " full" : ""));
+    let jugCls = "jug" + (isTarget ? " hasTarget" : (isFull ? " isFull" : ""));
+    // 刻度
+    let ticks = "";
+    for (let t = 1; t < j.cap; t++) ticks += `<div class="tick" style="bottom:${t / j.cap * 100}%"></div>`;
+    return `<div class="${jugCls}">
+      <div class="val">${j.val}</div>
+      <div class="glass" style="height:${h}px">
+        <div class="${waterCls}" style="height:${wh}%"></div>
+        <div class="ticks">${ticks}</div>
+      </div>
+      <div class="name">容器 ${j.label}（容量 ${j.cap}）</div>
+    </div>`;
+  }).join("");
+}
+
+// ======== 渲染操作序列 ========
+function drawOps(s) {
+  if (!s.ops || !s.ops.length) { $("ops").innerHTML = s.noSol ? '<div class="op" style="color:var(--magenta)">无解，没有操作序列</div>' : '<div class="op" style="color:var(--muted)">（求解后显示）</div>'; return; }
+  $("ops").innerHTML = s.ops.map((op, i) => {
+    let cls = "op";
+    if (i === s.opIdx) cls += " cur";
+    else if (i < s.opIdx) cls += " done";
+    return `<div class="${cls}"><span class="num">${i + 1}.</span><span class="act">${op.act.split(" ")[0]}</span><span class="st">→ (${op.to[0]}, ${op.to[1]})</span></div>`;
+  }).join("");
+}
+
+// ======== 引擎 ========
+function draw(s) {
+  drawJugs(s); drawOps(s);
+  $("stats").innerHTML = `当前状态：<b>(${s.x}, ${s.y})</b>` + (s.ops && s.ops.length ? `　最少步数：<b>${s.ops.length}</b>　探索状态：${s.visited}` : (s.noSol ? "" : ""));
+  setStatus(s.desc);
+}
+function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(steps[idx]); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 1550 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(steps[idx]); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+function solve() {
+  stopTimer();
+  A = clampInt("aInput", 1, 20, 5);
+  B = clampInt("bInput", 1, 20, 3);
+  C = clampInt("cInput", 0, 20, 4);
+  const r = genSteps();
+  steps = r.list; idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  $("formula").innerHTML = `状态 (x,y)=两容器水量，起点 (0,0)。<br>六种操作：<b>FILL/DROP/POUR</b> 各方向。<br>用<b>队列 BFS</b> 逐层扩展 + 已访问标记，<br>首次遇「x=c 或 y=c」即最少操作数。`;
+  draw(steps[0]);
+  if (steps.length <= 1) endRun();
+}
+function clampInt(id, lo, hi, def) {
+  let v = parseInt($(id).value, 10);
+  if (isNaN(v)) v = def;
+  v = Math.max(lo, Math.min(hi, v));
+  $(id).value = v; return v;
+}
+
+$("solveBtn").onclick = () => solve();
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) solve(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("cppBtn").onclick = () => CppView.open("waterjug");
+["aInput", "bInput", "cInput"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") solve(); }));
+
+CppView.register({
+  waterjug: { title: "容器分水（BFS 最短操作序列）— C++", code:
+`// 功能：容量 a、b 两容器，量出恰好 c 升，求最少操作数并输出操作序列。
+// 建模：状态 (x,y) = 两容器当前水量。六种操作连边，从 (0,0) BFS，
+//       第一次到达「某容器 = c」即最少步数。
+#include <iostream>
+#include <queue>
+#include <cstring>
+#include <vector>
+#include <algorithm>
+using namespace std;
+
+int a, b, c;
+int dist[105][105];              // (x,y) 到起点的最少操作数，-1 未访问
+pair<int,int> pre[105][105];     // 前驱状态
+string act[105][105];            // 到达该状态所用的操作名
+
+void bfs() {
+    memset(dist, -1, sizeof(dist));
+    queue<pair<int,int>> q;
+    dist[0][0] = 0;
+    q.push({0, 0});
+    while (!q.empty()) {
+        auto [x, y] = q.front(); q.pop();
+        if (x == c || y == c) {                // 到达目标
+            // 回溯输出路径
+            vector<string> path;
+            int cx = x, cy = y;
+            while (dist[cx][cy] != 0) {
+                path.push_back(act[cx][cy]);
+                auto p = pre[cx][cy];
+                cx = p.first; cy = p.second;
+            }
+            reverse(path.begin(), path.end());
+            cout << "最少 " << path.size() << " 步:" << endl;
+            for (auto& s : path) cout << s << endl;
+            return;
+        }
+        // 生成六种后继状态
+        pair<int,int> nxt[6] = {
+            {a, y},                              // 装满 A
+            {x, b},                              // 装满 B
+            {0, y},                              // 倒空 A
+            {x, 0},                              // 倒空 B
+            {x - min(x, b - y), y + min(x, b - y)},  // A 倒入 B
+            {x + min(y, a - x), y - min(y, a - x)}   // B 倒入 A
+        };
+        string name[6] = {"FILL(A)","FILL(B)","DROP(A)","DROP(B)","POUR(A,B)","POUR(B,A)"};
+        for (int k = 0; k < 6; k++) {
+            int nx = nxt[k].first, ny = nxt[k].second;
+            if (dist[nx][ny] == -1) {            // 未访问过
+                dist[nx][ny] = dist[x][y] + 1;
+                pre[nx][ny] = {x, y};
+                act[nx][ny] = name[k];
+                q.push({nx, ny});
+            }
+        }
+    }
+    cout << "无解" << endl;
+}
+
+int main() {
+    cin >> a >> b >> c;
+    bfs();
+    return 0;
+}`
+  }
+});
+
+solve();
+</script>
+</body>
+</html>
