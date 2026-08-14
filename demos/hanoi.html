@@ -126,6 +126,27 @@
   .stats b { font-size: 26px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(255,212,0,.6); }
   .status { margin-top: 14px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
   .note { padding: 10px 30px 0; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  /* 关联题目 */
+  .related { padding: 20px 30px 40px; }
+  .related h2 {
+    font-size: 15px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase;
+    margin: 0 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  }
+  .related h2::before { content: "🔗 "; }
+  .prob {
+    border: 1px solid var(--border); border-radius: 8px; padding: 16px 18px;
+    background: rgba(18,15,38,0.5); transition: all .18s; max-width: 720px;
+  }
+  .prob:hover { border-color: var(--cyan); box-shadow: 0 0 14px rgba(0,240,255,.2); }
+  .prob .tag {
+    display: inline-block; font-size: 11px; font-family: "SF Mono", Menlo, monospace;
+    color: var(--magenta); border: 1px solid var(--magenta); border-radius: 999px;
+    padding: 2px 10px; margin-bottom: 8px; letter-spacing: .5px;
+  }
+  .prob h3 { margin: 0 0 8px; font-size: 15px; color: var(--text); font-weight: 700; }
+  .prob p { margin: 0 0 10px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .prob .why { font-size: 12px; color: #8fb8c9; margin-top: 8px; }
+  .prob .why b { color: var(--yellow); }
 </style>
 </head>
 <body>
@@ -179,6 +200,16 @@
   </section>
 </main>
 <div class="note">汉诺塔的最少移动次数是 2ⁿ - 1。n 每增加 1，步数翻倍还多一步，这是递归思想的经典例子。</div>
+
+<section class="related">
+  <h2>关联题目</h2>
+  <div class="prob">
+    <span class="tag">CSP-J 2024 · 完善程序</span>
+    <h3>2024 CSP-J（入门组）第一轮 · 完善程序 第二题</h3>
+    <p>题面就是最经典的汉诺塔：三根柱子 A、B、C，把 n 个圆盘从 A 借助 B 全部移到 C，每次只移一个、且小盘必须在大盘之上，要求<b style="color:var(--yellow)">输出完整的移动过程</b>。</p>
+    <div class="why">考点：用 <b>递归（dfs）</b>实现 —— 把「移 n 个盘」拆成「先把上面 n−1 个移到中转柱 → 移最大盘到目标柱 → 再把 n−1 个从中转柱移到目标柱」，配合 <b>move(src, tgt)</b> 打印每一步。与本页演示的递归拆解过程完全一致，看懂这里的动画就能补全那道题的代码。</div>
+  </div>
+</section>
 
 <script>
 const DISK_COLORS = ["#00f0ff", "#ff2bd6", "#ffd400", "#00ff9c", "#a06bff", "#ff7a45", "#4ea3ff", "#ff5ea0"];
