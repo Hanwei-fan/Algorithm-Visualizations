@@ -291,18 +291,12 @@
       <span class="tag">CSP-S 2022 · 完善程序</span>
       <h3>2022 CSP-S（提高组）第一轮 · 完善程序 第二题</h3>
       <p>题面就是本演示的「容器分水」：两个容量 a、b 的容器，三种操作 FILL / DROP / POUR，求量出恰好 c 升的<b style="color:var(--yellow)">最少操作数与操作序列</b>。</p>
-      <div class="lk">
-        <a href="https://ti.luogu.com.cn/" target="_blank" rel="noopener">洛谷初赛题库（搜「CSP-S 2022 完善程序」）</a>
-      </div>
       <div class="why">考点：官方标程用的是 <b>记忆化搜索（DFS + f[N][N] 缓存）</b> 求最少操作数，再回溯输出方案。与本页 BFS/DFS 求解同属「状态 (x,y) + 六种操作」的状态空间搜索，思路互通。</div>
     </div>
     <div class="prob">
       <span class="tag usaco">USACO Training 1.4</span>
       <h3>Mother's Milk（母亲的牛奶）</h3>
       <p>三个容量 a、b、c 的桶，初始只有第三个桶装满，反复把一个桶倒入另一个桶（倒满或倒空为止）。求当<b style="color:var(--yellow)">第一个桶为空</b>时，第三个桶可能剩下的所有水量。</p>
-      <div class="lk">
-        <a href="https://www.luogu.com.cn/problem/P1215" target="_blank" rel="noopener">洛谷 P1215（USACO 1.4 Mother's Milk）</a>
-      </div>
       <div class="why">本演示的<b>三桶进阶版</b>：状态由 (x,y) 扩展到 (x,y,z)（因总量固定，实际两维即可），用 <b>DFS/BFS 枚举所有可达状态</b>，收集第一桶为空时第三桶的取值。掌握本页后可直接迁移。</div>
     </div>
   </div>
