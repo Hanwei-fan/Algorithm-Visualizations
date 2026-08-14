@@ -104,6 +104,11 @@
   .tnode.update rect { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 10px rgba(255,43,214,.7)); }
   .tnode.update text.sum { fill: #fff; }
   .tnode.haslazy rect { stroke: var(--yellow); stroke-dasharray: 4 2; }
+  /* 建树时刚创建的新节点：青色描边 + 弹出动画 */
+  .tnode.newnode rect { fill: rgba(0,240,255,0.18); stroke: var(--cyan); filter: drop-shadow(0 0 8px rgba(0,240,255,.6)); }
+  .tnode.newnode { animation: nodepop .35s ease; transform-box: fill-box; transform-origin: center; }
+  @keyframes nodepop { 0% { opacity: 0; transform: scale(.3); } 100% { opacity: 1; transform: scale(1); } }
+  .edge.newedge { stroke: var(--cyan); stroke-width: 2; filter: drop-shadow(0 0 4px rgba(0,240,255,.5)); }
   /* 右栏 */
   .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
   .formula {
@@ -199,9 +204,10 @@ function buildTree() {
 }
 
 // ======== 渲染 ========
-// marks: o -> class（visit/full/update）；arrMark: 原数组高亮 {range:[L,R], hit:[..]}
+// marks: o -> class（visit/full/update/newnode）；arrMark: 原数组高亮 {range:[L,R], hit:[..]}
 // snap: 该步的 {A, sum, lazy} 快照；缺省用全局（初次渲染）
-function render(marks = {}, arrMark = {}, snap) {
+// visible: 若传入(数组/Set)，只渲染这些节点（建树时节点逐个出现用）；否则渲染全部
+function render(marks = {}, arrMark = {}, snap, visible = null) {
   const sA = snap ? snap.A : A;
   const sSum = snap ? snap.sum : sum;
   const sLazy = snap ? snap.lazy : lazy;
@@ -213,27 +219,32 @@ function render(marks = {}, arrMark = {}, snap) {
     return `<div class="${cls}"><div class="box">${v}</div><div class="ix">${i}</div></div>`;
   }).join("");
 
-  // 线段树 SVG：按满二叉树层次布局
+  // 布局始终按【完整树】计算，保证节点位置在建树过程中不跳动
   const svg = $("tree");
-  const nodes = Object.keys(nodeRange).map(Number).sort((a, b) => a - b);
-  if (nodes.length === 0) { svg.innerHTML = ""; return; }
-  const maxO = Math.max(...nodes);
+  const allNodes = Object.keys(nodeRange).map(Number).sort((a, b) => a - b);
+  if (allNodes.length === 0) { svg.innerHTML = ""; return; }
+  const vis = visible ? new Set(visible) : null;
+  const shown = vis ? allNodes.filter(o => vis.has(o)) : allNodes;
+  const maxO = Math.max(...allNodes);
   const depth = Math.floor(Math.log2(maxO)) + 1;
   const W = 720, topY = 26, dy = Math.min(70, (350 - topY) / Math.max(depth - 1, 1));
   const pos = {};
-  nodes.forEach(o => {
+  allNodes.forEach(o => {
     const lvl = Math.floor(Math.log2(o));
     const idxInLvl = o - (1 << lvl);
     const cnt = 1 << lvl;
     pos[o] = { x: W * (idxInLvl + 0.5) / cnt, y: topY + lvl * dy };
   });
   let edges = "", boxes = "";
-  nodes.forEach(o => {
+  shown.forEach(o => {
     [o << 1, o << 1 | 1].forEach(c => {
-      if (nodeRange[c]) edges += `<line class="edge" x1="${pos[o].x}" y1="${pos[o].y}" x2="${pos[c].x}" y2="${pos[c].y}"/>`;
+      if (nodeRange[c] && (!vis || vis.has(c))) {
+        const ec = (marks[c] === "newnode") ? "edge newedge" : "edge";
+        edges += `<line class="${ec}" x1="${pos[o].x}" y1="${pos[o].y}" x2="${pos[c].x}" y2="${pos[c].y}"/>`;
+      }
     });
   });
-  nodes.forEach(o => {
+  shown.forEach(o => {
     const [l, r] = nodeRange[o];
     let cls = "tnode" + (marks[o] ? " " + marks[o] : "") + (sLazy[o] ? " haslazy" : "");
     const w = 44, hgt = 30, x = pos[o].x, y = pos[o].y;
@@ -258,7 +269,7 @@ function loadSteps(list) {
 }
 function applyStep(i) {
   const s = steps[i];
-  render(s.marks || {}, s.arrMark || {}, s.snap);
+  render(s.marks || {}, s.arrMark || {}, s.snap, s.visible || null);
   if (s.stat !== undefined) $("stats").innerHTML = s.stat;
   setStatus(s.desc);
 }
@@ -286,22 +297,39 @@ function pushDown(o) {
 function buildSteps() {
   const list = [];
   sum = new Array(4 * n).fill(0); lazy = new Array(4 * n).fill(0); nodeRange = {};
+  // 先算好完整结构（用于布局定位），但可见节点从空开始逐个加入
   (function shape(o, l, r) { nodeRange[o] = [l, r]; if (l < r) { const m = (l + r) >> 1; shape(o << 1, l, m); shape(o << 1 | 1, m + 1, r); } })(1, 0, n - 1);
-  list.push({ marks: {}, snap: snapshot(), desc: `建树：把区间 [0,${n-1}] 递归二分，叶子存单个元素，父节点存两个孩子之和（自底向上 pushUp）。` });
+  const seen = new Set();  // 已创建（可见）的节点
+  const vis = () => [...seen];
+
+  // 第 0 步：只有根节点
+  seen.add(1);
+  list.push({ marks: { 1: "newnode" }, visible: vis(), snap: snapshot(),
+    desc: `建树从根节点开始：根管整个区间 [0,${n-1}]。接下来把它二分，为左右两半各创建一个子节点，递归下去。` });
+
   (function build(o, l, r) {
     if (l === r) {
+      // 叶子：区间只剩一个元素，直接存 a[l]
       sum[o] = A[l];
-      list.push({ marks: { [o]: "update" }, arrMark: { hit: [l] }, snap: snapshot(), desc: `叶子节点 [${l},${l}] = a[${l}] = ${A[l]}。` });
+      list.push({ marks: { [o]: "newnode" }, arrMark: { hit: [l] }, visible: vis(), snap: snapshot(),
+        desc: `叶子节点 [${l},${l}]：区间只剩一个数，直接存 a[${l}] = ${A[l]}，无需再分。` });
       return;
     }
     const mid = (l + r) >> 1;
-    build(o << 1, l, mid);
-    build(o << 1 | 1, mid + 1, r);
-    sum[o] = sum[o << 1] + sum[o << 1 | 1];
-    list.push({ marks: { [o]: "update", [o<<1]: "full", [o<<1|1]: "full" }, snap: snapshot(),
-      desc: `节点 [${l},${r}] = 左子 [${l},${mid}]:${sum[o<<1]} + 右子 [${mid+1},${r}]:${sum[o<<1|1]} = ${sum[o]}。` });
+    const lc = o << 1, rc = o << 1 | 1;
+    // 下行：创建左右子节点（新节点弹出）
+    seen.add(lc); seen.add(rc);
+    list.push({ marks: { [o]: "visit", [lc]: "newnode", [rc]: "newnode" }, visible: vis(), snap: snapshot(),
+      desc: `二分节点 [${l},${r}]：mid=${mid}，创建左子 [${l},${mid}] 与右子 [${mid+1},${r}] 两个新节点，先递归左子。` });
+    build(lc, l, mid);
+    build(rc, mid + 1, r);
+    // 回溯：pushUp 合并左右子的和
+    sum[o] = sum[lc] + sum[rc];
+    list.push({ marks: { [o]: "update", [lc]: "full", [rc]: "full" }, visible: vis(), snap: snapshot(),
+      desc: `<b>回溯</b>到 [${l},${r}]：左右子都建好了，pushUp 把它们的和相加 —— 左子 ${sum[lc]} + 右子 ${sum[rc]} = <b>${sum[o]}</b>。` });
   })(1, 0, n - 1);
-  list.push({ marks: {}, snap: snapshot(), desc: `建树完成，根节点存整段区间和 = ${sum[1]}。` });
+
+  list.push({ marks: {}, visible: vis(), snap: snapshot(), desc: `建树完成！整棵树共 ${seen.size} 个节点，根存整段区间和 = <b>${sum[1]}</b>。` });
   return list;
 }
 
