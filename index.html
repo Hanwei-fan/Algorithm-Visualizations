@@ -150,8 +150,6 @@ const SECTIONS = [
     items: [
       { icon: "🌲", tag: "树", title: "二叉树遍历", file: "binary-tree.html", ready: true,
         desc: "前/中/后序遍历（含回溯），以及由前序+中序、后序+中序分步还原二叉树。" },
-      { icon: "🗼", tag: "递归", title: "汉诺塔", file: "hanoi.html", ready: true,
-        desc: "把圆盘从 A 借助 B 移到 C。递归自动演示 + 手动挑战模式。" },
       { icon: "🌳", tag: "树", title: "二叉搜索树 (BST)", file: "bst.html", ready: true,
         desc: "插入/查找/删除（含删除三种情况）动画，中序遍历得升序序列，支持随机生成。" },
       { icon: "⛰️", tag: "堆", title: "二叉堆 / 优先队列", file: "heap.html", ready: true,
@@ -169,8 +167,6 @@ const SECTIONS = [
         desc: "DFS（栈实现 / 递归实现，含回溯与调用栈）与 BFS，支持随机生成连通图。" },
       { icon: "🧩", tag: "图", title: "迷宫寻路 (BFS/DFS)", file: "maze.html", ready: true,
         desc: "网格迷宫上的 BFS/DFS 寻路可切换：BFS 用队列一圈圈扩散求最短路，DFS 用栈一条路走到底遇死路回溯。格子标步数、显示队列/栈、终点回溯高亮路径，可点击画墙，含 C++。" },
-      { icon: "🚰", tag: "图·搜索", title: "容器分水", file: "water-jug.html", ready: true,
-        desc: "经典倒水问题：容量 a、b 两容器量出 c 升。状态 (x,y) 建图，六种操作 FILL/DROP/POUR 连边。手动挑战模式亲自操作，自动求解模式可选 BFS(最短)/DFS(可行路径)。容器水位动画 + 操作序列高亮，含两种 C++。" },
       { icon: "🧭", tag: "图", title: "拓扑排序", file: "topo-sort.html", ready: true,
         desc: "Kahn 算法自动演示 + 手动确定拓扑序，节点随边消失，支持随机生成 DAG。" },
       { icon: "✏️", tag: "图", title: "欧拉图 / 一笔画", file: "euler.html", ready: true,
@@ -236,6 +232,15 @@ const SECTIONS = [
     items: [
       { icon: "🔤", tag: "字符串", title: "KMP 字符串匹配", file: "kmp.html", ready: true,
         desc: "先为模式串构建 next 数组（最长相同前后缀），匹配失配时只回退模式串指针 j=next[j-1]，主串指针 i 不回退，O(n+m)。字符格子高亮比较/命中，含 C++。" },
+    ],
+  },
+  {
+    id: "interactive", icon: "🎮", title: "交互式问题求解", desc: "可手动挑战 · 竞赛真题",
+    items: [
+      { icon: "🗼", tag: "递归·真题", title: "汉诺塔", file: "hanoi.html", ready: true,
+        desc: "把圆盘从 A 借助 B 移到 C，每次只移一个、大盘不压小盘。递归自动演示 + 亲手拖动的手动挑战模式，关联 2024 CSP-J 完善程序第二题。" },
+      { icon: "🚰", tag: "搜索·真题", title: "容器分水", file: "water-jug.html", ready: true,
+        desc: "经典倒水问题：两容器量出 c 升。手动挑战模式亲自点操作按钮（含互倒高亮），自动求解模式可选 BFS(最短)/DFS(可行路径)，关联 2022 CSP-S 完善程序第二题。含 C++。" },
     ],
   },
 ];
