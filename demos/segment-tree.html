@@ -361,25 +361,45 @@ function rangeAddSteps(L, R, d) {
 }
 
 // ---- 区间查询 [L,R] 求和 ----
+// 分治返回模型（与 C++ 的 query 一致）：qry(o,l,r) 返回 [L,R]∩[l,r] 的和。
+// 完全覆盖 -> 直接返回 sum[o]；部分覆盖 -> 下推后递归左右子，【回溯】时把两边返回值相加再上传。
 function querySteps(L, R) {
   const list = [];
-  let acc = 0;
-  list.push({ marks: {}, arrMark: { range: [L, R] }, stat: `当前累加和：<b>0</b>`, snap: snapshot(), desc: `区间查询：求 [${L},${R}] 的和。完全覆盖的节点直接取用区间和；部分覆盖先下推懒标记再递归。` });
-  (function qry(o, l, r) {
+  list.push({ marks: {}, arrMark: { range: [L, R] }, stat: `结果：<b>—</b>`, snap: snapshot(),
+    desc: `区间查询：求 [${L},${R}] 的和。递归下行：完全覆盖的节点直接返回其区间和；部分覆盖先下推懒标记再递归左右子。<b>回溯上行</b>时把左右子的返回值相加，逐层向上合并。` });
+  const path = [];  // 当前递归路径，用于回溯时把已访问节点标为经过
+  const qry = (o, l, r) => {
+    path.push(o);
     if (L <= l && r <= R) {
-      acc += sum[o];
-      list.push({ marks: { [o]: "full" }, arrMark: { range: [L, R] }, stat: `当前累加和：<b>${acc}</b>`, snap: snapshot(),
-        desc: `节点 [${l},${r}] 完全在查询区间内：直接累加它的区间和 ${sum[o]}，累计 ${acc}。` });
-      return;
+      const mk = {}; path.forEach(x => mk[x] = "visit"); mk[o] = "full";
+      list.push({ marks: mk, arrMark: { range: [L, R] }, stat: `节点返回 <b>${sum[o]}</b>`, snap: snapshot(),
+        desc: `节点 [${l},${r}] 完全落在查询区间内：直接<b>返回</b>它的区间和 ${sum[o]} 给父节点（不再向下）。` });
+      path.pop();
+      return sum[o];
     }
     pushDown(o);
-    list.push({ marks: { [o]: "visit" }, arrMark: { range: [L, R] }, stat: `当前累加和：<b>${acc}</b>`, snap: snapshot(),
-      desc: `节点 [${l},${r}] 部分覆盖：先下推懒标记，再递归左右子。` });
+    const mkV = {}; path.forEach(x => mkV[x] = "visit");
+    list.push({ marks: mkV, arrMark: { range: [L, R] }, stat: `结果：<b>—</b>`, snap: snapshot(),
+      desc: `节点 [${l},${r}] 只被部分覆盖：先下推懒标记，再向下递归需要的子节点。` });
     const mid = (l + r) >> 1;
-    if (L <= mid) qry(o << 1, l, mid);
-    if (R > mid) qry(o << 1 | 1, mid + 1, r);
-  })(1, 0, n - 1);
-  list.push({ marks: {}, arrMark: { range: [L, R] }, stat: `查询结果：<b>${acc}</b>`, snap: snapshot(), desc: `查询完成！[${L},${R}] 的和 = <b>${acc}</b>。` });
+    let res = 0, lv = null, rv = null;
+    if (L <= mid) { lv = qry(o << 1, l, mid); res += lv; }
+    if (R > mid)  { rv = qry(o << 1 | 1, mid + 1, r); res += rv; }
+    // 回溯合并步：当前节点标 update，说明正在把子返回值相加
+    const mkU = {}; path.forEach(x => mkU[x] = "visit"); mkU[o] = "update";
+    let mergeDesc;
+    if (lv !== null && rv !== null)
+      mergeDesc = `<b>回溯</b>到 [${l},${r}]：把左子返回的 ${lv} + 右子返回的 ${rv} = <b>${res}</b>，返回给父节点。`;
+    else if (lv !== null)
+      mergeDesc = `<b>回溯</b>到 [${l},${r}]：只有左子与查询区间相交，其返回值 <b>${lv}</b> 原样上传给父节点。`;
+    else
+      mergeDesc = `<b>回溯</b>到 [${l},${r}]：只有右子与查询区间相交，其返回值 <b>${rv}</b> 原样上传给父节点。`;
+    list.push({ marks: mkU, arrMark: { range: [L, R] }, stat: `[${l},${r}] 返回 <b>${res}</b>`, snap: snapshot(), desc: mergeDesc });
+    path.pop();
+    return res;
+  };
+  const total = qry(1, 0, n - 1);
+  list.push({ marks: {}, arrMark: { range: [L, R] }, stat: `查询结果：<b>${total}</b>`, snap: snapshot(), desc: `回溯到根，合并完成！[${L},${R}] 的和 = <b>${total}</b>。` });
   return list;
 }
 
