@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>迷宫寻路 BFS/DFS // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 10px; padding: 14px 30px 0; }
+  .tab {
+    padding: 8px 18px; border: 1px solid var(--border); border-bottom: none;
+    border-radius: 6px 6px 0 0; background: rgba(255,255,255,0.02); color: var(--muted);
+    font-size: 13px; letter-spacing: 1px; cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .tab.active { color: var(--cyan); border-color: var(--cyan); background: rgba(0,240,255,0.08); box-shadow: 0 -4px 14px rgba(0,240,255,.15); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 20px; }
+  @media (max-width: 940px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  .rowlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; }
+  .rowlabel.mt { margin-top: 18px; }
+  /* 迷宫网格 */
+  #maze { display: grid; gap: 2px; user-select: none; touch-action: none; }
+  .mcell {
+    aspect-ratio: 1; border-radius: 3px; background: rgba(0,240,255,0.04); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-family: "SF Mono", Menlo, monospace; font-size: 11px; font-weight: 700; color: var(--muted);
+    cursor: pointer; transition: background .18s, border-color .18s;
+  }
+  .mcell.wall { background: #1a1630; border-color: #322a5a; color: transparent; }
+  .mcell.frontier { background: rgba(0,240,255,0.22); border-color: var(--cyan); color: var(--cyan); }
+  .mcell.explored { background: rgba(255,43,214,0.16); border-color: rgba(255,43,214,.5); color: #c98fc0; }
+  .mcell.current { background: var(--yellow); border-color: var(--yellow); color: #05060f; box-shadow: 0 0 10px rgba(255,212,0,.6); }
+  .mcell.path { background: rgba(0,255,156,0.3); border-color: var(--green); color: var(--green); box-shadow: 0 0 8px rgba(0,255,156,.4); }
+  .mcell.start { background: var(--green); border-color: var(--green); color: #05060f; }
+  .mcell.goal { background: var(--magenta); border-color: var(--magenta); color: #fff; }
+  .mcell .ic { font-size: 14px; }
+  /* 图例 */
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .dot { width: 13px; height: 13px; border-radius: 3px; }
+  /* 队列/栈视图 */
+  .fringe { display: flex; gap: 6px; flex-wrap: wrap; min-height: 40px; align-items: center; }
+  .fchip {
+    padding: 4px 9px; border: 1px solid var(--cyan); border-radius: 5px; background: rgba(0,240,255,0.1);
+    font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--cyan);
+  }
+  .fchip.head { border-color: var(--yellow); background: rgba(255,212,0,0.18); color: var(--yellow); }
+  .fringe .arrow { color: var(--muted); font-size: 11px; font-family: monospace; }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: #8fb8c9; margin: 0 0 14px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .stats { display: flex; gap: 20px; font-size: 14px; margin-bottom: 8px; flex-wrap: wrap; font-family: "SF Mono", Menlo, monospace; }
+  .stats b { font-size: 18px; color: var(--green); text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .status { margin-top: 8px; font-size: 14.5px; min-height: 50px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .hl { color: var(--green); font-weight: 700; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>迷宫寻路 · BFS / DFS</h1>
+  <p>在网格迷宫里从起点找到终点。BFS 用队列一圈圈向外扩散，最先到达终点的路径一定最短；DFS 用栈一条路走到底，遇死路再回溯。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="tabs">
+  <div class="tab active" data-mode="bfs">BFS（队列·最短路）</div>
+  <div class="tab" data-mode="dfs">DFS（栈·深入回溯）</div>
+</div>
+<div class="controls">
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="20" max="260" value="120" step="20"></div>
+  <button class="btn cy" id="randBtn">随机迷宫</button>
+  <button class="btn secondary" id="clearBtn">清空墙</button>
+  <button class="btn" id="startBtn">开始寻路</button>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="rowlabel">迷宫（点击/拖动格子画墙或擦除，绿=起点 S，粉=终点 T，格内数字=到起点步数）</div>
+    <div id="maze"></div>
+    <div class="legend">
+      <span><i class="dot" style="background:#00ff9c"></i>起点</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>终点</span>
+      <span><i class="dot" style="background:#1a1630;border:1px solid #322a5a"></i>墙</span>
+      <span><i class="dot" style="background:rgba(0,240,255,.5)"></i>队列/栈中(待扩展)</span>
+      <span><i class="dot" style="background:#ffd400"></i>当前格</span>
+      <span><i class="dot" style="background:rgba(255,43,214,.4)"></i>已探索</span>
+      <span><i class="dot" style="background:#00ff9c"></i>最终路径</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel" id="fringeLabel">队列 (Queue · FIFO)</div>
+    <div class="fringe" id="fringe"></div>
+    <div class="plabel mt" style="margin-top:16px">算法说明</div>
+    <div class="formula" id="formula"></div>
+    <div class="stats" id="stats"></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const ROWS = 11, COLS = 15;
+let mode = "bfs";
+let wall = [];              // wall[r][c]
+let start = [1, 1], goal = [ROWS - 2, COLS - 2];
+let steps = [], idx = 0, timer = null, running = false;
+let painting = false, paintVal = null;
+
+function setStatus(t) { $("status").innerHTML = t; }
+const key = (r, c) => r * COLS + c;
+const DR = [-1, 1, 0, 0], DC = [0, 0, -1, 1];  // 上下左右
+
+// ======== 迷宫初始化 ========
+function initMaze(randomWalls) {
+  stopTimer(); running = false; $("stepBtn").disabled = true; $("playBtn").disabled = true;
+  wall = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+  if (randomWalls) {
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (Math.random() < 0.28) wall[r][c] = true;
+    }
+  }
+  wall[start[0]][start[1]] = false;
+  wall[goal[0]][goal[1]] = false;
+  steps = []; idx = 0;
+  buildGrid();
+  renderCells({});
+  refreshText();
+  setStatus(mode === "bfs" ? "点「开始寻路」，BFS 从起点一圈圈扩展。" : "点「开始寻路」，DFS 从起点一条路走到底。");
+}
+
+function refreshText() {
+  if (mode === "bfs") {
+    $("fringeLabel").textContent = "队列 (Queue · FIFO 先进先出)";
+    $("formula").innerHTML = `从起点入队，dist=0。<br>反复<b>队首出队</b>，把它未访问的邻居标记 dist+1 后<b>入队尾</b>。<br>第一次到终点即<b>最短</b>。O(行×列)。`;
+    $("note").innerHTML = `BFS 用<code>队列</code>：按到起点的距离一层层向外扩散，所以最先碰到终点的就是最短路径。适合求<code>无权图/网格最短步数</code>。`;
+  } else {
+    $("fringeLabel").textContent = "栈 (Stack · LIFO 后进先出)";
+    $("formula").innerHTML = `从起点入栈。<br>反复取<b>栈顶</b>，找一个未访问邻居深入(入栈)；<br>四方向都走过就<b>回溯</b>(出栈)。<br>找到的路径<b>不保证最短</b>。`;
+    $("note").innerHTML = `DFS 用<code>栈</code>(或递归)：一条路走到底，遇死路回退换方向。能判断连通/找出一条路径，但<code>不保证最短</code>——要最短用 BFS。`;
+  }
+}
+
+// ======== 生成分步：BFS ========
+function genBFS() {
+  const list = [];
+  const dist = Array.from({ length: ROWS }, () => Array(COLS).fill(-1));
+  const parent = {};
+  const q = [];
+  const [sr, sc] = start;
+  dist[sr][sc] = 0; q.push([sr, sc]);
+  list.push({ dist: clone(dist), fringe: [[sr, sc]], cur: null, explored: [], desc: `起点 (${sr},${sc}) 入队，dist=0。`, searched: 1 });
+  let searched = 0;
+  const explored = [];
+  let found = false, foundCell = null;
+  while (q.length) {
+    const [r, c] = q.shift();
+    searched++;
+    if (r === goal[0] && c === goal[1]) {
+      found = true; foundCell = [r, c];
+      list.push({ dist: clone(dist), fringe: q.map(x => [...x]), cur: [r, c], explored: [...explored], desc: `<span class="hl">到达终点 (${r},${c})！</span>最短步数 = ${dist[r][c]}。开始回溯高亮路径。`, searched });
+      break;
+    }
+    const nbrs = [];
+    for (let k = 0; k < 4; k++) {
+      const nr = r + DR[k], nc = c + DC[k];
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+      if (wall[nr][nc] || dist[nr][nc] !== -1) continue;
+      dist[nr][nc] = dist[r][c] + 1; parent[key(nr, nc)] = [r, c];
+      q.push([nr, nc]); nbrs.push([nr, nc]);
+    }
+    if (!(r === sr && c === sc)) explored.push([r, c]);
+    list.push({ dist: clone(dist), fringe: q.map(x => [...x]), cur: [r, c], explored: [...explored],
+      desc: nbrs.length ? `扩展 (${r},${c})：发现 ${nbrs.length} 个新邻居，标 dist=${dist[r][c] + 1} 入队。` : `扩展 (${r},${c})：四周无新格可走。`, searched });
+  }
+  finishPath(list, found, foundCell, parent, dist, searched, explored);
+  return list;
+}
+
+// ======== 生成分步：DFS（显式栈）========
+function genDFS() {
+  const list = [];
+  const dist = Array.from({ length: ROWS }, () => Array(COLS).fill(-1));
+  const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+  const parent = {};
+  const [sr, sc] = start;
+  const stack = [[sr, sc]];
+  dist[sr][sc] = 0; visited[sr][sc] = true;
+  const explored = [];
+  list.push({ dist: clone(dist), fringe: [[sr, sc]], cur: null, explored: [], desc: `起点 (${sr},${sc}) 入栈。`, searched: 1, isStack: true });
+  let searched = 0, found = false, foundCell = null;
+  while (stack.length) {
+    const [r, c] = stack[stack.length - 1];  // 栈顶
+    searched++;
+    if (r === goal[0] && c === goal[1]) {
+      found = true; foundCell = [r, c];
+      list.push({ dist: clone(dist), fringe: stack.map(x => [...x]), cur: [r, c], explored: [...explored], desc: `<span class="hl">到达终点 (${r},${c})！</span>DFS 找到一条路径（步数 ${dist[r][c]}，不一定最短）。`, searched, isStack: true });
+      break;
+    }
+    // 找一个未访问邻居
+    let moved = false;
+    for (let k = 0; k < 4; k++) {
+      const nr = r + DR[k], nc = c + DC[k];
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+      if (wall[nr][nc] || visited[nr][nc]) continue;
+      visited[nr][nc] = true; dist[nr][nc] = dist[r][c] + 1; parent[key(nr, nc)] = [r, c];
+      stack.push([nr, nc]); moved = true;
+      list.push({ dist: clone(dist), fringe: stack.map(x => [...x]), cur: [nr, nc], explored: [...explored],
+        desc: `从 (${r},${c}) 深入到未访问邻居 (${nr},${nc})，入栈。`, searched, isStack: true });
+      break;
+    }
+    if (!moved) {
+      stack.pop();
+      if (!(r === sr && c === sc)) explored.push([r, c]);
+      list.push({ dist: clone(dist), fringe: stack.map(x => [...x]), cur: stack.length ? stack[stack.length - 1] : null, explored: [...explored],
+        desc: `(${r},${c}) 四个方向都走过 → <span style="color:var(--magenta)">死路，回溯</span>(出栈)。`, searched, isStack: true });
+    }
+  }
+  finishPath(list, found, foundCell, parent, dist, searched, explored);
+  return list;
+}
+
+// 回溯路径，追加高亮步
+function finishPath(list, found, foundCell, parent, dist, searched, explored) {
+  if (!found) {
+    list.push({ dist: clone(dist), fringe: [], cur: null, explored: [...explored], done: true, path: [], desc: `搜索结束，终点不可达（被墙完全隔开）。`, searched });
+    return;
+  }
+  const path = [];
+  let cur = foundCell;
+  while (cur) { path.push(cur); cur = parent[key(cur[0], cur[1])]; }
+  path.reverse();
+  list.push({ dist: clone(dist), fringe: [], cur: null, explored: [...explored], path: path.map(x => [...x]), done: true,
+    desc: `完成！路径长度 ${path.length - 1} 步，共探索 ${searched} 格。`, searched, pathLen: path.length - 1 });
+  return list;
+}
+function clone(m) { return m.map(r => [...r]); }
+
+// ======== 构建网格 DOM ========
+function buildGrid() {
+  const m = $("maze");
+  m.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+  m.style.maxWidth = (COLS * 34) + "px";
+  let html = "";
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+    html += `<div class="mcell" data-r="${r}" data-c="${c}"></div>`;
+  }
+  m.innerHTML = html;
+}
+
+// ======== 渲染某一步 ========
+function renderCells(s) {
+  const inList = (arr, r, c) => arr && arr.some(x => x[0] === r && x[1] === c);
+  const cells = $("maze").children;
+  for (const el of cells) {
+    const r = +el.dataset.r, c = +el.dataset.c;
+    let cls = "mcell", txt = "";
+    if (wall[r][c]) cls += " wall";
+    // 距离标注
+    const d = s.dist ? s.dist[r][c] : -1;
+    if (d >= 0 && !wall[r][c]) txt = d;
+    // 状态色（优先级：起点/终点 > 当前 > 路径 > 队列 > 已探索）
+    if (inList(s.explored, r, c)) cls += " explored";
+    if (inList(s.fringe, r, c)) cls += " frontier";
+    if (s.path && inList(s.path, r, c)) { cls += " path"; }
+    if (s.cur && s.cur[0] === r && s.cur[1] === c) cls += " current";
+    if (r === start[0] && c === start[1]) { cls = "mcell start"; txt = "S"; }
+    else if (r === goal[0] && c === goal[1]) { cls += " goal"; txt = "T"; }
+    el.className = cls;
+    el.innerHTML = txt !== "" ? `<span class="ic">${txt}</span>` : "";
+  }
+  // fringe 视图
+  const fr = s.fringe || [];
+  if (fr.length) {
+    const isStack = s.isStack;
+    const chips = fr.map((x, i) => {
+      const head = isStack ? i === fr.length - 1 : i === 0;
+      return `<span class="fchip${head ? " head" : ""}">(${x[0]},${x[1]})</span>`;
+    });
+    $("fringe").innerHTML = (isStack ? "栈底 " : "队首→ ") + chips.join(isStack ? " " : " ") + (isStack ? " ←栈顶" : "");
+  } else {
+    $("fringe").innerHTML = '<span style="color:var(--muted);font-family:monospace">（空）</span>';
+  }
+  // 统计
+  $("stats").innerHTML = `已探索：<b>${s.searched || 0}</b>` + (s.done && s.pathLen !== undefined ? `　路径长度：<b>${s.pathLen}</b> 步` : (s.done ? "" : `　${mode === "bfs" ? "队列" : "栈"}中：${fr.length}`));
+}
+
+// ======== 引擎 ========
+function draw(s) { renderCells(s); setStatus(s.desc); }
+function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(steps[idx]); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 280 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(steps[idx]); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+function runSearch() {
+  stopTimer();
+  steps = mode === "bfs" ? genBFS() : genDFS();
+  idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  draw(steps[0]);
+}
+
+function switchMode(m) {
+  if (m === mode) return;
+  mode = m;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === m));
+  stopTimer(); running = false; $("stepBtn").disabled = true; $("playBtn").disabled = true;
+  steps = []; idx = 0;
+  renderCells({}); refreshText();
+  setStatus(mode === "bfs" ? "已切到 BFS。点「开始寻路」。" : "已切到 DFS。点「开始寻路」。");
+}
+
+// ======== 交互：画墙 ========
+function cellFromEvent(e) {
+  const t = (e.touches ? e.touches[0] : e);
+  const el = document.elementFromPoint(t.clientX, t.clientY);
+  if (el && el.classList.contains("mcell")) return el;
+  return null;
+}
+function paintCell(el) {
+  if (!el) return;
+  const r = +el.dataset.r, c = +el.dataset.c;
+  if ((r === start[0] && c === start[1]) || (r === goal[0] && c === goal[1])) return;
+  if (paintVal === null) paintVal = !wall[r][c];  // 第一格决定画/擦
+  wall[r][c] = paintVal;
+  renderCells({});
+}
+const maze = $("maze");
+maze.addEventListener("mousedown", e => { if (running && idx < steps.length - 1) return; painting = true; paintVal = null; paintCell(e.target.closest(".mcell")); });
+maze.addEventListener("mousemove", e => { if (painting) paintCell(e.target.closest(".mcell")); });
+document.addEventListener("mouseup", () => { painting = false; paintVal = null; });
+maze.addEventListener("touchstart", e => { e.preventDefault(); painting = true; paintVal = null; paintCell(cellFromEvent(e)); }, { passive: false });
+maze.addEventListener("touchmove", e => { e.preventDefault(); if (painting) paintCell(cellFromEvent(e)); }, { passive: false });
+document.addEventListener("touchend", () => { painting = false; paintVal = null; });
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchMode(t.dataset.mode));
+$("randBtn").onclick = () => initMaze(true);
+$("clearBtn").onclick = () => initMaze(false);
+$("startBtn").onclick = () => runSearch();
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) runSearch(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("cppBtn").onclick = () => CppView.open(mode);
+
+CppView.register({
+  bfs: { title: "网格迷宫 BFS 最短路 — C++", code:
+`// 功能：网格迷宫中从起点 S 到终点 T 的最短步数（BFS）。
+// 迷宫用 g[r][c]：'.' 通路，'#' 墙。BFS 用队列一圈圈扩展，
+//        第一次到达终点即最短路（每步代价相同）。
+#include <iostream>
+#include <queue>
+#include <cstring>
+using namespace std;
+
+const int MAXN = 105;
+int n, m;
+char g[MAXN][MAXN];
+int dist[MAXN][MAXN];
+int dr[4] = {-1, 1, 0, 0};   // 上下左右
+int dc[4] = {0, 0, -1, 1};
+
+int bfs(int sr, int sc, int tr, int tc) {
+    memset(dist, -1, sizeof(dist));
+    queue<pair<int,int>> q;
+    dist[sr][sc] = 0;
+    q.push({sr, sc});
+    while (!q.empty()) {
+        auto [r, c] = q.front(); q.pop();
+        if (r == tr && c == tc) return dist[r][c];
+        for (int k = 0; k < 4; k++) {
+            int nr = r + dr[k], nc = c + dc[k];
+            if (nr < 0 || nr >= n || nc < 0 || nc >= m) continue;
+            if (g[nr][nc] == '#' || dist[nr][nc] != -1) continue;  // 墙 / 已访问
+            dist[nr][nc] = dist[r][c] + 1;
+            q.push({nr, nc});
+        }
+    }
+    return -1;   // 不可达
+}
+
+int main() {
+    cin >> n >> m;
+    for (int i = 0; i < n; i++) cin >> g[i];
+    cout << bfs(0, 0, n - 1, m - 1) << endl;
+    return 0;
+}`
+  },
+  dfs: { title: "网格迷宫 DFS 找路 — C++", code:
+`// 功能：网格迷宫中判断从起点能否到达终点，并找出一条路径（DFS）。
+// DFS 一条路走到底，遇墙/边界/已访问就回溯换方向。
+//      注意：DFS 找到的路径不保证最短（要最短用 BFS）。
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+const int MAXN = 105;
+int n, m;
+char g[MAXN][MAXN];
+bool vis[MAXN][MAXN];
+int dr[4] = {-1, 1, 0, 0};
+int dc[4] = {0, 0, -1, 1};
+
+bool dfs(int r, int c, int tr, int tc) {
+    if (r == tr && c == tc) return true;
+    vis[r][c] = true;                       // 标记已访问
+    for (int k = 0; k < 4; k++) {
+        int nr = r + dr[k], nc = c + dc[k];
+        if (nr < 0 || nr >= n || nc < 0 || nc >= m) continue;
+        if (g[nr][nc] == '#' || vis[nr][nc]) continue;
+        if (dfs(nr, nc, tr, tc)) return true;   // 递归深入
+    }
+    return false;                            // 四个方向都不通，回溯
+}
+
+int main() {
+    cin >> n >> m;
+    for (int i = 0; i < n; i++) cin >> g[i];
+    memset(vis, false, sizeof(vis));
+    cout << (dfs(0, 0, n - 1, m - 1) ? "可达" : "不可达") << endl;
+    return 0;
+}`
+  }
+});
+
+initMaze(true);
+</script>
+</body>
+</html>
