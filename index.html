@@ -158,6 +158,8 @@ const SECTIONS = [
         desc: "小根堆（完全二叉树）：插入(上浮)/删堆顶(下沉)/建堆/堆排序，树 + 数组双视图，单步/自动。" },
       { icon: "🔗", tag: "并查集", title: "并查集 Union-Find", file: "union-find.html", ready: true,
         desc: "森林结构：合并/查找/同集合判断，路径压缩 + 按秩合并（可对比朴素），树 + parent 数组双视图。" },
+      { icon: "🌿", tag: "贪心·树", title: "Huffman 编码", file: "huffman.html", ready: true,
+        desc: "按字符频率建最小堆，反复取两个最小频率合并成新节点，自底向上建 Huffman 树；左0右1回溯得最优前缀编码。树形+频率/编码表，含 C++。" },
     ],
   },
   {
@@ -169,8 +171,10 @@ const SECTIONS = [
         desc: "Kahn 算法自动演示 + 手动确定拓扑序，节点随边消失，支持随机生成 DAG。" },
       { icon: "✏️", tag: "图", title: "欧拉图 / 一笔画", file: "euler.html", ready: true,
         desc: "欧拉回路 / 欧拉路径判定与 Hierholzer 遍历，可选有向/无向图，随机生成。" },
-      { icon: "📡", tag: "图", title: "最短路径", file: "shortest-path.html", ready: true,
+      { icon: "📡", tag: "图", title: "最短路径 (Dijkstra)", file: "shortest-path.html", ready: true,
         desc: "Dijkstra 逐步松弛，展示 dist 数组、优先队列与最短路径树，可选有向/无向，随机带权图。" },
+      { icon: "🌐", tag: "图", title: "全源最短路 (Floyd)", file: "floyd.html", ready: true,
+        desc: "Floyd-Warshall 三重循环 dp[i][j]=min(dp[i][j], dp[i][k]+dp[k][j])。距离矩阵随中转点 k 动态更新，高亮被松弛的格子，O(n³)，含 C++。" },
       { icon: "🌉", tag: "图", title: "最小生成树", file: "mst.html", ready: true,
         desc: "Prim(加点) / Kruskal(加边+并查集) 可切换，展示选边过程与权值和，随机带权图，单步/自动。" },
     ],
@@ -214,6 +218,20 @@ const SECTIONS = [
         desc: "埃氏筛 / 线性筛(欧拉筛)可切换。数字网格逐个标记合数，展示线性筛“每个合数只被最小质因子筛一次”，可调 n。" },
       { icon: "🧮", tag: "数论", title: "质因数分解", file: "factorize.html", ready: true,
         desc: "试除法分解 n = p₁·p₂·…·pₘ。从最小质数试除，整除即记录并 n/=p；完整分解式随过程把已约掉的因子置灰，剩余高亮相乘 = 当前 n。含 C++。" },
+    ],
+  },
+  {
+    id: "greedy", icon: "🪙", title: "贪心算法", desc: "活动选择 · 分数背包",
+    items: [
+      { icon: "🪙", tag: "贪心", title: "活动选择 / 分数背包", file: "greedy.html", ready: true,
+        desc: "两个经典贪心可切换：活动选择按结束时间排序，依次选不冲突的活动求最多场次；分数背包按性价比排序，可切分装满背包求最大价值。时间轴/物品条可视化，含 C++。" },
+    ],
+  },
+  {
+    id: "string", icon: "🔤", title: "字符串", desc: "KMP 模式匹配",
+    items: [
+      { icon: "🔤", tag: "字符串", title: "KMP 字符串匹配", file: "kmp.html", ready: true,
+        desc: "先为模式串构建 next 数组（最长相同前后缀），匹配失配时只回退模式串指针 j=next[j-1]，主串指针 i 不回退，O(n+m)。字符格子高亮比较/命中，含 C++。" },
     ],
   },
 ];

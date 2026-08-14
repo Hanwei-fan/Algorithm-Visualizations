@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KMP 字符串匹配 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f;
+    --panel: rgba(18, 15, 38, 0.72);
+    --border: #2a2350;
+    --text: #e6e1ff;
+    --muted: #7d76a8;
+    --cyan: #00f0ff;
+    --magenta: #ff2bd6;
+    --yellow: #ffd400;
+    --green: #00ff9c;
+    --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0;
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text);
+    line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .field input.wide { width: 260px; }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  .rowlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .rowlabel.mt { margin-top: 20px; }
+  /* 字符串格子 */
+  .strrow { display: flex; gap: 4px; flex-wrap: nowrap; font-family: "SF Mono", Menlo, monospace; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .cell .ch {
+    width: 34px; height: 40px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 5px; background: rgba(0,240,255,0.04);
+    font-size: 17px; font-weight: 700; transition: all .15s;
+  }
+  .cell .ix { font-size: 10px; color: var(--muted); }
+  .cell.win .ch { border-color: var(--cyan); background: rgba(0,240,255,0.12); }
+  .cell.cmp .ch { background: var(--yellow); border-color: var(--yellow); color: #05060f; }
+  .cell.ok .ch { background: rgba(0,255,156,0.25); border-color: var(--green); color: var(--green); }
+  .cell.bad .ch { background: var(--magenta); border-color: var(--magenta); color: #fff; }
+  .cell.matched .ch { background: rgba(0,255,156,0.15); border-color: var(--green); color: var(--green); }
+  /* next 数组表 */
+  .ntable { display: flex; gap: 4px; flex-wrap: wrap; font-family: "SF Mono", Menlo, monospace; }
+  .ncol { display: flex; flex-direction: column; align-items: center; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+  .ncol > div { width: 34px; text-align: center; padding: 3px 0; font-size: 13px; }
+  .ncol .k { color: var(--muted); font-size: 10px; background: rgba(255,255,255,0.02); }
+  .ncol .c { color: var(--text); font-weight: 700; border-top: 1px solid var(--border); }
+  .ncol .v { color: var(--cyan); font-weight: 700; border-top: 1px solid var(--border); }
+  .ncol.cur { border-color: var(--yellow); box-shadow: 0 0 8px rgba(255,212,0,.4); }
+  .ncol.cur .v { color: var(--yellow); }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: #8fb8c9; margin: 0 0 14px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .ptrs { display: flex; gap: 22px; font-size: 14px; margin-bottom: 8px; flex-wrap: wrap; font-family: "SF Mono", Menlo, monospace; }
+  .ptrs b { font-size: 18px; color: var(--green); text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .status { margin-top: 8px; font-size: 14.5px; min-height: 60px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .found { color: var(--green); font-weight: 700; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>KMP 字符串匹配</h1>
+  <p>朴素匹配失配时主串指针要回退，KMP 用模式串的 next 数组记住"已匹配前缀里最长的相同前后缀"，失配时只回退模式串指针 j，主串指针 i 永不后退，O(n+m) 完成匹配。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="controls">
+  <div class="field"><label>主串 text</label><input id="textInput" class="wide" type="text" value="ABABDABACDABABCABAB"></div>
+  <div class="field"><label>模式串 pattern</label><input id="patInput" class="wide" type="text" value="ABABCABAB"></div>
+</div>
+<div class="controls" style="padding-top:0">
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1100" value="550" step="50"></div>
+  <button class="btn cy" id="startBtn">开始匹配</button>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="rowlabel">阶段 ①：为模式串构建 next 数组（最长相同前后缀长度）</div>
+    <div class="ntable" id="ntable"></div>
+    <div class="rowlabel mt">阶段 ②：主串中匹配（黄=正在比较，绿=已匹配，粉=失配）</div>
+    <div class="rowlabel" style="color:var(--muted);text-transform:none">主串 text</div>
+    <div class="strrow" id="textRow"></div>
+    <div class="rowlabel" style="color:var(--muted);text-transform:none;margin-top:14px">模式串 pattern（整体对齐到 i-j 处）</div>
+    <div class="strrow" id="patRow" style="margin-bottom:6px"></div>
+  </section>
+  <section class="card">
+    <div class="plabel">算法状态</div>
+    <div class="formula" id="formula"></div>
+    <div class="ptrs" id="ptrs"></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note">核心：<code>next[k]</code> = 模式串前 k 个字符组成的子串中，"最长相同前缀与后缀"的长度。匹配时若 <code>text[i] != pattern[j]</code> 失配，不必把主串指针 i 退回，只需令 <code>j = next[j-1]</code>，让模式串滑动到"下一个可能对齐的位置"继续比较。整个匹配主串指针 i 单调向前，时间复杂度 O(n+m)。</div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let text = "", pat = "", nxt = [];
+let steps = [], idx = 0, timer = null, running = false;
+
+function setStatus(t) { $("status").innerHTML = t; }
+
+// ======== 生成分步 ========
+// step: { phase:'next'|'match', nxt:[..], nCur:模式串next表当前列, i, j,
+//         tState:{下标->'cmp'|'ok'|'bad'|'matched'}, pOffset:模式串左对齐到主串的下标,
+//         pState:{下标->..}, ptrs:文本, desc:文本, foundAt:[..已找到起点] }
+function genSteps(s, p) {
+  const list = [];
+  const n = s.length, m = p.length;
+  const next = new Array(m).fill(0);
+  const found = [];
+
+  // ---- 阶段①：构建 next ----
+  list.push({ phase: "next", nxt: [...next], nCur: -1, desc: `阶段①：为模式串构建 next 数组。next[0]=0（单字符无真前后缀）。用两个指针 i(遍历)、j(当前最长前后缀长度) 扫描模式串。`, ptrs: `i = 1　j = 0` });
+  for (let i = 1, j = 0; i < m; i++) {
+    while (j > 0 && p[i] !== p[j]) {
+      const oldj = j;
+      j = next[j - 1];
+      list.push({ phase: "next", nxt: [...next], nCur: i, cmpJ: j, cmpI: i, desc: `p[${i}]='${p[i]}' ≠ p[${oldj}]='${p[oldj]}' 失配：令 j = next[${oldj-1}] = ${j}，缩短候选前后缀继续比较。`, ptrs: `i = ${i}　j = ${j}` });
+    }
+    if (p[i] === p[j]) {
+      list.push({ phase: "next", nxt: [...next], nCur: i, cmpJ: j, cmpI: i, matchNext: true, desc: `p[${i}]='${p[i]}' = p[${j}]='${p[j]}' 匹配：相同前后缀长度 +1，j = ${j + 1}。`, ptrs: `i = ${i}　j = ${j + 1}` });
+      j++;
+    }
+    next[i] = j;
+    list.push({ phase: "next", nxt: [...next], nCur: i, desc: `记录 next[${i}] = ${j}（模式串前 ${i + 1} 个字符的最长相同前后缀长度）。`, ptrs: `i = ${i}　j = ${j}` });
+  }
+  list.push({ phase: "next", nxt: [...next], nCur: m - 1, allKnown: true, desc: `next 数组构建完成：[${next.join(", ")}]。下面开始在主串中匹配。`, ptrs: `next = [${next.join(", ")}]` });
+
+  // ---- 阶段②：匹配 ----
+  for (let i = 0, j = 0; i < n; i++) {
+    // 比较 s[i] 与 p[j]
+    while (j > 0 && s[i] !== p[j]) {
+      const oldj = j;
+      list.push({ phase: "match", nxt: [...next], i, j, off: i - j, cmp: [i, j], mark: "bad", found: [...found],
+        desc: `比较 text[${i}]='${s[i]}' 与 pattern[${j}]='${p[j]}'：<span class="found" style="color:var(--magenta)">失配</span>。主串指针 i 不动，模式串指针 j = next[${oldj-1}] = ${next[oldj-1]}，模式串右滑。`,
+        ptrs: `i = ${i}　j = ${j} → ${next[oldj-1]}` });
+      j = next[j - 1];
+    }
+    if (s[i] === p[j]) {
+      list.push({ phase: "match", nxt: [...next], i, j, off: i - j, cmp: [i, j], mark: "ok", found: [...found],
+        desc: `比较 text[${i}]='${s[i]}' 与 pattern[${j}]='${p[j]}'：<span class="found">匹配</span>！两个指针一起前进，j = ${j + 1}。`,
+        ptrs: `i = ${i}　j = ${j + 1}` });
+      j++;
+    } else {
+      // j==0 且失配
+      list.push({ phase: "match", nxt: [...next], i, j, off: i - j, cmp: [i, j], mark: "bad", found: [...found],
+        desc: `比较 text[${i}]='${s[i]}' 与 pattern[${j}]='${p[j]}'：失配且 j=0，模式串整体右移一格，i 前进。`,
+        ptrs: `i = ${i}→${i + 1}　j = 0` });
+    }
+    if (j === m) {
+      const at = i - m + 1;
+      found.push(at);
+      list.push({ phase: "match", nxt: [...next], i, j, off: at, matchWhole: true, found: [...found],
+        desc: `<span class="found">✓ 完全匹配！</span>模式串出现在主串下标 ${at}。继续找下一处：j = next[${m-1}] = ${next[m-1]}。`,
+        ptrs: `命中于 ${at}　j = ${next[m-1]}` });
+      j = next[j - 1];
+    }
+  }
+  list.push({ phase: "match", nxt: [...next], i: n, j: 0, off: -1, done: true, found: [...found],
+    desc: found.length ? `<span class="found">匹配结束！</span>共找到 ${found.length} 处，起始下标：${found.join(", ")}。` : `匹配结束，主串中未找到模式串。`,
+    ptrs: found.length ? `命中 ${found.length} 处` : `无匹配` });
+  return list;
+}
+
+// ======== 渲染 ========
+function draw(k) {
+  const s = steps[k];
+  // next 表：next 阶段只显示已算出的列(i<=nCur)，其余占位；match 阶段全部显示
+  const known = s.phase === "match" ? pat.length - 1 : (s.nCur ?? -1);
+  $("ntable").innerHTML = pat.split("").map((c, i) => {
+    const cls = "ncol" + (s.nCur === i ? " cur" : "");
+    const val = i <= known ? s.nxt[i] : "·";
+    return `<div class="${cls}"><div class="k">${i}</div><div class="c">${c}</div><div class="v">${val}</div></div>`;
+  }).join("");
+
+  // 主串行
+  $("textRow").innerHTML = text.split("").map((c, i) => {
+    let cls = "cell";
+    if (s.phase === "match") {
+      if (s.off >= 0 && i >= s.off && i < s.off + pat.length) cls += " win";
+      if (s.matchWhole && i >= s.off && i < s.off + pat.length) cls += " matched";
+      if (s.cmp && s.cmp[0] === i) cls += " " + s.mark;
+    }
+    return `<div class="${cls}"><div class="ch">${c === " " ? "␣" : c}</div><div class="ix">${i}</div></div>`;
+  }).join("");
+
+  // 模式串行：整体左对齐到 off 位置（用透明占位格）
+  const off = s.phase === "match" && s.off >= 0 ? s.off : 0;
+  let pcells = "";
+  for (let g = 0; g < off; g++) pcells += `<div class="cell"><div class="ch" style="border:0;background:transparent"></div><div class="ix"></div></div>`;
+  pcells += pat.split("").map((c, j) => {
+    let cls = "cell";
+    if (s.phase === "match") {
+      if (s.matchWhole) cls += " matched";
+      else if (s.cmp && s.cmp[1] === j) cls += " " + s.mark;
+      else if (s.off >= 0 && j < s.j) cls += " win";
+    }
+    return `<div class="${cls}"><div class="ch">${c === " " ? "␣" : c}</div><div class="ix">${j}</div></div>`;
+  }).join("");
+  $("patRow").innerHTML = pcells;
+
+  $("ptrs").innerHTML = s.ptrs ? s.ptrs.replace(/(\d+)/g, "<b>$1</b>") : "";
+  setStatus(s.desc);
+}
+
+// ======== 引擎 ========
+function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(idx); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 1250 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+function prepare() {
+  stopTimer(); running = false;
+  text = $("textInput").value; pat = $("patInput").value;
+  if (!text || !pat) { setStatus("请输入主串和模式串。"); $("stepBtn").disabled = true; $("playBtn").disabled = true; return; }
+  if (pat.length > text.length) { setStatus("模式串比主串还长，无法匹配。"); }
+  steps = genSteps(text, pat); idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  $("formula").innerHTML = `<b>next</b> 数组：next[k] = 前 k+1 个字符「最长相同前缀=后缀」长度。<br>匹配失配时 <b>j = next[j-1]</b>，主串指针 <b>i 不回退</b>。<br>时间复杂度 <b>O(n+m)</b>。`;
+  draw(0);
+}
+
+$("startBtn").onclick = () => prepare();
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) prepare(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("resetBtn").onclick = () => prepare();
+$("cppBtn").onclick = () => CppView.open("kmp");
+$("textInput").addEventListener("keydown", e => { if (e.key === "Enter") prepare(); });
+$("patInput").addEventListener("keydown", e => { if (e.key === "Enter") prepare(); });
+
+CppView.register({
+  kmp: { title: "KMP 字符串匹配 — C++", code:
+`// 功能：在主串 s 中查找模式串 p 的所有出现位置（KMP，O(n+m)）。
+// 核心：next[k] = p 的前 k 个字符中「最长相同前缀=后缀」的长度；
+//       匹配失配时只回退模式串指针 j = next[j-1]，主串指针 i 不回退。
+#include <iostream>
+#include <string>
+#include <vector>
+using namespace std;
+
+// 构建 next 数组（下标从 0 开始，next[i] 表示 p[0..i] 的最长相同前后缀长度）
+vector<int> buildNext(const string& p) {
+    int m = p.size();
+    vector<int> next(m, 0);
+    for (int i = 1, j = 0; i < m; i++) {
+        while (j > 0 && p[i] != p[j]) j = next[j - 1];  // 失配：j 回跳
+        if (p[i] == p[j]) j++;                          // 匹配：前后缀 +1
+        next[i] = j;
+    }
+    return next;
+}
+
+// 在 s 中查找 p，返回所有起始下标
+vector<int> kmp(const string& s, const string& p) {
+    vector<int> res, next = buildNext(p);
+    int n = s.size(), m = p.size();
+    for (int i = 0, j = 0; i < n; i++) {
+        while (j > 0 && s[i] != p[j]) j = next[j - 1];  // 失配：模式串指针回跳
+        if (s[i] == p[j]) j++;                          // 匹配：j 前进
+        if (j == m) {                                   // 完全匹配
+            res.push_back(i - m + 1);
+            j = next[j - 1];                            // 继续找下一处
+        }
+    }
+    return res;
+}
+
+int main() {
+    string s, p;
+    getline(cin, s);
+    getline(cin, p);
+    vector<int> pos = kmp(s, p);
+    if (pos.empty()) cout << "未找到" << endl;
+    else for (int x : pos) cout << x << " ";
+    return 0;
+}`
+  }
+});
+
+prepare();
+</script>
+</body>
+</html>

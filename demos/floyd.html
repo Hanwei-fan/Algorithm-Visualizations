@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Floyd 全源最短路 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 70px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  .rowlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 10px; }
+  .rowlabel.mt { margin-top: 18px; }
+  /* 图 SVG */
+  svg#graph { width: 100%; height: auto; display: block; }
+  .gedge { stroke: #4a4478; stroke-width: 1.5; }
+  .gedge.arrow { marker-end: url(#ah); }
+  .gelabel { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 11px; }
+  .gnode circle { fill: rgba(0,240,255,0.1); stroke: var(--cyan); stroke-width: 2; }
+  .gnode.src circle { fill: rgba(255,212,0,0.25); stroke: var(--yellow); filter: drop-shadow(0 0 6px rgba(255,212,0,.6)); }
+  .gnode.dst circle { fill: rgba(255,43,214,0.25); stroke: var(--magenta); filter: drop-shadow(0 0 6px rgba(255,43,214,.6)); }
+  .gnode.via circle { fill: rgba(0,255,156,0.25); stroke: var(--green); filter: drop-shadow(0 0 8px rgba(0,255,156,.7)); }
+  .gnode text { fill: #fff; font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; text-anchor: middle; }
+  /* 距离矩阵 */
+  table.mat { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 14px; }
+  table.mat th, table.mat td {
+    width: 46px; height: 40px; text-align: center; border: 1px solid var(--border);
+    transition: all .15s;
+  }
+  table.mat th { color: var(--cyan); font-weight: 700; background: rgba(0,240,255,0.05); }
+  table.mat td { color: var(--text); font-weight: 700; }
+  table.mat td.inf { color: #4a4478; }
+  table.mat th.rowk, table.mat td.rowk { background: rgba(255,212,0,0.12); }
+  table.mat th.colk, table.mat td.colk { background: rgba(255,212,0,0.12); }
+  table.mat td.cellk { background: rgba(255,212,0,0.28); color: var(--yellow); }
+  table.mat td.pathA { background: rgba(0,255,156,0.16); color: var(--green); }
+  table.mat td.cur { outline: 2px solid var(--magenta); outline-offset: -2px; box-shadow: 0 0 10px rgba(255,43,214,.5) inset; }
+  table.mat td.improved { background: var(--magenta); color: #fff; }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: #8fb8c9; margin: 0 0 14px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .kbar { display: flex; gap: 22px; font-size: 14px; margin-bottom: 8px; flex-wrap: wrap; font-family: "SF Mono", Menlo, monospace; }
+  .kbar b { font-size: 18px; color: var(--green); text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .status { margin-top: 8px; font-size: 14.5px; min-height: 56px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .improved-txt { color: var(--magenta); font-weight: 700; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .dot { width: 12px; height: 12px; border-radius: 3px; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Floyd-Warshall 全源最短路</h1>
+  <p>一次求出任意两点间的最短路。核心：依次把每个点 k 当作"中转站"，若 i→k→j 比当前 i→j 更短就更新。三重循环 O(n³)，可带负权（无负环）。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="controls">
+  <div class="field"><label>节点数 n</label><input id="nInput" type="number" value="4" min="3" max="6"></div>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1100" value="650" step="50"></div>
+  <button class="btn cy" id="randBtn">随机图</button>
+  <button class="btn" id="startBtn">开始 Floyd</button>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="rowlabel">带权有向图（黄=中转点 k，橙=起点 i，粉=终点 j）</div>
+    <svg id="graph" viewBox="0 0 340 300" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="legend">
+      <span><i class="dot" style="background:#ffd400"></i>中转点 k</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>正在检查 i→j</span>
+      <span><i class="dot" style="background:#00ff9c"></i>路径 i→k / k→j</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="rowlabel">距离矩阵 dist[i][j]（∞ = 不可达）</div>
+    <div id="matWrap"></div>
+    <div class="plabel" style="margin-top:18px">算法状态</div>
+    <div class="formula" id="formula"></div>
+    <div class="kbar" id="kbar"></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note">核心递推：<code>dist[i][j] = min(dist[i][j], dist[i][k] + dist[k][j])</code>。最外层枚举中转点 <code>k</code>，内层枚举所有 <code>(i,j)</code>。含义：当允许经过前 k 个点中转时，i 到 j 的最短距离。<b>k 必须在最外层</b>——保证更新 (i,j) 时 dist[i][k] 和 dist[k][j] 已考虑过更小编号的中转点。全程 O(n³)。</div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const INF = Infinity;
+let n = 4, W = [], pos = [];       // W: 邻接矩阵（含边权），pos: 节点坐标
+let steps = [], idx = 0, timer = null, running = false;
+
+function setStatus(t) { $("status").innerHTML = t; }
+
+// ======== 随机生成有向带权图 ========
+function randomGraph() {
+  stopTimer(); running = false; $("stepBtn").disabled = true; $("playBtn").disabled = true;
+  n = Math.max(3, Math.min(6, parseInt($("nInput").value, 10) || 4));
+  $("nInput").value = n;
+  // 邻接矩阵
+  W = Array.from({ length: n }, (_, i) => Array.from({ length: n }, (_, j) => i === j ? 0 : INF));
+  // 随机边：每个有序对以一定概率生成，保证不太稀疏
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    if (i !== j && Math.random() < 0.45) W[i][j] = 1 + Math.floor(Math.random() * 9);
+  }
+  // 保证每个点至少有一条出边，避免太多 ∞
+  for (let i = 0; i < n; i++) {
+    if (W[i].every((w, j) => j === i || w === INF)) {
+      let j = (i + 1) % n; W[i][j] = 1 + Math.floor(Math.random() * 9);
+    }
+  }
+  // 节点圆形布局
+  pos = [];
+  const cx = 170, cy = 150, R = 110;
+  for (let i = 0; i < n; i++) {
+    const a = -Math.PI / 2 + i * 2 * Math.PI / n;
+    pos.push({ x: cx + R * Math.cos(a), y: cy + R * Math.sin(a) });
+  }
+  steps = []; idx = 0;
+  drawGraph({}); drawMatrix(cloneDist(W), {});
+  $("formula").innerHTML = `dist[i][j] = min( dist[i][j], <b>dist[i][k] + dist[k][j]</b> )`;
+  $("kbar").innerHTML = "";
+  setStatus(`已生成 ${n} 个节点的随机有向带权图。点「开始 Floyd」逐步求全源最短路。`);
+}
+function cloneDist(D) { return D.map(r => [...r]); }
+
+// ======== 生成分步 ========
+// step: { dist(快照), k, i, j, improved, via:[i,k,j], desc, kdone }
+function genSteps() {
+  const list = [];
+  const D = cloneDist(W);
+  list.push({ dist: cloneDist(D), k: -1, desc: `初始距离矩阵：对角线为 0，直接有边的为边权，其余为 ∞（不可达）。下面依次把每个点当中转站 k。` });
+  for (let k = 0; k < n; k++) {
+    list.push({ dist: cloneDist(D), k, i: -1, j: -1, kStart: true, desc: `<b>中转点 k=${k}</b>：检查每一对 (i,j)，看"i→${k}→j"是否比现有 i→j 更短。` });
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        if (i === k || j === k || i === j) continue;   // 无意义的对，跳过展示
+        const dik = D[i][k], dkj = D[k][j], old = D[i][j];
+        const through = dik + dkj;
+        const better = through < old;
+        if (better) D[i][j] = through;
+        list.push({
+          dist: cloneDist(D), k, i, j, improved: better, via: [i, k, j],
+          desc: better
+            ? `检查 (${i}→${j})：经 ${k} 中转 = dist[${i}][${k}]+dist[${k}][${j}] = ${fmt(dik)}+${fmt(dkj)} = <span class="improved-txt">${through}</span> ＜ 原值 ${fmt(old)}，<span class="improved-txt">更新为 ${through}</span>！`
+            : `检查 (${i}→${j})：经 ${k} 中转 = ${fmt(dik)}+${fmt(dkj)}${isFinite(through)?` = ${through}`:''}，不比现有 ${fmt(old)} 更短，保持不变。`
+        });
+      }
+    }
+  }
+  list.push({ dist: cloneDist(D), k: -1, done: true, desc: `完成！矩阵即任意两点最短距离（∞ 表示仍不可达）。` });
+  return list;
+}
+function fmt(v) { return isFinite(v) ? v : "∞"; }
+
+// ======== 渲染：图 ========
+function drawGraph(mark) {
+  const svg = $("graph");
+  let defs = `<defs><marker id="ah" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#4a4478"/></marker></defs>`;
+  let edges = "", nodes = "";
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    if (i === j || !isFinite(W[i][j])) continue;
+    const a = pos[i], b = pos[j];
+    // 缩短到圆边
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy), r = 20;
+    const x1 = a.x + dx / len * r, y1 = a.y + dy / len * r;
+    const x2 = b.x - dx / len * r, y2 = b.y - dy / len * r;
+    // 双向边稍微弯一点，避免重叠
+    const bend = isFinite(W[j][i]) ? 12 : 0;
+    const mx = (x1 + x2) / 2 - dy / len * bend, my = (y1 + y2) / 2 + dx / len * bend;
+    let ec = "gedge arrow";
+    if (mark.via) {
+      const [vi, vk, vj] = mark.via;
+      if ((i === vi && j === vk) || (i === vk && j === vj)) ec += "";  // 高亮通过描边色
+    }
+    const hl = mark.via && ((i === mark.via[0] && j === mark.via[1]) || (i === mark.via[1] && j === mark.via[2]));
+    edges += `<path class="gedge arrow" d="M${x1},${y1} Q${mx},${my} ${x2},${y2}" fill="none"${hl?' stroke="#00ff9c" stroke-width="2.5" style="filter:drop-shadow(0 0 4px rgba(0,255,156,.6))"':''}/>`;
+    edges += `<text class="gelabel" x="${mx}" y="${my - 2}">${W[i][j]}</text>`;
+  }
+  for (let i = 0; i < n; i++) {
+    let cls = "gnode";
+    if (mark.k === i) cls += " via";
+    else if (mark.i === i) cls += " src";
+    else if (mark.j === i) cls += " dst";
+    nodes += `<g class="${cls}"><circle cx="${pos[i].x}" cy="${pos[i].y}" r="20"/><text x="${pos[i].x}" y="${pos[i].y + 5}">${i}</text></g>`;
+  }
+  svg.innerHTML = defs + edges + nodes;
+}
+
+// ======== 渲染：矩阵 ========
+function drawMatrix(D, mark) {
+  let html = "<table class='mat'><tr><th></th>";
+  for (let j = 0; j < n; j++) html += `<th class="${mark.k === j ? 'colk' : ''}">${j}</th>`;
+  html += "</tr>";
+  for (let i = 0; i < n; i++) {
+    html += `<tr><th class="${mark.k === i ? 'rowk' : ''}">${i}</th>`;
+    for (let j = 0; j < n; j++) {
+      let cls = [];
+      const v = D[i][j];
+      if (!isFinite(v)) cls.push("inf");
+      // 中转行/列
+      if (mark.k === i) cls.push("rowk");
+      if (mark.k === j) cls.push("colk");
+      // 参与本次计算的两格 dist[i][k], dist[k][j]
+      if (mark.via) {
+        const [vi, vk, vj] = mark.via;
+        if (i === vi && j === vk) cls.push("pathA");
+        if (i === vk && j === vj) cls.push("pathA");
+        if (i === vi && j === vj) cls.push(mark.improved ? "improved" : "cur");
+      }
+      if (i === j) {} // 对角线保持
+      html += `<td class="${cls.join(' ')}">${fmt(v)}</td>`;
+    }
+    html += "</tr>";
+  }
+  html += "</table>";
+  $("matWrap").innerHTML = html;
+}
+
+// ======== 引擎 ========
+function draw(step) {
+  drawGraph(step);
+  drawMatrix(step.dist, step);
+  $("kbar").innerHTML = step.k >= 0
+    ? `中转点 <b>k=${step.k}</b>` + (step.i >= 0 ? `　起点 <b>i=${step.i}</b>　终点 <b>j=${step.j}</b>` : "")
+    : (step.done ? `全部完成` : `初始化`);
+  setStatus(step.desc);
+}
+function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(steps[idx]); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 1250 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(steps[idx]); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+function start() {
+  stopTimer();
+  steps = genSteps(); idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  draw(steps[0]);
+}
+
+$("randBtn").onclick = () => randomGraph();
+$("startBtn").onclick = () => start();
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) start(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("cppBtn").onclick = () => CppView.open("floyd");
+$("nInput").addEventListener("change", () => randomGraph());
+
+CppView.register({
+  floyd: { title: "Floyd-Warshall 全源最短路 — C++", code:
+`// 功能：求任意两点间最短路（Floyd-Warshall，O(n^3)）。可处理负权边（无负环）。
+// 核心递推：dist[i][j] = min(dist[i][j], dist[i][k] + dist[k][j])
+//           把每个点 k 依次当「中转站」，看借它能否让 i→j 更短。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+const int INF = 0x3f3f3f3f;
+const int MAXN = 105;
+int n, m;
+int dist[MAXN][MAXN];
+
+int main() {
+    cin >> n >> m;
+    // 初始化：自己到自己 0，其余 INF
+    for (int i = 1; i <= n; i++)
+        for (int j = 1; j <= n; j++)
+            dist[i][j] = (i == j) ? 0 : INF;
+    // 读入有向边（取重边最小值）
+    for (int e = 0; e < m; e++) {
+        int u, v, w; cin >> u >> v >> w;
+        dist[u][v] = min(dist[u][v], w);
+    }
+    // Floyd：k 必须在最外层
+    for (int k = 1; k <= n; k++)
+        for (int i = 1; i <= n; i++)
+            for (int j = 1; j <= n; j++)
+                if (dist[i][k] + dist[k][j] < dist[i][j])
+                    dist[i][j] = dist[i][k] + dist[k][j];
+    // 输出最短距离矩阵
+    for (int i = 1; i <= n; i++)
+        for (int j = 1; j <= n; j++)
+            cout << (dist[i][j] >= INF / 2 ? -1 : dist[i][j]) << " \\n"[j == n];
+    return 0;
+}`
+  }
+});
+
+randomGraph();
+</script>
+</body>
+</html>

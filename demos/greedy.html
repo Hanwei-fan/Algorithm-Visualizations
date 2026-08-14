@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>贪心：活动选择 / 分数背包 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 10px; padding: 14px 30px 0; }
+  .tab {
+    padding: 8px 18px; border: 1px solid var(--border); border-bottom: none;
+    border-radius: 6px 6px 0 0; background: rgba(255,255,255,0.02); color: var(--muted);
+    font-size: 13px; letter-spacing: 1px; cursor: pointer; font-family: "SF Mono", Menlo, monospace;
+    transition: all .18s;
+  }
+  .tab.active { color: var(--cyan); border-color: var(--cyan); background: rgba(0,240,255,0.08); box-shadow: 0 -4px 14px rgba(0,240,255,.15); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 80px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+  @media (max-width: 940px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px);
+    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  .rowlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; }
+  .rowlabel.mt { margin-top: 20px; }
+  /* 活动选择：时间轴条 */
+  .timeline { position: relative; }
+  .actbar { position: relative; height: 30px; margin-bottom: 7px; }
+  .actbar .track {
+    position: absolute; height: 24px; top: 3px; border-radius: 4px;
+    border: 1px solid var(--border); background: rgba(0,240,255,0.06);
+    display: flex; align-items: center; justify-content: center;
+    font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--text);
+    transition: all .2s; white-space: nowrap; overflow: hidden;
+  }
+  .actbar.consider .track { border-color: var(--yellow); background: rgba(255,212,0,0.18); color: var(--yellow); box-shadow: 0 0 10px rgba(255,212,0,.35); }
+  .actbar.chosen .track { border-color: var(--green); background: rgba(0,255,156,0.22); color: var(--green); box-shadow: 0 0 10px rgba(0,255,156,.4); }
+  .actbar.reject .track { border-color: var(--magenta); background: rgba(255,43,214,0.14); color: var(--magenta); opacity: .55; }
+  .axis { display: flex; justify-content: space-between; font-family: "SF Mono", Menlo, monospace; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 4px; margin-top: 4px; }
+  /* 分数背包：物品条 */
+  .items { display: flex; flex-direction: column; gap: 9px; }
+  .item {
+    display: grid; grid-template-columns: 60px 1fr 100px; gap: 10px; align-items: center;
+    font-family: "SF Mono", Menlo, monospace; font-size: 13px;
+  }
+  .item .name { color: var(--cyan); font-weight: 700; }
+  .item .barwrap { position: relative; height: 26px; background: rgba(5,4,15,0.6); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; }
+  .item .fill { position: absolute; left: 0; top: 0; height: 100%; background: rgba(0,240,255,0.15); transition: width .3s; }
+  .item .fill.taken { background: rgba(0,255,156,0.28); }
+  .item .fill.partial { background: rgba(255,212,0,0.3); }
+  .item .meta { color: var(--muted); text-align: right; }
+  .item.consider .name { color: var(--yellow); }
+  .item.consider .barwrap { border-color: var(--yellow); box-shadow: 0 0 8px rgba(255,212,0,.35); }
+  .item.done .name { color: var(--green); }
+  /* 背包容量条 */
+  .cap { margin-top: 16px; }
+  .capbar { position: relative; height: 30px; background: rgba(5,4,15,0.6); border: 1px solid var(--cyan); border-radius: 5px; overflow: hidden; }
+  .capfill { position: absolute; left: 0; top: 0; height: 100%; background: linear-gradient(90deg, rgba(0,255,156,0.35), rgba(0,240,255,0.35)); transition: width .3s; }
+  .captext { position: absolute; width: 100%; text-align: center; line-height: 30px; font-family: "SF Mono", Menlo, monospace; font-size: 13px; color: #fff; z-index: 1; }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: #8fb8c9; margin: 0 0 14px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .stats { display: flex; gap: 22px; font-size: 14px; margin-bottom: 8px; flex-wrap: wrap; font-family: "SF Mono", Menlo, monospace; }
+  .stats b { font-size: 20px; color: var(--green); text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .status { margin-top: 8px; font-size: 14.5px; min-height: 56px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .hl { color: var(--green); font-weight: 700; }
+  .rej { color: var(--magenta); font-weight: 700; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>贪心算法</h1>
+  <p>每一步都做当前看起来最优的选择，不回头。两个经典问题：活动选择按"结束时间最早"贪心，分数背包按"性价比最高"贪心。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="tabs">
+  <div class="tab active" data-mode="act">活动选择</div>
+  <div class="tab" data-mode="knap">分数背包</div>
+</div>
+<div class="controls">
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1100" value="600" step="50"></div>
+  <div class="field" id="capField"><label>背包容量 C</label><input id="capInput" type="number" value="15" min="1" max="40"></div>
+  <button class="btn cy" id="randBtn">随机数据</button>
+  <button class="btn" id="startBtn">开始贪心</button>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <!-- 活动选择视图 -->
+    <div id="actView">
+      <div class="rowlabel">活动时间轴（已按结束时间升序排序）</div>
+      <div class="timeline" id="timeline"></div>
+      <div class="axis" id="axis"></div>
+    </div>
+    <!-- 分数背包视图 -->
+    <div id="knapView" class="hidden">
+      <div class="rowlabel">物品（已按 价值/重量 降序排序）</div>
+      <div class="items" id="items"></div>
+      <div class="cap">
+        <div class="rowlabel" style="margin-bottom:6px">背包装载</div>
+        <div class="capbar"><div class="capfill" id="capfill" style="width:0"></div><div class="captext" id="captext"></div></div>
+      </div>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel">贪心策略</div>
+    <div class="formula" id="formula"></div>
+    <div class="stats" id="stats"></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let mode = "act";
+let steps = [], idx = 0, timer = null, running = false;
+let acts = [];   // 活动 {id,s,f}
+let items = [];  // 物品 {id,w,v}
+let CAP = 15;
+
+function setStatus(t) { $("status").innerHTML = t; }
+
+// ======== 随机数据 ========
+function randomData() {
+  stopTimer(); running = false; $("stepBtn").disabled = true; $("playBtn").disabled = true;
+  if (mode === "act") {
+    const cnt = 6 + Math.floor(Math.random() * 2);
+    acts = [];
+    for (let i = 0; i < cnt; i++) {
+      const s = Math.floor(Math.random() * 14);
+      const f = s + 2 + Math.floor(Math.random() * 6);
+      acts.push({ id: i, s, f });
+    }
+    acts.sort((a, b) => a.f - b.f || a.s - b.s);  // 按结束时间排序
+    acts.forEach((a, i) => a.id = i);             // 排序后重编号显示
+  } else {
+    CAP = Math.max(1, parseInt($("capInput").value, 10) || 15);
+    const cnt = 5 + Math.floor(Math.random() * 2);
+    items = [];
+    for (let i = 0; i < cnt; i++) {
+      const w = 2 + Math.floor(Math.random() * 8);
+      const v = 3 + Math.floor(Math.random() * 18);
+      items.push({ id: i, w, v });
+    }
+    items.sort((a, b) => b.v / b.w - a.v / a.w);  // 按性价比降序
+    items.forEach((it, i) => it.id = i);
+  }
+  steps = []; idx = 0;
+  renderStatic();
+  refreshFormula();
+  setStatus(mode === "act" ? `已生成 ${acts.length} 个活动并按结束时间排序。点「开始贪心」逐个决策。` : `已生成 ${items.length} 件物品并按性价比排序，背包容量 ${CAP}。点「开始贪心」。`);
+}
+
+function refreshFormula() {
+  if (mode === "act") {
+    $("formula").innerHTML = `按<b>结束时间</b>升序排序。<br>维护 lastEnd = 上个选中活动的结束时间。<br>若当前活动 <b>start ≥ lastEnd</b>（不冲突）→ 选它，更新 lastEnd。`;
+    $("note").innerHTML = `活动选择：为什么按<code>结束时间</code>贪心最优？结束越早，留给后续活动的时间越多。每次选"能选的里面结束最早的"，不会比最优解差。时间复杂度 O(n log n)（排序主导）。`;
+  } else {
+    $("formula").innerHTML = `按<b>单位价值 v/w</b>降序排序。<br>依次尝试装入：<br>· 整件能装下 → 全装，容量减 w；<br>· 装不下 → <b>切一部分</b>填满背包，结束。`;
+    $("note").innerHTML = `分数背包：物品<code>可切分</code>，所以按性价比从高到低装、最后切一块填满一定最优（这点与 0/1 背包不同，0/1 背包不能切、需用 DP）。时间复杂度 O(n log n)。`;
+  }
+}
+
+// ======== 活动选择 分步 ========
+function genActSteps() {
+  const list = [];
+  list.push({ desc: `开始：已按结束时间排序。lastEnd = -∞（还没选任何活动）。`, chosen: [], consider: -1, reject: [], lastEnd: -Infinity, count: 0 });
+  let lastEnd = -Infinity, count = 0;
+  const chosen = [], reject = [];
+  for (let i = 0; i < acts.length; i++) {
+    const a = acts[i];
+    const ok = a.s >= lastEnd;
+    if (ok) {
+      chosen.push(i); count++; const prev = lastEnd; lastEnd = a.f;
+      list.push({ desc: `活动 ${a.id} [${a.s},${a.f}]：开始 ${a.s} ≥ lastEnd ${prev === -Infinity ? "(-∞)" : prev}，<span class="hl">不冲突，选它！</span>lastEnd 更新为 ${a.f}，已选 ${count} 个。`,
+        chosen: [...chosen], consider: i, reject: [...reject], lastEnd, count });
+    } else {
+      reject.push(i);
+      list.push({ desc: `活动 ${a.id} [${a.s},${a.f}]：开始 ${a.s} < lastEnd ${lastEnd}，<span class="rej">与已选活动重叠，跳过。</span>`,
+        chosen: [...chosen], consider: i, reject: [...reject], lastEnd, count });
+    }
+  }
+  list.push({ desc: `完成！最多可选 <b>${count}</b> 个互不重叠的活动。`, chosen: [...chosen], consider: -1, reject: [...reject], lastEnd, count, done: true });
+  return list;
+}
+
+// ======== 分数背包 分步 ========
+function genKnapSteps() {
+  const list = [];
+  let cap = CAP, total = 0;
+  const fill = items.map(() => 0);  // 每件装入比例 0~1
+  list.push({ desc: `开始：背包容量 ${CAP}，已装价值 0。按性价比从高到低尝试。`, consider: -1, fill: [...fill], cap, total });
+  for (let i = 0; i < items.length && cap > 0; i++) {
+    const it = items[i];
+    const ratio = (it.v / it.w).toFixed(2);
+    if (it.w <= cap) {
+      fill[i] = 1; total += it.v; cap -= it.w;
+      list.push({ desc: `物品 ${it.id}（重 ${it.w}，值 ${it.v}，性价比 ${ratio}）：整件装下！剩余容量 ${cap}，累计价值 <span class="hl">${total}</span>。`,
+        consider: i, fill: [...fill], cap, total });
+    } else {
+      const frac = cap / it.w;
+      const gain = it.v * frac;
+      fill[i] = frac; total += gain;
+      list.push({ desc: `物品 ${it.id}（重 ${it.w}，值 ${it.v}，性价比 ${ratio}）：只剩容量 ${cap}，装不下整件 → <span class="hl">切 ${(frac*100).toFixed(0)}%</span>填满，得价值 ${it.v}×${cap}/${it.w} = ${gain.toFixed(2)}。背包已满。`,
+        consider: i, fill: [...fill], cap: 0, total });
+      cap = 0;
+    }
+  }
+  list.push({ desc: `完成！背包最大价值 = <b>${total.toFixed(2)}</b>。`, consider: -1, fill: [...fill], cap, total, done: true });
+  return list;
+}
+
+// ======== 渲染：静态（未开始/切换时）========
+const TMAX = 22;  // 活动时间轴最大刻度
+function renderStatic() {
+  if (mode === "act") drawActs({ chosen: [], consider: -1, reject: [], count: 0 });
+  else drawKnap({ consider: -1, fill: items.map(() => 0), cap: CAP, total: 0 });
+}
+
+// 活动选择时间轴
+function drawActs(s) {
+  const maxF = Math.max(TMAX, ...acts.map(a => a.f));
+  $("timeline").innerHTML = acts.map((a, i) => {
+    let cls = "actbar";
+    if (s.done ? false : s.consider === i) cls += " consider";
+    if (s.chosen && s.chosen.includes(i)) cls += " chosen";
+    else if (s.reject && s.reject.includes(i)) cls += " reject";
+    const left = (a.s / maxF * 100).toFixed(1);
+    const wid = ((a.f - a.s) / maxF * 100).toFixed(1);
+    return `<div class="${cls}"><div class="track" style="left:${left}%;width:${wid}%">#${a.id} [${a.s},${a.f}]</div></div>`;
+  }).join("");
+  let ax = "";
+  for (let t = 0; t <= maxF; t += Math.ceil(maxF / 11)) ax += `<span>${t}</span>`;
+  $("axis").innerHTML = ax;
+  $("stats").innerHTML = `已选活动数：<b>${s.count || 0}</b>` + (s.lastEnd !== undefined && isFinite(s.lastEnd) ? `　lastEnd = ${s.lastEnd}` : "");
+}
+
+// 分数背包物品条
+function drawKnap(s) {
+  const maxW = Math.max(...items.map(it => it.w));
+  $("items").innerHTML = items.map((it, i) => {
+    let cls = "item";
+    const f = s.fill ? s.fill[i] : 0;
+    if (s.consider === i && !s.done) cls += " consider";
+    if (f > 0) cls += " done";
+    const fillCls = f >= 1 ? "fill taken" : (f > 0 ? "fill partial" : "fill");
+    const wpct = (it.w / maxW * 100).toFixed(0);
+    return `<div class="${cls}">
+      <div class="name">#${it.id}</div>
+      <div class="barwrap" style="width:${wpct}%"><div class="${fillCls}" style="width:${(f*100).toFixed(0)}%"></div></div>
+      <div class="meta">w=${it.w} v=${it.v}<br>v/w=${(it.v/it.w).toFixed(2)}</div>
+    </div>`;
+  }).join("");
+  const used = CAP - (s.cap ?? CAP);
+  $("capfill").style.width = (used / CAP * 100).toFixed(1) + "%";
+  $("captext").textContent = `已用 ${used.toFixed(1)} / ${CAP}`;
+  $("stats").innerHTML = `已装价值：<b>${(s.total || 0).toFixed(2)}</b>　剩余容量：${(s.cap ?? CAP).toFixed(1)}`;
+}
+
+// ======== 引擎 ========
+function draw(s) { if (mode === "act") drawActs(s); else drawKnap(s); setStatus(s.desc); }
+function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(steps[idx]); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 1250 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(steps[idx]); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+function start() {
+  stopTimer();
+  steps = mode === "act" ? genActSteps() : genKnapSteps();
+  idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  draw(steps[0]);
+}
+
+function switchMode(m) {
+  if (m === mode) return;
+  mode = m;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === m));
+  $("actView").classList.toggle("hidden", m !== "act");
+  $("knapView").classList.toggle("hidden", m !== "knap");
+  $("capField").style.display = m === "knap" ? "flex" : "none";
+  randomData();
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchMode(t.dataset.mode));
+$("randBtn").onclick = () => randomData();
+$("startBtn").onclick = () => start();
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) start(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("cppBtn").onclick = () => CppView.open(mode);
+$("capInput").addEventListener("change", () => { if (mode === "knap") randomData(); });
+$("capField").style.display = "none";
+
+CppView.register({
+  act: { title: "活动选择（贪心，按结束时间排序）— C++", code:
+`// 功能：从 n 个活动中选出最多的互不重叠活动（活动选择问题）。
+// 贪心策略：按【结束时间】升序排序，每次选结束最早且与已选不冲突的活动。
+//           结束越早，给后面留的空间越多——是经典可证明最优的贪心。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+struct Act { int s, f; };            // 开始、结束时间
+
+bool cmp(const Act& a, const Act& b) {
+    return a.f < b.f;                // 按结束时间升序
+}
+
+int main() {
+    int n; cin >> n;
+    Act a[1005];
+    for (int i = 0; i < n; i++) cin >> a[i].s >> a[i].f;
+    sort(a, a + n, cmp);
+
+    int cnt = 0, lastEnd = -1;        // lastEnd: 上一个选中活动的结束时间
+    for (int i = 0; i < n; i++) {
+        if (a[i].s >= lastEnd) {      // 开始时间 >= 上次结束，不冲突
+            cnt++;
+            lastEnd = a[i].f;         // 更新结束时间
+        }
+    }
+    cout << "最多可选 " << cnt << " 个活动" << endl;
+    return 0;
+}`
+  },
+  knap: { title: "分数背包（贪心，按性价比排序）— C++", code:
+`// 功能：容量为 C 的背包，物品可切分，求能装下的最大总价值（分数背包）。
+// 贪心策略：按【单位价值 v/w】降序排序，优先装性价比最高的；
+//           装不下整件就切一部分把背包填满——分数背包贪心一定最优。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+struct Item { double w, v; };
+
+bool cmp(const Item& a, const Item& b) {
+    return a.v / a.w > b.v / b.w;    // 按单位价值降序
+}
+
+int main() {
+    int n; double C;
+    cin >> n >> C;
+    Item it[1005];
+    for (int i = 0; i < n; i++) cin >> it[i].w >> it[i].v;
+    sort(it, it + n, cmp);
+
+    double total = 0;                 // 已装入的总价值
+    for (int i = 0; i < n && C > 0; i++) {
+        if (it[i].w <= C) {           // 整件装下
+            total += it[i].v;
+            C -= it[i].w;
+        } else {                      // 装不下，切一部分填满
+            total += it[i].v * (C / it[i].w);
+            C = 0;
+        }
+    }
+    printf("最大价值 = %.2f\\n", total);
+    return 0;
+}`
+  }
+});
+
+randomData();
+</script>
+</body>
+</html>
