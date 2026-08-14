@@ -231,31 +231,35 @@ function drawHeap(s) {
     : '<span style="color:var(--muted);font-family:monospace">（堆已空，树构建完成）</span>';
 }
 
-// ======== 渲染：Huffman 树 ========
-// 用中序位置分配 x，深度分配 y
-function drawTree(root) {
+// ======== 渲染：Huffman 森林 ========
+// 建树过程中堆里是一片森林（每个节点是一棵子树的根）。
+// 全局中序连续给叶子分配 x，深度分配 y，多棵树自然横向铺开、逐步合并成整树。
+// roots: 当前所有子树根的数组；pick: 本步被选中的两个节点 id；newId: 新合并节点 id
+function drawForest(roots, pick = [], newId = null) {
   const svg = $("tree");
-  if (!root) { svg.innerHTML = ""; return; }
-  // 收集节点、算深度
+  if (!roots || roots.length === 0) { svg.innerHTML = ""; return; }
   let leafX = 0;
   const laid = [];
   let maxDepth = 0;
-  (function lay(u, depth, edgeBit) {
+  const lay = (u, depth, edgeBit, treeIdx) => {
     maxDepth = Math.max(maxDepth, depth);
-    if (u.ch !== null) {
+    u._tree = treeIdx;
+    if (u.ch !== null || (!u.l && !u.r)) {   // 叶子或单节点子树
       u._x = leafX++; u._d = depth; u._bit = edgeBit; laid.push(u); return;
     }
-    lay(u.l, depth + 1, "0");
-    const lx = u.l._x;
-    lay(u.r, depth + 1, "1");
-    const rx = u.r._x;
-    u._x = (lx + rx) / 2; u._d = depth; u._bit = edgeBit; laid.push(u);
-  })(root, 0, null);
+    lay(u.l, depth + 1, "0", treeIdx);
+    lay(u.r, depth + 1, "1", treeIdx);
+    u._x = (u.l._x + u.r._x) / 2; u._d = depth; u._bit = edgeBit; laid.push(u);
+  };
+  // 每棵树之间留一个叶子位的间隔，避免贴在一起
+  roots.forEach((r, i) => { if (i > 0) leafX += 0.6; lay(r, 0, null, i); });
+
   const nLeaf = leafX;
   const W = 640, padX = 30, padY = 26;
-  const dx = nLeaf > 1 ? (W - 2 * padX) / (nLeaf - 1) : 0;
-  const dy = Math.min(64, (300 - padY) / Math.max(maxDepth, 1));
-  const X = u => padX + u._x * dx + (nLeaf === 1 ? (W - 2 * padX) / 2 : 0);
+  const span = Math.max(nLeaf - 1, 1);
+  const dx = (W - 2 * padX) / span;
+  const dy = Math.min(60, (300 - padY) / Math.max(maxDepth, 1));
+  const X = u => nLeaf <= 1 ? W / 2 : padX + u._x * dx;
   const Y = u => padY + u._d * dy;
   let edges = "", nodes = "";
   laid.forEach(u => {
@@ -269,15 +273,14 @@ function drawTree(root) {
   laid.forEach(u => {
     const leaf = u.ch !== null;
     let cls = "tnode" + (leaf ? " leaf" : "");
+    if (pick && pick.includes(u.id)) cls += " hl";
+    if (newId === u.id) cls += " hl";
     const x = X(u), y = Y(u);
     nodes += `<g class="${cls}"><circle cx="${x}" cy="${y}" r="16"/>`;
     if (leaf) {
       nodes += `<text class="c" x="${x}" y="${y - 22}">${u.ch === " " ? "␣" : u.ch}</text>`;
-      nodes += `<text class="f" x="${x}" y="${y + 4}">${u.freq}</text>`;
-    } else {
-      nodes += `<text class="f" x="${x}" y="${y + 4}">${u.freq}</text>`;
     }
-    nodes += `</g>`;
+    nodes += `<text class="f" x="${x}" y="${y + 4}">${u.freq}</text></g>`;
   });
   svg.innerHTML = edges + nodes;
 }
@@ -295,7 +298,9 @@ function drawCodeTable(s) {
 // ======== 引擎 ========
 function draw(s) {
   drawHeap(s);
-  drawTree(s.root);
+  // 完成步用最终 root，其余步把堆里的节点当森林画（子树逐步合并）
+  if (s.done && s.root) drawForest([s.root], s.pick, s.newId);
+  else drawForest(s.heap, s.pick, s.newId);
   drawCodeTable(s);
   if (s.done) {
     const saved = s.textLen * s.fixedLen - s.totalBits;
