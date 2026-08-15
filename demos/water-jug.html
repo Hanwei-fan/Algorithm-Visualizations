@@ -646,7 +646,11 @@ $("applyBtn").onclick = () => { if (mode === "manual") manualReset(); else solve
 $("solveBtn").onclick = () => solve();
 $("playBtn").onclick = () => { if (idx >= steps.length - 1) solve(); playAll(); };
 $("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
-$("cppBtn").onclick = () => CppView.open($("algoSel") && $("algoSel").value === "dfs" && mode === "auto" ? "waterjug_dfs" : "waterjug");
+$("cppBtn").onclick = () => {
+  // 两种模式都能看 BFS/DFS 两份代码；自动模式默认高亮当前所选算法
+  const active = (mode === "auto" && $("algoSel").value === "dfs") ? "waterjug_dfs" : "waterjug";
+  CppView.open(["waterjug", "waterjug_dfs"], active);
+};
 $("algoSel").onchange = () => { if (mode === "auto") { $("formula").innerHTML = FORMULA[$("algoSel").value]; } };
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchMode(t.dataset.mode));
 document.querySelectorAll(".opbtn").forEach(btn => btn.onclick = () => doManualOp(btn.dataset.op));
@@ -656,7 +660,7 @@ $("hintBtn").onclick = () => showHint();
 ["aInput", "bInput", "cInput"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") { if (mode === "manual") manualReset(); else solve(); } }));
 
 CppView.register({
-  waterjug: { title: "容器分水（BFS 最短操作序列）— C++", code:
+  waterjug: { tab: "BFS 最短", title: "容器分水（BFS 最短操作序列）— C++", code:
 `// 功能：容量 a、b 两容器，量出恰好 c 升，求最少操作数并输出操作序列。
 // 建模：状态 (x,y) = 两容器当前水量。六种操作连边，从 (0,0) BFS，
 //       第一次到达「某容器 = c」即最少步数。
@@ -722,7 +726,7 @@ int main() {
     return 0;
 }`
   },
-  waterjug_dfs: { title: "容器分水（DFS 找一条可行路径）— C++", code:
+  waterjug_dfs: { tab: "DFS 可行", title: "容器分水（DFS 找一条可行路径）— C++", code:
 `// 功能：容量 a、b 两容器量出恰好 c 升，用 DFS 找出一条可行操作序列。
 // 注意：DFS 一条路走到底、遇死路回溯，找到的路径【不保证最短】——
 //       要最少操作数请用 BFS。

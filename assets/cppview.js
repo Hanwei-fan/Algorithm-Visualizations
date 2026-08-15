@@ -52,6 +52,15 @@
         color: #7d76a8; font-size: 18px; cursor: pointer; line-height: 1;
       }
       .cppview-close:hover { border-color: #00f0ff; color: #00f0ff; }
+      .cppview-tabs { display: flex; gap: 8px; padding: 12px 20px 0; border-bottom: 1px solid #2a2350; }
+      .cppview-tab {
+        padding: 8px 16px; border: 1px solid #2a2350; border-bottom: none;
+        border-radius: 6px 6px 0 0; background: rgba(20,17,42,0.6); color: #7d76a8;
+        font-size: 13px; cursor: pointer; font-family: "SF Mono", Menlo, monospace;
+        letter-spacing: .5px; transition: all .16s; margin-bottom: -1px;
+      }
+      .cppview-tab:hover { color: #00f0ff; border-color: #00f0ff; }
+      .cppview-tab.active { color: #00f0ff; background: #0d0b1a; border-color: #2a2350; border-bottom: 1px solid #0d0b1a; text-shadow: 0 0 6px rgba(0,240,255,.5); }
       .cppview-body { overflow: auto; padding: 0; }
       .cppview-body pre {
         margin: 0; padding: 18px 20px; font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
@@ -124,22 +133,45 @@
     return out;
   }
 
-  function open(id) {
-    const entry = REG[id];
-    if (!entry) { console.warn("CppView: 未注册的代码 id:", id); return; }
+  // open(id) 或 open([id1, id2, ...], activeId?)：
+  // 传数组时弹窗顶部显示算法切换 tab，可在多份实现间切换；activeId 指定初始高亮项。
+  function open(id, activeId) {
+    const ids = Array.isArray(id) ? id.filter(x => REG[x]) : [id];
+    if (!ids.length || !REG[ids[0]]) { console.warn("CppView: 未注册的代码 id:", id); return; }
     injectStyle();
+    let cur = activeId && ids.includes(activeId) ? activeId : ids[0];
+    const multi = ids.length > 1;
+
     const mask = document.createElement("div");
     mask.className = "cppview-mask";
+    const tabsHTML = multi
+      ? `<div class="cppview-tabs">${ids.map(x =>
+          `<button class="cppview-tab${x === cur ? " active" : ""}" data-id="${x}">${REG[x].tab || REG[x].title || x}</button>`).join("")}</div>`
+      : "";
     mask.innerHTML = `
       <div class="cppview-modal" role="dialog" aria-modal="true">
         <div class="cppview-head">
-          <h3>${entry.title || "C++ 参考实现"}</h3>
+          <h3></h3>
           <button class="cppview-copy">复制代码</button>
           <button class="cppview-close" title="关闭">×</button>
         </div>
-        <div class="cppview-body"><pre><code>${highlight(entry.code)}</code></pre></div>
+        ${tabsHTML}
+        <div class="cppview-body"><pre><code></code></pre></div>
       </div>`;
     document.body.appendChild(mask);
+
+    const h3 = mask.querySelector(".cppview-head h3");
+    const codeEl = mask.querySelector(".cppview-body code");
+    const render = () => {
+      const entry = REG[cur];
+      h3.textContent = entry.title || "C++ 参考实现";
+      codeEl.innerHTML = highlight(entry.code);
+      mask.querySelectorAll(".cppview-tab").forEach(t => t.classList.toggle("active", t.dataset.id === cur));
+      mask.querySelector(".cppview-body").scrollTop = 0;
+    };
+    render();
+    mask.querySelectorAll(".cppview-tab").forEach(t => t.onclick = () => { cur = t.dataset.id; render(); });
+
     const close = () => mask.remove();
     mask.addEventListener("click", e => { if (e.target === mask) close(); });
     mask.querySelector(".cppview-close").onclick = close;
@@ -147,11 +179,12 @@
     document.addEventListener("keydown", onEsc);
     const copyBtn = mask.querySelector(".cppview-copy");
     copyBtn.onclick = async () => {
+      const codeText = REG[cur].code;
       try {
-        await navigator.clipboard.writeText(entry.code);
+        await navigator.clipboard.writeText(codeText);
       } catch (_) {
         // 回退：用临时 textarea
-        const ta = document.createElement("textarea"); ta.value = entry.code;
+        const ta = document.createElement("textarea"); ta.value = codeText;
         ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta);
         ta.select(); try { document.execCommand("copy"); } catch (e2) {} ta.remove();
       }
