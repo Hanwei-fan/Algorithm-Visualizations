@@ -164,8 +164,8 @@
 <div class="tabs" id="tabs">
   <button class="tab active" data-mode="basic">基本操作</button>
   <button class="tab" data-mode="popseq">合法出栈序列</button>
-  <button class="tab" data-mode="prefix">前缀求值</button>
-  <button class="tab" data-mode="postfix">后缀求值</button>
+  <button class="tab" data-mode="prefix">前缀表达式求值</button>
+  <button class="tab" data-mode="postfix">后缀表达式求值</button>
   <button class="tab" data-mode="in2post">中缀转后缀</button>
   <button class="tab" data-mode="in2pre">中缀转前缀</button>
 </div>
@@ -208,6 +208,10 @@
     <div class="seqrow app-only" id="outRow" style="display:none">
       <div class="seqlabel" id="outSeqLabel">输出</div>
       <div class="tokens" id="outTokens"></div>
+    </div>
+    <div class="seqrow app-only" id="finalRow" style="display:none">
+      <div class="seqlabel" id="finalSeqLabel">最终结果</div>
+      <div class="tokens" id="finalTokens"></div>
     </div>
     <div class="viz" id="viz"></div>
   </section>
@@ -352,10 +356,26 @@ function renderApp(s) {
       return `<div class="${cls}">${t}</div>`;
     }).join("");
   }
-  // 输出序列
-  if (s.out !== undefined) {
+  // 输出序列。grayMask 存在时：完整显示 outFull，已出栈的元素置灰(done 样式)
+  if (s.outFull !== undefined) {
+    $("outTokens").innerHTML = s.outFull.map((t, i) => {
+      let cls = "tok" + (isOp(t) ? " op" : "");
+      if (s.grayMask && s.grayMask[i]) cls += " done";      // 已出栈 -> 置灰
+      if (s.curOut === i) cls += " cur";                     // 正在出栈的目标
+      return `<div class="${cls}">${t}</div>`;
+    }).join("");
+  } else if (s.out !== undefined) {
     $("outTokens").innerHTML = (s.out.length ? s.out : [""]).map(t =>
       t === "" ? `<div class="tok" style="opacity:.3">·</div>` : `<div class="tok out ${isOp(t) ? "op" : ""}">${t}</div>`).join("");
+  }
+  // 额外一行（如中缀转前缀的“反转后的输出”）
+  if (s.extraTokens !== undefined) {
+    $("finalRow").style.display = "block";
+    $("finalSeqLabel").textContent = s.extraLabel || "";
+    $("finalTokens").innerHTML = (s.extraTokens.length ? s.extraTokens : [""]).map(t =>
+      t === "" ? `<div class="tok" style="opacity:.3">·</div>` : `<div class="tok out ${isOp(t) ? "op" : ""}">${t}</div>`).join("");
+  } else {
+    $("finalRow").style.display = "none";
   }
   if (s.codeLines) renderCode(s.code || appCode, s.codeLines);
   if (s.verdict) { const vd = $("verdict"); vd.style.display = "block"; vd.className = "verdict " + (s.verdict.ok ? "ok" : "bad"); vd.innerHTML = s.verdict.text; }
@@ -377,19 +397,21 @@ function genPopSeq(pushArr, outArr) {
   ];
   const steps = [];
   const stk = []; let j = 0; const done = new Array(outArr.length).fill(false);
-  steps.push({ tokens: pushArr, out: outArr.map(()=>""), stk: [], cur: -1, doneMask: [], code: appCode, codeLines: [0], status: `入栈序列 [${pushArr.join(" ")}]，判断 [${outArr.join(" ")}] 是否为合法出栈序列。` });
+  // 出栈序列完整显示；gray[k]=true 表示 out[k] 已出栈(置灰)
+  const gray = () => done.slice();
+  steps.push({ tokens: pushArr, outFull: outArr, grayMask: gray(), curOut: j < outArr.length ? j : -1, stk: [], cur: -1, doneMask: [], code: appCode, codeLines: [0], status: `入栈序列 [${pushArr.join(" ")}]（上），目标出栈序列 [${outArr.join(" ")}]（下）。每出栈一个就把它置灰。` });
   for (let i = 0; i < pushArr.length; i++) {
     stk.push(pushArr[i]);
-    steps.push({ tokens: pushArr, out: outArr.map((v,k)=>done[k]?v:""), stk: [...stk], cur: i, doneMask: pushArr.map((_,k)=>k<i), code: appCode, codeLines: [2], status: `push(${pushArr[i]})，栈顶=${pushArr[i]}。`, stkMark: { idx: stk.length-1, cls: "enter" } });
+    steps.push({ tokens: pushArr, outFull: outArr, grayMask: gray(), curOut: j < outArr.length ? j : -1, stk: [...stk], cur: i, doneMask: pushArr.map((_,k)=>k<i), code: appCode, codeLines: [2], status: `push(${pushArr[i]})，栈顶=${pushArr[i]}。`, stkMark: { idx: stk.length-1, cls: "enter" } });
     while (stk.length && j < outArr.length && stk[stk.length-1] === outArr[j]) {
       const popped = stk[stk.length-1];
-      steps.push({ tokens: pushArr, out: outArr.map((v,k)=>done[k]?v:""), stk: [...stk], cur: i, doneMask: pushArr.map((_,k)=>k<=i), code: appCode, codeLines: [3,4], status: `栈顶 ${popped} == out[${j}] ${outArr[j]}，pop 出栈。`, stkMark: { idx: stk.length-1, cls: "leave" } });
+      steps.push({ tokens: pushArr, outFull: outArr, grayMask: gray(), curOut: j, stk: [...stk], cur: i, doneMask: pushArr.map((_,k)=>k<=i), code: appCode, codeLines: [3,4], status: `栈顶 ${popped} == 目标 out[${j}]=${outArr[j]}，pop 出栈。`, stkMark: { idx: stk.length-1, cls: "leave" } });
       stk.pop(); done[j] = true; j++;
-      steps.push({ tokens: pushArr, out: outArr.map((v,k)=>done[k]?v:""), stk: [...stk], cur: i, doneMask: pushArr.map((_,k)=>k<=i), code: appCode, codeLines: [3,4], status: `已输出 ${popped}。` });
+      steps.push({ tokens: pushArr, outFull: outArr, grayMask: gray(), curOut: j < outArr.length ? j : -1, stk: [...stk], cur: i, doneMask: pushArr.map((_,k)=>k<=i), code: appCode, codeLines: [3,4], status: `${popped} 已出栈，置灰。下一个目标：${j < outArr.length ? outArr[j] : "(无)"}。` });
     }
   }
   const ok = stk.length === 0 && j === outArr.length;
-  steps.push({ tokens: pushArr, out: outArr.map((v,k)=>done[k]?v:""), stk: [...stk], cur: -1, doneMask: pushArr.map(()=>true), code: appCode, codeLines: [5],
+  steps.push({ tokens: pushArr, outFull: outArr, grayMask: gray(), curOut: -1, stk: [...stk], cur: -1, doneMask: pushArr.map(()=>true), code: appCode, codeLines: [5],
     status: ok ? "全部匹配，栈已清空。" : "无法继续匹配，栈中仍有元素。",
     verdict: { ok, text: ok ? `✓ 合法出栈序列` : `✗ 不是合法出栈序列（栈中残留 [${stk.join(" ")}]，或顺序不符）` } });
   return steps;
@@ -400,12 +422,18 @@ function genEval(tokens, prefix) {
   appCode = prefix ? [
     "for i = n-1 downto 0:   // 前缀：从右向左",
     "    if 是数字: push(数字)",
-    "    else: a=pop(); b=pop(); push(a op b)",
+    "    else 运算符:",
+    "        a = pop(); b = pop()   // ①出栈两个数",
+    "        r = a op b             // ②计算",
+    "        push(r)                // ③结果入栈",
     "结果 = 栈顶",
   ] : [
     "for i = 0 to n-1:       // 后缀：从左向右",
     "    if 是数字: push(数字)",
-    "    else: b=pop(); a=pop(); push(a op b)",
+    "    else 运算符:",
+    "        b = pop(); a = pop()   // ①出栈两个数",
+    "        r = a op b             // ②计算",
+    "        push(r)                // ③结果入栈",
     "结果 = 栈顶",
   ];
   const steps = [];
@@ -413,7 +441,7 @@ function genEval(tokens, prefix) {
   const order = prefix ? [...tokens.keys()].reverse() : [...tokens.keys()];
   const doneOf = (upTo) => tokens.map((_, k) => prefix ? k > upTo : k < upTo);
   steps.push({ tokens, out: undefined, stk: [], cur: -1, doneMask: tokens.map(()=>false), code: appCode, codeLines: [0],
-    status: `${prefix ? "前缀(波兰式)：从右向左" : "后缀(逆波兰式)：从左向右"} 扫描 [${tokens.join(" ")}]。` });
+    status: `${prefix ? "前缀表达式：从右向左" : "后缀表达式：从左向右"} 扫描 [${tokens.join(" ")}]。` });
   for (const i of order) {
     const t = tokens[i];
     if (!isOp(t)) {
@@ -423,16 +451,21 @@ function genEval(tokens, prefix) {
     } else {
       const x = stk[stk.length-1], y = stk[stk.length-2];
       const a = prefix ? x : y, b = prefix ? y : x;   // 前缀:先弹出的是左操作数
-      steps.push({ tokens, stk: [...stk], cur: i, doneMask: doneOf(i), code: appCode, codeLines: [2],
-        status: `遇运算符 ${t}，弹出栈顶两个数 ${a}、${b}。`, stkMark: { idx: stk.length-1, cls: "leave" } });
+      // ① 出栈两个数
+      steps.push({ tokens, stk: [...stk], cur: i, doneMask: doneOf(i), code: appCode, codeLines: [3],
+        status: `遇运算符 ${t} → ①出栈栈顶两个数：${prefix ? `先弹 ${a}(左)，再弹 ${b}(右)` : `先弹 ${b}(右)，再弹 ${a}(左)`}。`, stkMark: { idx: stk.length-1, cls: "leave" } });
       stk.pop(); stk.pop();
+      // ② 计算结果（此时栈里已无这两个数）
+      steps.push({ tokens, stk: [...stk], cur: i, doneMask: doneOf(i), code: appCode, codeLines: [4],
+        status: `②计算 ${a} ${t} ${b} = ${applyOp(a, b, t)}。` });
+      // ③ 结果入栈
       const r = applyOp(a, b, t);
       stk.push(r);
-      steps.push({ tokens, stk: [...stk], cur: i, doneMask: doneOf(i), code: appCode, codeLines: [2],
-        status: `计算 ${a} ${t} ${b} = ${r}，结果压回栈。`, stkMark: { idx: stk.length-1, cls: "enter" } });
+      steps.push({ tokens, stk: [...stk], cur: i, doneMask: doneOf(i), code: appCode, codeLines: [5],
+        status: `③把结果 ${r} 压回栈。`, stkMark: { idx: stk.length-1, cls: "enter" } });
     }
   }
-  steps.push({ tokens, stk: [...stk], cur: -1, doneMask: tokens.map(()=>true), code: appCode, codeLines: [3],
+  steps.push({ tokens, stk: [...stk], cur: -1, doneMask: tokens.map(()=>true), code: appCode, codeLines: [prefix ? 6 : 6],
     status: `扫描结束，栈顶即结果。`,
     verdict: { ok: true, text: `= ${stk[stk.length-1]}` } });
   return steps;
@@ -515,7 +548,11 @@ function genIn2Pre(tokens) {
   }
   while (ops.length) { out.push(ops.pop()); steps.push({ tokens: rev, out: [...out], stk: [...ops], cur: -1, doneMask: rev.map(()=>true), code: appCode, codeLines: [4], status: `弹出剩余 ${out[out.length-1]}。`, stkMark: { idx: ops.length, cls: "leave" } }); }
   const pre = [...out].reverse();
-  steps.push({ tokens: rev, out: pre, stk: [], cur: -1, doneMask: rev.map(()=>true), code: appCode, codeLines: [4], status: `第③步：把输出反转，得到前缀表达式。`, verdict: { ok: true, text: `前缀 = ${pre.join(" ")}` } });
+  // 保留“转换得到的输出(逆序)”在原输出行，把反转后的前缀单独显示在第三行
+  steps.push({ tokens: rev, out: [...out], stk: [], cur: -1, doneMask: rev.map(()=>true), code: appCode, codeLines: [4],
+    extraTokens: pre, extraLabel: "③ 反转输出 → 前缀表达式",
+    status: `第③步：把上面的输出 [${out.join(" ")}] 整体反转，得到下方的前缀表达式。`,
+    verdict: { ok: true, text: `前缀 = ${pre.join(" ")}` } });
   return steps;
 }
 
@@ -529,7 +566,7 @@ const APP_CFG = {
     note: "后缀(逆波兰式)：运算符在操作数后。从左向右扫描，数字入栈，遇运算符弹两个数(先弹的是右操作数)计算后压回。" },
   in2post: { title: "中缀转后缀", placeholder: "如 3 + 4 * 2", inLabel: "中缀表达式", outLabel: "后缀输出",
     note: "Shunting-yard：栈存运算符。数字直接输出；'(' 入栈；')' 弹到 '('；运算符先弹出栈顶优先级 ≥ 它的，再入栈。" },
-  in2pre: { title: "中缀转前缀", placeholder: "如 3 + 4 * 2", inLabel: "反转后中缀", outLabel: "输出(将反转)",
+  in2pre: { title: "中缀转前缀", placeholder: "如 3 + 4 * 2", inLabel: "反转后中缀", outLabel: "② 转换输出（逆序，未反转）",
     note: "反转中缀(括号互换)→按“同优先级不弹(用 >)”转换→再反转输出。栈存运算符，规则与转后缀类似但优先级判断用严格大于。" },
 };
 
@@ -580,6 +617,7 @@ function applyMode(m) {
   $("verdict").style.display = "none";
   $("seqRow").style.display = m === "basic" ? "none" : "block";
   $("outRow").style.display = "none";
+  $("finalRow").style.display = "none";
   if (m === "basic") {
     $("subtitle").textContent = "栈 Stack：后进先出 (LIFO)。底端封口的容器，只在顶部开口处压入(push)和弹出(pop)。";
     $("note").innerHTML = "栈的一端封闭（<code>栈底</code>），只在<code>栈顶</code>操作：push 从顶部开口压入，pop 从顶部开口弹出。像一个底端封口的容器/一摞盘子，最后放上的最先取走（LIFO）。";
