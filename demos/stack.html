@@ -168,6 +168,7 @@
   <button class="tab" data-mode="postfix">后缀表达式求值</button>
   <button class="tab" data-mode="in2post">中缀转后缀</button>
   <button class="tab" data-mode="in2pre">中缀转前缀</button>
+  <button class="tab" data-mode="paren">括号匹配</button>
 </div>
 
 <div class="controls">
@@ -188,6 +189,13 @@
   <div class="field app-only" id="popseqField" style="display:none">
     <label for="popInput">出栈序列（判断是否合法）</label>
     <input id="popInput" type="text" class="wide" placeholder="如 3 2 5 4 1">
+  </div>
+  <div class="field app-only" id="parenField" style="display:none">
+    <label for="parenType">括号种类</label>
+    <select id="parenType" style="padding:8px 10px;border:1px solid var(--border);border-radius:4px;background:rgba(5,4,15,0.8);color:var(--text);font-family:'SF Mono',Menlo,monospace">
+      <option value="round">只含 ( )</option>
+      <option value="mixed">含 ( ) [ ]</option>
+    </select>
   </div>
   <button class="btn cy app-only" id="runBtn">开始演示</button>
   <button class="btn app-only" id="playBtn" disabled>自动播放</button>
@@ -556,6 +564,66 @@ function genIn2Pre(tokens) {
   return steps;
 }
 
+// 6. 括号序列合法性判断。chars 为逐字符数组；mixed=true 支持 () 与 []
+function genParen(chars, mixed) {
+  const PAIR = { ")": "(", "]": "[" };
+  const LEFT = mixed ? new Set(["(", "["]) : new Set(["("]);
+  appCode = [
+    "for c in s:",
+    "    if c 是左括号: push(c)",
+    "    else 右括号:",
+    "        if 栈空 或 栈顶 != 对应左括号: 不合法",
+    "        else: pop()",
+    "return 栈空 ? 合法 : 不合法",
+  ];
+  const steps = [];
+  const stk = [];
+  const kindTxt = mixed ? "( ) [ ]" : "( )";
+  steps.push({ tokens: chars, stk: [], cur: -1, doneMask: chars.map(()=>false), code: appCode, codeLines: [0],
+    status: `逐个字符扫描 [${chars.join(" ")}]，只含 ${kindTxt}。左括号入栈，右括号与栈顶配对。` });
+  let bad = false, badMsg = "";
+  for (let i = 0; i < chars.length; i++) {
+    const c = chars[i];
+    const dm = chars.map((_, k) => k < i);
+    if (LEFT.has(c)) {
+      stk.push(c);
+      steps.push({ tokens: chars, stk: [...stk], cur: i, doneMask: dm, code: appCode, codeLines: [1],
+        status: `'${c}' 是左括号，入栈。`, stkMark: { idx: stk.length-1, cls: "enter" } });
+    } else if (c in PAIR) {
+      if (!stk.length) {
+        steps.push({ tokens: chars, stk: [...stk], cur: i, doneMask: dm, code: appCode, codeLines: [3],
+          status: `'${c}' 是右括号，但栈为空 —— 没有可匹配的左括号，不合法！` });
+        bad = true; badMsg = `右括号 '${c}' 没有匹配的左括号`; break;
+      }
+      const topc = stk[stk.length-1];
+      if (topc !== PAIR[c]) {
+        steps.push({ tokens: chars, stk: [...stk], cur: i, doneMask: dm, code: appCode, codeLines: [3],
+          status: `'${c}' 需匹配 '${PAIR[c]}'，但栈顶是 '${topc}' —— 类型不符，不合法！`, stkMark: { idx: stk.length-1, cls: "peek" } });
+        bad = true; badMsg = `'${c}' 与栈顶 '${topc}' 不配对`; break;
+      }
+      steps.push({ tokens: chars, stk: [...stk], cur: i, doneMask: dm, code: appCode, codeLines: [4],
+        status: `'${c}' 与栈顶 '${topc}' 配对，pop 出栈。`, stkMark: { idx: stk.length-1, cls: "leave" } });
+      stk.pop();
+      steps.push({ tokens: chars, stk: [...stk], cur: i, doneMask: chars.map((_, k) => k <= i), code: appCode, codeLines: [4],
+        status: `一对 '${topc}${c}' 匹配完成。` });
+    } else {
+      steps.push({ tokens: chars, stk: [...stk], cur: i, doneMask: dm, code: appCode, codeLines: [0],
+        status: `'${c}' 不是允许的括号字符，不合法！` });
+      bad = true; badMsg = `含非法字符 '${c}'`; break;
+    }
+  }
+  if (!bad) {
+    const ok = stk.length === 0;
+    steps.push({ tokens: chars, stk: [...stk], cur: -1, doneMask: chars.map(()=>true), code: appCode, codeLines: [5],
+      status: ok ? "扫描结束，栈已清空。" : "扫描结束，但栈中还有未匹配的左括号。",
+      verdict: { ok, text: ok ? "✓ 合法的括号序列" : `✗ 不合法：栈中残留未匹配的左括号 [${stk.join(" ")}]` } });
+  } else {
+    steps.push({ tokens: chars, stk: [...stk], cur: -1, doneMask: chars.map(()=>true), code: appCode, codeLines: [3],
+      status: "判定结束。", verdict: { ok: false, text: `✗ 不合法：${badMsg}` } });
+  }
+  return steps;
+}
+
 // ---- 应用引擎 ----
 const APP_CFG = {
   popseq: { title: "合法出栈序列判断", placeholder: "", inLabel: "入栈序列", outLabel: "已出栈",
@@ -568,6 +636,8 @@ const APP_CFG = {
     note: "Shunting-yard：栈存运算符。数字直接输出；'(' 入栈；')' 弹到 '('；运算符先弹出栈顶优先级 ≥ 它的，再入栈。" },
   in2pre: { title: "中缀转前缀", placeholder: "如 3 + 4 * 2", inLabel: "① 反转并互换括号后的中缀", outLabel: "② 转换输出（逆序，未反转）",
     note: "反转中缀(括号互换)→按“同优先级不弹(用 >)”转换→再反转输出。栈存运算符，规则与转后缀类似但优先级判断用严格大于。" },
+  paren: { title: "括号序列合法性判断", placeholder: "如 ([])() 或 (()", inLabel: "括号序列", outLabel: "—",
+    note: "用栈判断括号是否正确匹配：遇左括号入栈；遇右括号看栈顶是否为对应左括号，是则弹出、否则不合法。扫描完栈空即合法。可选只含 ( ) 或含 ( ) [ ]。" },
 };
 
 function drawApp(k) {
@@ -583,6 +653,11 @@ function buildApp() {
     const outArr = tokenize($("popInput").value);
     if (!pushArr.length || !outArr.length) { setStatus("请输入入栈序列和出栈序列。"); return null; }
     return genPopSeq(pushArr, outArr);
+  }
+  if (mode === "paren") {
+    const chars = $("exprInput").value.replace(/\s+/g, "").split("");  // 逐字符，去空白
+    if (!chars.length) { setStatus("请输入括号序列。"); return null; }
+    return genParen(chars, $("parenType").value === "mixed");
   }
   const toks = tokenize($("exprInput").value);
   if (!toks.length) { setStatus("请输入表达式（各 token 用空格分隔）。"); return null; }
@@ -632,9 +707,10 @@ function applyMode(m) {
   $("outRow").style.display = (m === "popseq" || m === "in2post" || m === "in2pre") ? "block" : "none";
   // 出栈序列模式：显示第二个输入框；输入框标签改
   $("popseqField").style.display = m === "popseq" ? "flex" : "none";
-  $("exprLabel").textContent = m === "popseq" ? "入栈序列" : "表达式（token 空格分隔）";
+  $("parenField").style.display = m === "paren" ? "flex" : "none";
+  $("exprLabel").textContent = m === "popseq" ? "入栈序列" : m === "paren" ? "括号序列" : "表达式（token 空格分隔）";
   // 预填示例
-  const demo = { popseq: "1 2 3 4 5", prefix: "+ 3 * 4 2", postfix: "3 4 2 * +", in2post: "3 + 4 * 2", in2pre: "3 + 4 * 2" };
+  const demo = { popseq: "1 2 3 4 5", prefix: "+ 3 * 4 2", postfix: "3 4 2 * +", in2post: "3 + 4 * 2", in2pre: "3 + 4 * 2", paren: "(()())" };
   $("exprInput").value = demo[m] || "";
   $("exprInput").placeholder = cfg.placeholder;
   if (m === "popseq") $("popInput").value = "3 2 5 4 1";
@@ -655,6 +731,7 @@ $("playBtn").onclick = appPlay;
 $("stepBtn").onclick = () => { appStop(); appStepOnce(); };
 $("exprInput").addEventListener("keydown", e => { if (e.key === "Enter") runApp(); });
 $("popInput").addEventListener("keydown", e => { if (e.key === "Enter") runApp(); });
+$("parenType").addEventListener("change", () => { if (mode === "paren") runApp(); });
 </script>
 <script src="../assets/cppview.js"></script>
 <script>
@@ -870,6 +947,39 @@ int main() {
 
     reverse(out.begin(), out.end());          // ③ 反转输出
     for (int i = 0; i < (int)out.size(); i++) cout << out[i] << " \\n"[i+1==(int)out.size()];
+    return 0;
+}` },
+  stack_paren: { title: "括号序列合法性判断 — C++", code:
+`// 功能：用栈判断括号序列是否合法匹配，支持 () 与 [] 两种。
+// 规则：遇左括号入栈；遇右括号看栈顶是否为对应左括号，是则弹出，否则不合法。
+//       扫描结束后栈为空才合法。
+#include <iostream>
+#include <stack>
+#include <string>
+using namespace std;
+
+bool match(char left, char right) {
+    return (left == '(' && right == ')') || (left == '[' && right == ']');
+}
+
+bool valid(const string& s) {
+    stack<char> st;
+    for (char c : s) {
+        if (c == '(' || c == '[') {
+            st.push(c);                       // 左括号入栈
+        } else if (c == ')' || c == ']') {
+            if (st.empty() || !match(st.top(), c)) return false;  // 无匹配或类型不符
+            st.pop();                         // 配对成功，弹出
+        }
+        // 其它字符可按需忽略或视为非法
+    }
+    return st.empty();                         // 栈空才合法
+}
+
+int main() {
+    string s;
+    getline(cin, s);
+    cout << (valid(s) ? "YES" : "NO") << endl;
     return 0;
 }` },
 });
