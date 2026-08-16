@@ -130,6 +130,13 @@
   <div class="tab" data-mode="dfs">DFS（栈·深入回溯）</div>
 </div>
 <div class="controls">
+  <div class="field" id="dfsSubField" style="display:none;flex-direction:column;gap:5px">
+    <label for="dfsSubSel" style="font-size:12px;color:var(--cyan);letter-spacing:1px">DFS 用途</label>
+    <select id="dfsSubSel" style="padding:8px 10px;border:1px solid var(--border);border-radius:4px;background:rgba(5,4,15,0.8);color:var(--text);font-family:'SF Mono',Menlo,monospace">
+      <option value="path">找一条路径</option>
+      <option value="count">数所有方案（小迷宫）</option>
+    </select>
+  </div>
   <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="20" max="260" value="120" step="20"></div>
   <button class="btn cy" id="randBtn">随机迷宫</button>
   <button class="btn secondary" id="clearBtn">清空墙</button>
@@ -167,8 +174,9 @@
 <script src="../assets/cppview.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-const ROWS = 11, COLS = 15;
+let ROWS = 11, COLS = 15;
 let mode = "bfs";
+let dfsSub = "path";        // DFS 子模式：path=找一条路径, count=数所有方案
 let wall = [];              // wall[r][c]
 let start = [1, 1], goal = [ROWS - 2, COLS - 2];
 let steps = [], idx = 0, timer = null, running = false;
@@ -178,13 +186,29 @@ function setStatus(t) { $("status").innerHTML = t; }
 const key = (r, c) => r * COLS + c;
 const DR = [-1, 1, 0, 0], DC = [0, 0, -1, 1];  // 上下左右
 
+// 方案数模式用小迷宫(观察快)；其余用大迷宫
+function setGridSize() {
+  const small = (mode === "dfs" && dfsSub === "count");
+  ROWS = small ? 5 : 11;
+  COLS = small ? 5 : 15;
+  start = [0, 0];
+  goal = [ROWS - 1, COLS - 1];
+}
+
 // ======== 迷宫初始化 ========
 function initMaze(randomWalls) {
   stopTimer(); running = false; $("stepBtn").disabled = true; $("playBtn").disabled = true;
+  setGridSize();
   wall = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
-  if (randomWalls) {
+  const countMode = (mode === "dfs" && dfsSub === "count");
+  if (randomWalls && !countMode) {
     for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
       if (Math.random() < 0.28) wall[r][c] = true;
+    }
+  } else if (countMode && randomWalls) {
+    // 小迷宫随机墙：概率低些，避免不可达
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      if (Math.random() < 0.18) wall[r][c] = true;
     }
   }
   wall[start[0]][start[1]] = false;
@@ -193,7 +217,9 @@ function initMaze(randomWalls) {
   buildGrid();
   renderCells({});
   refreshText();
-  setStatus(mode === "bfs" ? "点「开始寻路」，BFS 从起点一圈圈扩展。" : "点「开始寻路」，DFS 从起点一条路走到底。");
+  setStatus(mode === "bfs" ? "点「开始寻路」，BFS 从起点一圈圈扩展。"
+    : countMode ? "点「开始寻路」，DFS 回溯枚举所有从 S 到 T 的路径并计数。迷宫已缩小以便观察。"
+    : "点「开始寻路」，DFS 从起点一条路走到底。");
 }
 
 function refreshText() {
@@ -201,6 +227,10 @@ function refreshText() {
     $("fringeLabel").textContent = "队列 (Queue · FIFO 先进先出)";
     $("formula").innerHTML = `从起点入队，dist=0。<br>反复<b>队首出队</b>，把它未访问的邻居标记 dist+1 后<b>入队尾</b>。<br>第一次到终点即<b>最短</b>。O(行×列)。`;
     $("note").innerHTML = `BFS 用<code>队列</code>：按到起点的距离一层层向外扩散，所以最先碰到终点的就是最短路径。适合求<code>无权图/网格最短步数</code>。`;
+  } else if (dfsSub === "count") {
+    $("fringeLabel").textContent = "当前路径 (递归栈)";
+    $("formula").innerHTML = `<b>回溯枚举</b>所有 S→T 简单路径：<br>进一格标记已访问、加入路径；到终点则<b>方案数+1</b>；<br>每个方向都试完后<b>撤销标记</b>(回溯)换下一条。<br>因路径数随迷宫增大爆炸，故用<b>小迷宫</b>。`;
+    $("note").innerHTML = `DFS <code>回溯</code>数方案：走到终点算一条(计数+1)，然后退回换其它岔路，直到所有简单路径都枚举完。每格至多经过一次(标记/撤销)。路径数增长极快，只适合小迷宫。`;
   } else {
     $("fringeLabel").textContent = "栈 (Stack · LIFO 后进先出)";
     $("formula").innerHTML = `从起点入栈。<br>反复取<b>栈顶</b>，找一个未访问邻居深入(入栈)；<br>四方向都走过就<b>回溯</b>(出栈)。<br>找到的路径<b>不保证最短</b>。`;
@@ -287,6 +317,55 @@ function genDFS() {
   return list;
 }
 
+// ======== 生成分步：DFS 数所有方案（回溯枚举简单路径）========
+function genCount() {
+  const list = [];
+  const visited = Array.from({ length: ROWS }, () => Array(COLS).fill(false));
+  const [sr, sc] = start, [gr, gc] = goal;
+  const path = [];          // 当前递归路径（栈）
+  let count = 0, searched = 0;
+  const found = [];         // 已找到的完整路径，用于最后总结
+  const distOf = () => {    // 用当前 path 造 dist：路径上标步序
+    const d = Array.from({ length: ROWS }, () => Array(COLS).fill(-1));
+    path.forEach(([r, c], i) => d[r][c] = i);
+    return d;
+  };
+  const pushStep = (extra) => list.push(Object.assign({
+    dist: distOf(), fringe: path.map(x => [...x]), isStack: true, searched, count,
+  }, extra));
+
+  visited[sr][sc] = true; path.push([sr, sc]);
+  pushStep({ cur: [sr, sc], desc: `从起点 (${sr},${sc}) 出发，开始回溯枚举所有到终点的路径。` });
+
+  (function dfs(r, c) {
+    searched++;
+    if (r === gr && c === gc) {
+      count++;
+      found.push(path.map(x => [...x]));
+      list.push({ dist: distOf(), fringe: path.map(x => [...x]), isStack: true, searched, count,
+        cur: [r, c], path: path.map(x => [...x]),
+        desc: `<span class="hl">找到第 ${count} 条路径！</span>长度 ${path.length - 1} 步。方案数 +1 → <b>${count}</b>。回溯继续找其它路径。` });
+      return;
+    }
+    for (let k = 0; k < 4; k++) {
+      const nr = r + DR[k], nc = c + DC[k];
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+      if (wall[nr][nc] || visited[nr][nc]) continue;
+      visited[nr][nc] = true; path.push([nr, nc]);
+      pushStep({ cur: [nr, nc], desc: `深入到 (${nr},${nc})，加入当前路径（长度 ${path.length - 1}）。` });
+      dfs(nr, nc);
+      path.pop(); visited[nr][nc] = false;
+      pushStep({ cur: [r, c], desc: `从 (${nr},${nc}) 回溯，撤销选择，退回 (${r},${c}) 尝试其它方向。` });
+    }
+  })(sr, sc);
+
+  // 结束总结
+  list.push({ dist: Array.from({ length: ROWS }, () => Array(COLS).fill(-1)),
+    fringe: [], isStack: true, searched, count, done: true, countDone: true,
+    desc: count > 0 ? `枚举结束：从 S 到 T 共 <span class="hl">${count}</span> 条不同路径（每格至多经过一次）。` : `枚举结束：终点不可达，方案数 = 0。` });
+  return list;
+}
+
 // 回溯路径，追加高亮步
 function finishPath(list, found, foundCell, parent, dist, searched, explored) {
   if (!found) {
@@ -349,7 +428,11 @@ function renderCells(s) {
     $("fringe").innerHTML = '<span style="color:var(--muted);font-family:monospace">（空）</span>';
   }
   // 统计
-  $("stats").innerHTML = `已探索：<b>${s.searched || 0}</b>` + (s.done && s.pathLen !== undefined ? `　路径长度：<b>${s.pathLen}</b> 步` : (s.done ? "" : `　${mode === "bfs" ? "队列" : "栈"}中：${fr.length}`));
+  if (mode === "dfs" && dfsSub === "count") {
+    $("stats").innerHTML = `方案数：<b>${s.count || 0}</b>　当前路径长度：${fr.length ? fr.length - 1 : 0}　DFS 调用：${s.searched || 0}`;
+  } else {
+    $("stats").innerHTML = `已探索：<b>${s.searched || 0}</b>` + (s.done && s.pathLen !== undefined ? `　路径长度：<b>${s.pathLen}</b> 步` : (s.done ? "" : `　${mode === "bfs" ? "队列" : "栈"}中：${fr.length}`));
+  }
 }
 
 // ======== 引擎 ========
@@ -361,7 +444,7 @@ function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
 
 function runSearch() {
   stopTimer();
-  steps = mode === "bfs" ? genBFS() : genDFS();
+  steps = mode === "bfs" ? genBFS() : (dfsSub === "count" ? genCount() : genDFS());
   idx = 0; running = true;
   $("stepBtn").disabled = false; $("playBtn").disabled = false;
   draw(steps[0]);
@@ -371,10 +454,9 @@ function switchMode(m) {
   if (m === mode) return;
   mode = m;
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === m));
+  $("dfsSubField").style.display = m === "dfs" ? "flex" : "none";
   stopTimer(); running = false; $("stepBtn").disabled = true; $("playBtn").disabled = true;
-  steps = []; idx = 0;
-  renderCells({}); refreshText();
-  setStatus(mode === "bfs" ? "已切到 BFS。点「开始寻路」。" : "已切到 DFS。点「开始寻路」。");
+  initMaze(false);   // 重建迷宫(可能切换尺寸)
 }
 
 // ======== 交互：画墙 ========
@@ -406,7 +488,8 @@ $("clearBtn").onclick = () => initMaze(false);
 $("startBtn").onclick = () => runSearch();
 $("playBtn").onclick = () => { if (idx >= steps.length - 1) runSearch(); playAll(); };
 $("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
-$("cppBtn").onclick = () => CppView.open(mode);
+$("dfsSubSel").onchange = () => { dfsSub = $("dfsSubSel").value; initMaze(false); };
+$("cppBtn").onclick = () => CppView.open(mode === "dfs" && dfsSub === "count" ? "count" : mode);
 
 CppView.register({
   bfs: { title: "网格迷宫 BFS 最短路 — C++", code:
@@ -483,6 +566,44 @@ int main() {
     for (int i = 0; i < n; i++) cin >> g[i];
     memset(vis, false, sizeof(vis));
     cout << (dfs(0, 0, n - 1, m - 1) ? "可达" : "不可达") << endl;
+    return 0;
+}`
+  },
+  count: { title: "网格迷宫 · 数所有路径方案（DFS 回溯）— C++", code:
+`// 功能：统计从起点到终点的【所有】简单路径条数(每格至多经过一次)。
+// 方法：DFS 回溯——进一格标记 vis、递归；到终点方案数+1；
+//        回溯时撤销 vis 标记，以便别的路径复用该格。
+// 注意：路径数随迷宫增大呈爆炸式增长，仅适合小迷宫。
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+const int MAXN = 15;
+int n, m;
+char g[MAXN][MAXN];
+bool vis[MAXN][MAXN];
+int dr[4] = {-1, 1, 0, 0};
+int dc[4] = {0, 0, -1, 1};
+long long cnt = 0;          // 方案数
+
+void dfs(int r, int c, int tr, int tc) {
+    if (r == tr && c == tc) { cnt++; return; }   // 到终点，方案+1
+    vis[r][c] = true;                            // 进入：标记
+    for (int k = 0; k < 4; k++) {
+        int nr = r + dr[k], nc = c + dc[k];
+        if (nr < 0 || nr >= n || nc < 0 || nc >= m) continue;
+        if (g[nr][nc] == '#' || vis[nr][nc]) continue;
+        dfs(nr, nc, tr, tc);
+    }
+    vis[r][c] = false;                           // 回溯：撤销标记
+}
+
+int main() {
+    cin >> n >> m;
+    for (int i = 0; i < n; i++) cin >> g[i];
+    memset(vis, false, sizeof(vis));
+    dfs(0, 0, n - 1, m - 1);
+    cout << cnt << endl;    // S 到 T 的路径总数
     return 0;
 }`
   }
