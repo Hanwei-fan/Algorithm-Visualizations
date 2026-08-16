@@ -119,6 +119,39 @@
   .status { margin-top: 6px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
   .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
   .note code { color: var(--cyan); }
+  /* 演示切换 tab */
+  .tabs { display: flex; gap: 8px; padding: 12px 30px 0; flex-wrap: wrap; }
+  .tab {
+    padding: 8px 16px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.04); color: var(--cyan); font-size: 13px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .16s; white-space: nowrap;
+  }
+  .tab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.3); }
+  .tab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  /* 模式显隐：默认显示基本操作控件 */
+  .app-only { display: none; }
+  body.app .app-only { display: flex; }
+  body.app .basic-only { display: none !important; }
+  .field input.wide { width: 300px; }
+  /* token 序列 / 输出序列 */
+  .seqrow { margin-bottom: 14px; }
+  .seqlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; font-family: "SF Mono", Menlo, monospace; }
+  .tokens { display: flex; gap: 6px; flex-wrap: wrap; }
+  .tok {
+    min-width: 34px; height: 38px; padding: 0 8px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 6px; background: rgba(0,240,255,0.04);
+    color: var(--text); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 16px; transition: all .18s;
+  }
+  .tok.done { opacity: .4; border-color: #1a163a; }
+  .tok.cur { border-color: var(--yellow); background: rgba(255,212,0,0.22); color: #120e00; box-shadow: 0 0 14px rgba(255,212,0,.6); transform: translateY(-4px); }
+  .tok.op { color: var(--magenta); }
+  .tok.out { border-color: var(--green); background: rgba(0,255,156,0.14); color: var(--green); }
+  .verdict { font-size: 16px; font-family: "SF Mono", Menlo, monospace; font-weight: 700; margin-top: 8px; padding: 10px 14px; border-radius: 6px; }
+  .verdict.ok { color: var(--green); border: 1px solid var(--green); background: rgba(0,255,156,.1); }
+  .verdict.bad { color: var(--magenta); border: 1px solid var(--magenta); background: rgba(255,43,214,.1); }
+  /* 应用模式的栈：稍矮，容纳右栏并排 */
+  body.app .glass { min-height: 260px; }
+  body.app .viz { min-height: 300px; }
 </style>
 </head>
 <body>
@@ -128,29 +161,64 @@
 </header>
 <a class="back" href="../index.html">← 返回门户</a>
 
+<div class="tabs" id="tabs">
+  <button class="tab active" data-mode="basic">基本操作</button>
+  <button class="tab" data-mode="popseq">合法出栈序列</button>
+  <button class="tab" data-mode="prefix">前缀求值</button>
+  <button class="tab" data-mode="postfix">后缀求值</button>
+  <button class="tab" data-mode="in2post">中缀转后缀</button>
+  <button class="tab" data-mode="in2pre">中缀转前缀</button>
+</div>
+
 <div class="controls">
-  <div class="field">
+  <!-- 基本操作控件 -->
+  <div class="field basic-only">
     <label for="valInput">入栈值</label>
     <input id="valInput" type="number" placeholder="值">
   </div>
-  <button class="btn cy" id="pushBtn">入栈 push</button>
-  <button class="btn" id="popBtn">出栈 pop</button>
-  <button class="btn ghost" id="peekBtn">查看栈顶</button>
-  <button class="btn ghost" id="clearBtn">清空</button>
+  <button class="btn cy basic-only" id="pushBtn">入栈 push</button>
+  <button class="btn basic-only" id="popBtn">出栈 pop</button>
+  <button class="btn ghost basic-only" id="peekBtn">查看栈顶</button>
+  <button class="btn ghost basic-only" id="clearBtn">清空</button>
+  <!-- 应用演示控件 -->
+  <div class="field app-only">
+    <label for="exprInput" id="exprLabel">输入</label>
+    <input id="exprInput" type="text" class="wide" placeholder="">
+  </div>
+  <div class="field app-only" id="popseqField" style="display:none">
+    <label for="popInput">出栈序列（判断是否合法）</label>
+    <input id="popInput" type="text" class="wide" placeholder="如 3 2 5 4 1">
+  </div>
+  <button class="btn cy app-only" id="runBtn">开始演示</button>
+  <button class="btn app-only" id="playBtn" disabled>自动播放</button>
+  <button class="btn ghost app-only" id="stepBtn" disabled>单步 ▶</button>
+  <div class="speed app-only" style="display:flex;flex-direction:column;gap:5px">
+    <label style="font-size:12px;color:var(--cyan);letter-spacing:1px">速度</label>
+    <input id="speedInput" type="range" min="150" max="1400" value="750" step="50" style="width:120px;accent-color:var(--magenta)">
+  </div>
   <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <main>
   <section class="card">
+    <div class="seqrow app-only" id="seqRow" style="display:none">
+      <div class="seqlabel" id="inSeqLabel">输入序列</div>
+      <div class="tokens" id="inTokens"></div>
+    </div>
+    <div class="seqrow app-only" id="outRow" style="display:none">
+      <div class="seqlabel" id="outSeqLabel">输出</div>
+      <div class="tokens" id="outTokens"></div>
+    </div>
     <div class="viz" id="viz"></div>
   </section>
   <section class="card">
     <div class="plabel">操作代码</div>
     <div class="pseudocode" id="code"></div>
-    <div class="stats">
+    <div class="stats basic-only">
       元素个数：<b id="sizeCount">0</b>
       <span>容量上限：<b id="capCount">8</b></span>
     </div>
+    <div class="verdict" id="verdict" style="display:none"></div>
     <div class="status" id="status"></div>
   </section>
 </main>
@@ -251,6 +319,304 @@ $("capCount").textContent = CAP;
 renderCode(CODE.push);
 render();
 setStatus("试试入栈 / 出栈。");
+
+// ================= 应用演示 =================
+let mode = "basic";
+let appSteps = [], appIdx = 0, appTimer = null;
+
+function isOp(t) { return t === "+" || t === "-" || t === "*" || t === "/"; }
+function prec(op) { return (op === "+" || op === "-") ? 1 : 2; }
+function applyOp(a, b, op) { return op === "+" ? a + b : op === "-" ? a - b : op === "*" ? a * b : Math.trunc(a / b); }
+function tokenize(s) { return s.trim().split(/\s+/).filter(Boolean); }
+
+// 渲染应用模式：栈(数组 stk) + 输入 token 高亮 + 输出序列
+function renderApp(s) {
+  // 栈可视化
+  const viz = $("viz");
+  let inner = "";
+  (s.stk || []).forEach((v, i) => {
+    let cls = "cell";
+    if (s.stkMark && s.stkMark.idx === i) cls += " " + s.stkMark.cls;
+    let ptr = "";
+    if (i === s.stk.length - 1) ptr = `<span class="tagptr">← 栈顶</span>`;
+    inner += `<div class="${cls}">${v}${ptr}</div>`;
+  });
+  const emptyHint = (s.stk && s.stk.length === 0) ? `<div class="empty-hint">（栈为空）</div>` : "";
+  viz.innerHTML = `<div class="glass"><div class="opening">↑ 栈顶</div>${inner}${emptyHint}</div>`;
+  // 输入 token
+  if (s.tokens) {
+    $("inTokens").innerHTML = s.tokens.map((t, i) => {
+      let cls = "tok" + (isOp(t) ? " op" : "");
+      if (i === s.cur) cls += " cur";
+      else if (s.doneMask && s.doneMask[i]) cls += " done";
+      return `<div class="${cls}">${t}</div>`;
+    }).join("");
+  }
+  // 输出序列
+  if (s.out !== undefined) {
+    $("outTokens").innerHTML = (s.out.length ? s.out : [""]).map(t =>
+      t === "" ? `<div class="tok" style="opacity:.3">·</div>` : `<div class="tok out ${isOp(t) ? "op" : ""}">${t}</div>`).join("");
+  }
+  if (s.codeLines) renderCode(s.code || appCode, s.codeLines);
+  if (s.verdict) { const vd = $("verdict"); vd.style.display = "block"; vd.className = "verdict " + (s.verdict.ok ? "ok" : "bad"); vd.innerHTML = s.verdict.text; }
+  setStatus(s.status || "");
+}
+
+let appCode = [];
+
+// ---- 生成分步 ----
+// 1. 合法出栈序列
+function genPopSeq(pushArr, outArr) {
+  appCode = [
+    "j = 0",
+    "for x in pushSeq:      // 依次入栈",
+    "    push(x)",
+    "    while 栈非空 且 栈顶 == out[j]:",
+    "        pop(); j++     // 能出就出",
+    "return 栈空 ? 合法 : 不合法",
+  ];
+  const steps = [];
+  const stk = []; let j = 0; const done = new Array(outArr.length).fill(false);
+  steps.push({ tokens: pushArr, out: outArr.map(()=>""), stk: [], cur: -1, doneMask: [], code: appCode, codeLines: [0], status: `入栈序列 [${pushArr.join(" ")}]，判断 [${outArr.join(" ")}] 是否为合法出栈序列。` });
+  for (let i = 0; i < pushArr.length; i++) {
+    stk.push(pushArr[i]);
+    steps.push({ tokens: pushArr, out: outArr.map((v,k)=>done[k]?v:""), stk: [...stk], cur: i, doneMask: pushArr.map((_,k)=>k<i), code: appCode, codeLines: [2], status: `push(${pushArr[i]})，栈顶=${pushArr[i]}。`, stkMark: { idx: stk.length-1, cls: "enter" } });
+    while (stk.length && j < outArr.length && stk[stk.length-1] === outArr[j]) {
+      const popped = stk[stk.length-1];
+      steps.push({ tokens: pushArr, out: outArr.map((v,k)=>done[k]?v:""), stk: [...stk], cur: i, doneMask: pushArr.map((_,k)=>k<=i), code: appCode, codeLines: [3,4], status: `栈顶 ${popped} == out[${j}] ${outArr[j]}，pop 出栈。`, stkMark: { idx: stk.length-1, cls: "leave" } });
+      stk.pop(); done[j] = true; j++;
+      steps.push({ tokens: pushArr, out: outArr.map((v,k)=>done[k]?v:""), stk: [...stk], cur: i, doneMask: pushArr.map((_,k)=>k<=i), code: appCode, codeLines: [3,4], status: `已输出 ${popped}。` });
+    }
+  }
+  const ok = stk.length === 0 && j === outArr.length;
+  steps.push({ tokens: pushArr, out: outArr.map((v,k)=>done[k]?v:""), stk: [...stk], cur: -1, doneMask: pushArr.map(()=>true), code: appCode, codeLines: [5],
+    status: ok ? "全部匹配，栈已清空。" : "无法继续匹配，栈中仍有元素。",
+    verdict: { ok, text: ok ? `✓ 合法出栈序列` : `✗ 不是合法出栈序列（栈中残留 [${stk.join(" ")}]，或顺序不符）` } });
+  return steps;
+}
+
+// 2/3. 前缀 / 后缀 求值。prefix=true 从右向左；否则从左向右
+function genEval(tokens, prefix) {
+  appCode = prefix ? [
+    "for i = n-1 downto 0:   // 前缀：从右向左",
+    "    if 是数字: push(数字)",
+    "    else: a=pop(); b=pop(); push(a op b)",
+    "结果 = 栈顶",
+  ] : [
+    "for i = 0 to n-1:       // 后缀：从左向右",
+    "    if 是数字: push(数字)",
+    "    else: b=pop(); a=pop(); push(a op b)",
+    "结果 = 栈顶",
+  ];
+  const steps = [];
+  const stk = [];
+  const order = prefix ? [...tokens.keys()].reverse() : [...tokens.keys()];
+  const doneOf = (upTo) => tokens.map((_, k) => prefix ? k > upTo : k < upTo);
+  steps.push({ tokens, out: undefined, stk: [], cur: -1, doneMask: tokens.map(()=>false), code: appCode, codeLines: [0],
+    status: `${prefix ? "前缀(波兰式)：从右向左" : "后缀(逆波兰式)：从左向右"} 扫描 [${tokens.join(" ")}]。` });
+  for (const i of order) {
+    const t = tokens[i];
+    if (!isOp(t)) {
+      stk.push(Number(t));
+      steps.push({ tokens, stk: [...stk], cur: i, doneMask: doneOf(i), code: appCode, codeLines: [1],
+        status: `遇数字 ${t}，压入栈。`, stkMark: { idx: stk.length-1, cls: "enter" } });
+    } else {
+      const x = stk[stk.length-1], y = stk[stk.length-2];
+      const a = prefix ? x : y, b = prefix ? y : x;   // 前缀:先弹出的是左操作数
+      steps.push({ tokens, stk: [...stk], cur: i, doneMask: doneOf(i), code: appCode, codeLines: [2],
+        status: `遇运算符 ${t}，弹出栈顶两个数 ${a}、${b}。`, stkMark: { idx: stk.length-1, cls: "leave" } });
+      stk.pop(); stk.pop();
+      const r = applyOp(a, b, t);
+      stk.push(r);
+      steps.push({ tokens, stk: [...stk], cur: i, doneMask: doneOf(i), code: appCode, codeLines: [2],
+        status: `计算 ${a} ${t} ${b} = ${r}，结果压回栈。`, stkMark: { idx: stk.length-1, cls: "enter" } });
+    }
+  }
+  steps.push({ tokens, stk: [...stk], cur: -1, doneMask: tokens.map(()=>true), code: appCode, codeLines: [3],
+    status: `扫描结束，栈顶即结果。`,
+    verdict: { ok: true, text: `= ${stk[stk.length-1]}` } });
+  return steps;
+}
+
+// 4. 中缀转后缀（Shunting-yard）。这里栈存运算符。
+function genIn2Post(tokens) {
+  appCode = [
+    "for t in 中缀:",
+    "    数字 -> 直接输出",
+    "    '(' -> 入栈",
+    "    ')' -> 弹栈输出直到 '('",
+    "    运算符 -> 弹出栈顶优先级>=它的，再入栈",
+    "扫描完，栈中剩余运算符依次输出",
+  ];
+  const steps = []; const out = []; const ops = [];
+  const dm = (i) => tokens.map((_, k) => k < i);
+  steps.push({ tokens, out: [], stk: [], cur: -1, doneMask: tokens.map(()=>false), code: appCode, codeLines: [0], status: `中缀 [${tokens.join(" ")}] 转后缀。栈存运算符，数字直接进输出。` });
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    if (t === "(") {
+      ops.push(t);
+      steps.push({ tokens, out: [...out], stk: [...ops], cur: i, doneMask: dm(i), code: appCode, codeLines: [2], status: `'(' 入栈。`, stkMark: { idx: ops.length-1, cls: "enter" } });
+    } else if (t === ")") {
+      steps.push({ tokens, out: [...out], stk: [...ops], cur: i, doneMask: dm(i), code: appCode, codeLines: [3], status: `')'：弹出运算符输出，直到遇 '('。` });
+      while (ops.length && ops[ops.length-1] !== "(") { out.push(ops.pop()); steps.push({ tokens, out: [...out], stk: [...ops], cur: i, doneMask: dm(i), code: appCode, codeLines: [3], status: `弹出 ${out[out.length-1]} 输出。`, stkMark: { idx: ops.length, cls: "leave" } }); }
+      ops.pop();
+      steps.push({ tokens, out: [...out], stk: [...ops], cur: i, doneMask: dm(i+1), code: appCode, codeLines: [3], status: `丢弃匹配的 '('。` });
+    } else if (isOp(t)) {
+      while (ops.length && ops[ops.length-1] !== "(" && prec(ops[ops.length-1]) >= prec(t)) {
+        out.push(ops.pop());
+        steps.push({ tokens, out: [...out], stk: [...ops], cur: i, doneMask: dm(i), code: appCode, codeLines: [4], status: `栈顶优先级≥${t}，弹出 ${out[out.length-1]} 输出。`, stkMark: { idx: ops.length, cls: "leave" } });
+      }
+      ops.push(t);
+      steps.push({ tokens, out: [...out], stk: [...ops], cur: i, doneMask: dm(i+1), code: appCode, codeLines: [4], status: `运算符 ${t} 入栈。`, stkMark: { idx: ops.length-1, cls: "enter" } });
+    } else {
+      out.push(t);
+      steps.push({ tokens, out: [...out], stk: [...ops], cur: i, doneMask: dm(i+1), code: appCode, codeLines: [1], status: `数字 ${t} 直接输出。` });
+    }
+  }
+  while (ops.length) { out.push(ops.pop()); steps.push({ tokens, out: [...out], stk: [...ops], cur: -1, doneMask: tokens.map(()=>true), code: appCode, codeLines: [5], status: `扫描完，弹出剩余运算符 ${out[out.length-1]}。`, stkMark: { idx: ops.length, cls: "leave" } }); }
+  steps.push({ tokens, out: [...out], stk: [], cur: -1, doneMask: tokens.map(()=>true), code: appCode, codeLines: [5], status: `完成。`, verdict: { ok: true, text: `后缀 = ${out.join(" ")}` } });
+  return steps;
+}
+
+// 5. 中缀转前缀：反转(括号互换)后按“优先级严格大于才弹”做转换，最后再反转输出。
+function genIn2Pre(tokens) {
+  appCode = [
+    "① 反转中缀，'(' 与 ')' 互换",
+    "② 对反转串扫描（同优先级不弹，用 > 判断）：",
+    "    数字->输出  '('->入栈  ')'->弹到'('",
+    "    运算符->弹出栈顶优先级严格大于它的，再入栈",
+    "③ 剩余运算符输出，最后把整个输出反转",
+  ];
+  const rev = [...tokens].reverse().map(t => t === "(" ? ")" : t === ")" ? "(" : t);
+  const steps = []; const out = []; const ops = [];
+  const dm = (i) => rev.map((_, k) => k < i);
+  steps.push({ tokens: rev, out: [], stk: [], cur: -1, doneMask: rev.map(()=>false), code: appCode, codeLines: [0,1], status: `第①步：反转并互换括号 -> [${rev.join(" ")}]。下面对它扫描（同优先级用 > 不弹）。` });
+  for (let i = 0; i < rev.length; i++) {
+    const t = rev[i];
+    if (t === "(") {
+      ops.push(t);
+      steps.push({ tokens: rev, out: [...out], stk: [...ops], cur: i, doneMask: dm(i), code: appCode, codeLines: [2], status: `'(' 入栈。`, stkMark: { idx: ops.length-1, cls: "enter" } });
+    } else if (t === ")") {
+      steps.push({ tokens: rev, out: [...out], stk: [...ops], cur: i, doneMask: dm(i), code: appCode, codeLines: [2], status: `')'：弹出运算符输出直到 '('。` });
+      while (ops.length && ops[ops.length-1] !== "(") { out.push(ops.pop()); steps.push({ tokens: rev, out: [...out], stk: [...ops], cur: i, doneMask: dm(i), code: appCode, codeLines: [2], status: `弹出 ${out[out.length-1]}。`, stkMark: { idx: ops.length, cls: "leave" } }); }
+      ops.pop();
+      steps.push({ tokens: rev, out: [...out], stk: [...ops], cur: i, doneMask: dm(i+1), code: appCode, codeLines: [2], status: `丢弃 '('。` });
+    } else if (isOp(t)) {
+      while (ops.length && ops[ops.length-1] !== "(" && prec(ops[ops.length-1]) > prec(t)) {
+        out.push(ops.pop());
+        steps.push({ tokens: rev, out: [...out], stk: [...ops], cur: i, doneMask: dm(i), code: appCode, codeLines: [3], status: `栈顶优先级 > ${t}，弹出 ${out[out.length-1]}。`, stkMark: { idx: ops.length, cls: "leave" } });
+      }
+      ops.push(t);
+      steps.push({ tokens: rev, out: [...out], stk: [...ops], cur: i, doneMask: dm(i+1), code: appCode, codeLines: [3], status: `运算符 ${t} 入栈。`, stkMark: { idx: ops.length-1, cls: "enter" } });
+    } else {
+      out.push(t);
+      steps.push({ tokens: rev, out: [...out], stk: [...ops], cur: i, doneMask: dm(i+1), code: appCode, codeLines: [2], status: `数字 ${t} 输出。` });
+    }
+  }
+  while (ops.length) { out.push(ops.pop()); steps.push({ tokens: rev, out: [...out], stk: [...ops], cur: -1, doneMask: rev.map(()=>true), code: appCode, codeLines: [4], status: `弹出剩余 ${out[out.length-1]}。`, stkMark: { idx: ops.length, cls: "leave" } }); }
+  const pre = [...out].reverse();
+  steps.push({ tokens: rev, out: pre, stk: [], cur: -1, doneMask: rev.map(()=>true), code: appCode, codeLines: [4], status: `第③步：把输出反转，得到前缀表达式。`, verdict: { ok: true, text: `前缀 = ${pre.join(" ")}` } });
+  return steps;
+}
+
+// ---- 应用引擎 ----
+const APP_CFG = {
+  popseq: { title: "合法出栈序列判断", placeholder: "", inLabel: "入栈序列", outLabel: "已出栈",
+    note: "给定入栈顺序，判断一个序列能否由栈的 push/pop 得到。贪心：按入栈序依次压栈，每次能弹出匹配目标就弹，最后栈空即合法。" },
+  prefix: { title: "前缀表达式求值", placeholder: "如 + 3 * 4 2", inLabel: "前缀表达式", outLabel: "—",
+    note: "前缀(波兰式)：运算符在操作数前。从右向左扫描，数字入栈，遇运算符弹两个数(先弹的是左操作数)计算后压回。" },
+  postfix: { title: "后缀表达式求值", placeholder: "如 3 4 2 * +", inLabel: "后缀表达式", outLabel: "—",
+    note: "后缀(逆波兰式)：运算符在操作数后。从左向右扫描，数字入栈，遇运算符弹两个数(先弹的是右操作数)计算后压回。" },
+  in2post: { title: "中缀转后缀", placeholder: "如 3 + 4 * 2", inLabel: "中缀表达式", outLabel: "后缀输出",
+    note: "Shunting-yard：栈存运算符。数字直接输出；'(' 入栈；')' 弹到 '('；运算符先弹出栈顶优先级 ≥ 它的，再入栈。" },
+  in2pre: { title: "中缀转前缀", placeholder: "如 3 + 4 * 2", inLabel: "反转后中缀", outLabel: "输出(将反转)",
+    note: "反转中缀(括号互换)→按“同优先级不弹(用 >)”转换→再反转输出。栈存运算符，规则与转后缀类似但优先级判断用严格大于。" },
+};
+
+function drawApp(k) {
+  const s = appSteps[k];
+  renderApp(s);
+}
+
+function buildApp() {
+  const cfg = APP_CFG[mode];
+  $("verdict").style.display = "none";
+  if (mode === "popseq") {
+    const pushArr = tokenize($("exprInput").value);
+    const outArr = tokenize($("popInput").value);
+    if (!pushArr.length || !outArr.length) { setStatus("请输入入栈序列和出栈序列。"); return null; }
+    return genPopSeq(pushArr, outArr);
+  }
+  const toks = tokenize($("exprInput").value);
+  if (!toks.length) { setStatus("请输入表达式（各 token 用空格分隔）。"); return null; }
+  if (mode === "prefix") return genEval(toks, true);
+  if (mode === "postfix") return genEval(toks, false);
+  if (mode === "in2post") return genIn2Post(toks);
+  if (mode === "in2pre") return genIn2Pre(toks);
+  return null;
+}
+
+function appStop() { if (appTimer) { clearInterval(appTimer); appTimer = null; } }
+function runApp() {
+  appStop();
+  const st = buildApp();
+  if (!st) return;
+  appSteps = st; appIdx = 0;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  drawApp(0);
+}
+function appStepOnce() { if (appIdx < appSteps.length - 1) { appIdx++; drawApp(appIdx); return true; } return false; }
+function appPlay() {
+  appStop();
+  if (appIdx >= appSteps.length - 1) runApp();
+  const spd = 1550 - parseInt($("speedInput").value, 10);
+  appTimer = setInterval(() => { if (!appStepOnce()) appStop(); }, spd);
+}
+
+function applyMode(m) {
+  mode = m; appStop(); busy = false;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === m));
+  document.body.classList.toggle("app", m !== "basic");
+  $("verdict").style.display = "none";
+  $("seqRow").style.display = m === "basic" ? "none" : "block";
+  $("outRow").style.display = "none";
+  if (m === "basic") {
+    $("subtitle").textContent = "栈 Stack：后进先出 (LIFO)。底端封口的容器，只在顶部开口处压入(push)和弹出(pop)。";
+    $("note").innerHTML = "栈的一端封闭（<code>栈底</code>），只在<code>栈顶</code>操作：push 从顶部开口压入，pop 从顶部开口弹出。像一个底端封口的容器/一摞盘子，最后放上的最先取走（LIFO）。";
+    items = []; renderCode(CODE.push); render(); setStatus("试试入栈 / 出栈。");
+    return;
+  }
+  const cfg = APP_CFG[m];
+  $("subtitle").textContent = cfg.title + "　·　基于栈的经典应用";
+  $("note").textContent = cfg.note;
+  $("inSeqLabel").textContent = cfg.inLabel;
+  $("outSeqLabel").textContent = cfg.outLabel;
+  $("outRow").style.display = (m === "popseq" || m === "in2post" || m === "in2pre") ? "block" : "none";
+  // 出栈序列模式：显示第二个输入框；输入框标签改
+  $("popseqField").style.display = m === "popseq" ? "flex" : "none";
+  $("exprLabel").textContent = m === "popseq" ? "入栈序列" : "表达式（token 空格分隔）";
+  // 预填示例
+  const demo = { popseq: "1 2 3 4 5", prefix: "+ 3 * 4 2", postfix: "3 4 2 * +", in2post: "3 + 4 * 2", in2pre: "3 + 4 * 2" };
+  $("exprInput").value = demo[m] || "";
+  $("exprInput").placeholder = cfg.placeholder;
+  if (m === "popseq") $("popInput").value = "3 2 5 4 1";
+  $("stepBtn").disabled = true; $("playBtn").disabled = true;
+  appSteps = []; appIdx = 0;
+  $("inTokens").innerHTML = ""; $("outTokens").innerHTML = "";
+  renderCode([]); render_appEmpty();
+  setStatus(`点「开始演示」运行。`);
+}
+function render_appEmpty() {
+  $("viz").innerHTML = `<div class="glass"><div class="opening">↑ 栈顶</div><div class="empty-hint">（点开始演示）</div></div>`;
+}
+
+// tab / 应用按钮绑定
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => { if (!busy) applyMode(t.dataset.mode); });
+$("runBtn").onclick = runApp;
+$("playBtn").onclick = appPlay;
+$("stepBtn").onclick = () => { appStop(); appStepOnce(); };
+$("exprInput").addEventListener("keydown", e => { if (e.key === "Enter") runApp(); });
+$("popInput").addEventListener("keydown", e => { if (e.key === "Enter") runApp(); });
 </script>
 <script src="../assets/cppview.js"></script>
 <script>
@@ -302,8 +668,174 @@ int main() {
     }
     return 0;
 }` },
+  stack_popseq: { title: "合法出栈序列判断 — C++", code:
+`// 功能：给定入栈序列 pushSeq 与目标出栈序列 outSeq，判断 outSeq 是否合法。
+// 方法：按入栈序依次压栈，每压一个就尽量把栈顶与 out[j] 匹配的弹出。最后栈空即合法。
+#include <iostream>
+#include <stack>
+#include <vector>
+using namespace std;
+
+bool check(vector<int>& pushSeq, vector<int>& outSeq) {
+    if (pushSeq.size() != outSeq.size()) return false;
+    stack<int> st;
+    int j = 0;
+    for (int x : pushSeq) {
+        st.push(x);                          // 依次入栈
+        while (!st.empty() && st.top() == outSeq[j]) {
+            st.pop(); j++;                   // 能出就出
+        }
+    }
+    return st.empty();                        // 栈空 => 合法
+}
+
+int main() {
+    int n; cin >> n;
+    vector<int> a(n), b(n);
+    for (int i = 0; i < n; i++) cin >> a[i];  // 入栈序列
+    for (int i = 0; i < n; i++) cin >> b[i];  // 待判断的出栈序列
+    cout << (check(a, b) ? "YES" : "NO") << endl;
+    return 0;
+}` },
+  stack_prefix: { title: "前缀表达式求值（波兰式）— C++", code:
+`// 功能：求前缀表达式的值。运算符在操作数前，从【右向左】扫描。
+// 数字入栈；遇运算符弹两个数，先弹出的是左操作数，计算后压回。
+#include <iostream>
+#include <stack>
+#include <vector>
+#include <string>
+#include <cctype>
+using namespace std;
+
+int apply(int a, int b, char op) {
+    if (op == '+') return a + b;
+    if (op == '-') return a - b;
+    if (op == '*') return a * b;
+    return a / b;
+}
+bool isOp(const string& s) { return s.size()==1 && string("+-*/").find(s)!=string::npos; }
+
+int main() {
+    vector<string> t;                 // 读入所有 token（空格分隔）
+    string s;
+    while (cin >> s) t.push_back(s);
+
+    stack<int> st;
+    for (int i = t.size() - 1; i >= 0; i--) {   // 从右向左
+        if (isOp(t[i])) {
+            int a = st.top(); st.pop();          // 先弹=左操作数
+            int b = st.top(); st.pop();
+            st.push(apply(a, b, t[i][0]));
+        } else st.push(stoi(t[i]));
+    }
+    cout << st.top() << endl;
+    return 0;
+}` },
+  stack_postfix: { title: "后缀表达式求值（逆波兰式）— C++", code:
+`// 功能：求后缀表达式的值。运算符在操作数后，从【左向右】扫描。
+// 数字入栈；遇运算符弹两个数，先弹出的是右操作数，计算后压回。
+#include <iostream>
+#include <stack>
+#include <string>
+#include <cctype>
+using namespace std;
+
+int apply(int a, int b, char op) {
+    if (op == '+') return a + b;
+    if (op == '-') return a - b;
+    if (op == '*') return a * b;
+    return a / b;
+}
+bool isOp(const string& s) { return s.size()==1 && string("+-*/").find(s)!=string::npos; }
+
+int main() {
+    stack<int> st;
+    string t;
+    while (cin >> t) {                 // 从左向右逐个 token
+        if (isOp(t)) {
+            int b = st.top(); st.pop();  // 先弹=右操作数
+            int a = st.top(); st.pop();
+            st.push(apply(a, b, t[0]));
+        } else st.push(stoi(t));
+    }
+    cout << st.top() << endl;
+    return 0;
+}` },
+  stack_in2post: { title: "中缀转后缀（Shunting-yard）— C++", code:
+`// 功能：中缀表达式转后缀。栈存运算符：数字直接输出；'(' 入栈；
+//       ')' 弹到 '('；运算符先弹出栈顶优先级 >= 它的，再入栈。
+#include <iostream>
+#include <stack>
+#include <vector>
+#include <string>
+using namespace std;
+
+int prec(char op) { return (op=='+'||op=='-') ? 1 : 2; }
+bool isOp(const string& s){ return s.size()==1 && string("+-*/").find(s)!=string::npos; }
+
+int main() {
+    vector<string> out;
+    stack<string> ops;
+    string t;
+    while (cin >> t) {
+        if (t == "(") ops.push(t);
+        else if (t == ")") {
+            while (!ops.empty() && ops.top() != "(") { out.push_back(ops.top()); ops.pop(); }
+            ops.pop();                       // 丢弃 '('
+        } else if (isOp(t)) {
+            while (!ops.empty() && ops.top() != "(" && prec(ops.top()[0]) >= prec(t[0])) {
+                out.push_back(ops.top()); ops.pop();
+            }
+            ops.push(t);
+        } else out.push_back(t);              // 数字直接输出
+    }
+    while (!ops.empty()) { out.push_back(ops.top()); ops.pop(); }
+    for (int i = 0; i < (int)out.size(); i++) cout << out[i] << " \\n"[i+1==(int)out.size()];
+    return 0;
+}` },
+  stack_in2pre: { title: "中缀转前缀 — C++", code:
+`// 功能：中缀转前缀。① 反转中缀并互换括号；② 对反转串转换(同优先级用 > 不弹)；
+//       ③ 把输出反转即前缀表达式。
+#include <iostream>
+#include <stack>
+#include <vector>
+#include <string>
+#include <algorithm>
+using namespace std;
+
+int prec(char op) { return (op=='+'||op=='-') ? 1 : 2; }
+bool isOp(const string& s){ return s.size()==1 && string("+-*/").find(s)!=string::npos; }
+
+int main() {
+    vector<string> t;
+    string s;
+    while (cin >> s) t.push_back(s);
+
+    reverse(t.begin(), t.end());              // ① 反转
+    for (auto& x : t) { if (x=="(") x=")"; else if (x==")") x="("; }  // 括号互换
+
+    vector<string> out;
+    stack<string> ops;
+    for (auto& x : t) {                       // ② 转换（用严格大于）
+        if (x == "(") ops.push(x);
+        else if (x == ")") {
+            while (!ops.empty() && ops.top() != "(") { out.push_back(ops.top()); ops.pop(); }
+            ops.pop();
+        } else if (isOp(x)) {
+            while (!ops.empty() && ops.top() != "(" && prec(ops.top()[0]) > prec(x[0])) {
+                out.push_back(ops.top()); ops.pop();
+            }
+            ops.push(x);
+        } else out.push_back(x);
+    }
+    while (!ops.empty()) { out.push_back(ops.top()); ops.pop(); }
+
+    reverse(out.begin(), out.end());          // ③ 反转输出
+    for (int i = 0; i < (int)out.size(); i++) cout << out[i] << " \\n"[i+1==(int)out.size()];
+    return 0;
+}` },
 });
-document.getElementById("cppBtn").onclick = () => CppView.open("stack");
+document.getElementById("cppBtn").onclick = () => CppView.open(mode === "basic" ? "stack" : ("stack_" + mode));
 </script>
 </body>
 </html>
