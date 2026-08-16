@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>栈 Stack 演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 90px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .btn {
+    padding: 9px 16px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.ghost { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.ghost:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  /* 容器可视化区 */
+  .viz { min-height: 400px; display: flex; align-items: flex-end; justify-content: center; position: relative; padding: 30px 0 20px; }
+  /* 栈：底端封口的 U 形玻璃容器 —— 左墙、右墙、底墙，顶部开口 */
+  .glass {
+    position: relative; width: 200px; min-height: 340px;
+    display: flex; flex-direction: column-reverse; align-items: stretch; justify-content: flex-start;
+    gap: 6px; padding: 10px 12px 14px;
+    border-left: 4px solid var(--cyan); border-right: 4px solid var(--cyan); border-bottom: 4px solid var(--cyan);
+    border-radius: 0 0 16px 16px;
+    background: linear-gradient(180deg, rgba(0,240,255,0.02), rgba(0,240,255,0.06));
+    box-shadow: 0 0 18px rgba(0,240,255,.18), inset 0 0 24px rgba(0,240,255,.05);
+  }
+  /* 顶部开口标记：两个小豁口 */
+  .glass::before, .glass::after {
+    content: ""; position: absolute; top: -4px; width: 20px; height: 4px; background: var(--cyan);
+    box-shadow: 0 0 8px rgba(0,240,255,.6);
+  }
+  .glass::before { left: -4px; }
+  .glass::after { right: -4px; }
+  .opening {
+    position: absolute; top: -26px; left: 50%; transform: translateX(-50%);
+    font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--cyan); white-space: nowrap;
+    letter-spacing: .5px;
+  }
+  .cell {
+    height: 42px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--cyan); border-radius: 6px; background: rgba(0,240,255,0.12);
+    color: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 17px;
+    box-shadow: 0 0 10px rgba(0,240,255,.2); transition: all .2s; position: relative;
+  }
+  .cell.enter { animation: drop .4s ease; border-color: var(--green); background: rgba(0,255,156,0.2); box-shadow: 0 0 16px rgba(0,255,156,.6); }
+  .cell.leave { animation: lift .45s ease; border-color: var(--magenta); background: rgba(255,43,214,0.22); box-shadow: 0 0 16px rgba(255,43,214,.7); }
+  .cell.peek { border-color: var(--yellow); background: rgba(255,212,0,0.22); box-shadow: 0 0 16px rgba(255,212,0,.6); }
+  @keyframes drop { 0% { transform: translateY(-70px); opacity: 0; } 60% { transform: translateY(6px); } 100% { transform: translateY(0); opacity: 1; } }
+  @keyframes lift { 0% { transform: translateY(0); opacity: 1; } 100% { transform: translateY(-70px); opacity: 0; } }
+  .tagptr {
+    position: absolute; right: -76px; top: 50%; transform: translateY(-50%);
+    font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700;
+    color: var(--magenta); text-shadow: 0 0 8px rgba(255,43,214,.7); white-space: nowrap;
+  }
+  .tagptr.base { color: var(--muted); text-shadow: none; }
+  .empty-hint { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); color: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 14px; }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .pseudocode {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: #8fb8c9; margin: 0 0 16px;
+  }
+  .pseudocode .line { padding: 2px 8px; border-radius: 3px; white-space: pre-wrap; }
+  .pseudocode .line.active { background: linear-gradient(90deg, rgba(255,43,214,.9), rgba(0,240,255,.6)); color: #fff; box-shadow: 0 0 14px rgba(255,43,214,.5); }
+  .stats { display: flex; gap: 24px; font-size: 14px; align-items: baseline; margin-bottom: 12px; }
+  .stats b { font-size: 20px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(255,212,0,.6); }
+  .status { margin-top: 6px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>栈 Stack 演示</h1>
+  <p id="subtitle">栈 Stack：后进先出 (LIFO)。底端封口的容器，只在顶部开口处压入(push)和弹出(pop)。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="controls">
+  <div class="field">
+    <label for="valInput">入栈值</label>
+    <input id="valInput" type="number" placeholder="值">
+  </div>
+  <button class="btn cy" id="pushBtn">入栈 push</button>
+  <button class="btn" id="popBtn">出栈 pop</button>
+  <button class="btn ghost" id="peekBtn">查看栈顶</button>
+  <button class="btn ghost" id="clearBtn">清空</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="viz" id="viz"></div>
+  </section>
+  <section class="card">
+    <div class="plabel">操作代码</div>
+    <div class="pseudocode" id="code"></div>
+    <div class="stats">
+      元素个数：<b id="sizeCount">0</b>
+      <span>容量上限：<b id="capCount">8</b></span>
+    </div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note">栈的一端封闭（<code>栈底</code>），只在<code>栈顶</code>操作：push 从顶部开口压入，pop 从顶部开口弹出。像一个底端封口的容器/一摞盘子，最后放上的最先取走（LIFO）。</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+const CAP = 8;
+let items = [];   // 栈底 → 栈顶
+let busy = false;
+
+const CODE = {
+  push: ["push(x):", "    if 满: 溢出(overflow)", "    top++", "    s[top] = x"],
+  pop: ["pop():", "    if 空: 下溢(underflow)", "    x = s[top]", "    top--; return x"],
+  peek: ["top():", "    if 空: return null", "    return s[top]  // 不删除"],
+};
+
+function renderCode(lines, activeLines) {
+  $("code").innerHTML = lines.map((l, i) =>
+    `<div class="line${activeLines && activeLines.includes(i) ? " active" : ""}">${escHtml(l)}</div>`).join("");
+}
+function escHtml(s) { return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+
+// mark: {idx, cls}
+function render(mark) {
+  const viz = $("viz");
+  // 始终画出容器（虚拟结构），元素在容器内堆叠
+  let inner = "";
+  items.forEach((v, i) => {
+    let cls = "cell";
+    if (mark && mark.idx === i) cls += " " + mark.cls;
+    let ptr = "";
+    if (i === items.length - 1) ptr = `<span class="tagptr">← 栈顶 top</span>`;
+    else if (i === 0) ptr = `<span class="tagptr base">← 栈底</span>`;
+    inner += `<div class="${cls}">${v}${ptr}</div>`;
+  });
+  const emptyHint = items.length === 0 ? `<div class="empty-hint">（栈为空，从顶部开口压入）</div>` : "";
+  viz.innerHTML = `<div class="glass"><div class="opening">↑ 顶部开口 (push / pop)</div>${inner}${emptyHint}</div>`;
+  $("sizeCount").textContent = items.length;
+}
+
+function setStatus(t) { $("status").textContent = t; }
+function lock(v) { busy = v; document.querySelectorAll(".btn").forEach(b => b.disabled = v); }
+
+async function doPush() {
+  if (busy) return;
+  const v = parseInt($("valInput").value, 10);
+  if (isNaN(v)) { setStatus("请输入一个整数值。"); return; }
+  if (items.length >= CAP) { renderCode(CODE.push, [1]); setStatus(`⚠ 已达容量上限 ${CAP}，溢出(overflow)！无法继续入栈。`); return; }
+  lock(true);
+  renderCode(CODE.push, [2, 3]);
+  items.push(v);
+  render({ idx: items.length - 1, cls: "enter" });
+  setStatus(`push(${v})：从顶部开口压入栈顶。`);
+  $("valInput").value = "";
+  await sleep(420);
+  render();
+  lock(false);
+}
+
+async function doPop() {
+  if (busy) return;
+  if (items.length === 0) { renderCode(CODE.pop, [1]); setStatus(`⚠ 栈为空，下溢(underflow)！无可删除元素。`); return; }
+  lock(true);
+  const idx = items.length - 1;
+  renderCode(CODE.pop, [2, 3]);
+  render({ idx, cls: "leave" });
+  const v = items[idx];
+  setStatus(`pop()：从顶部开口弹出栈顶 ${v}。`);
+  await sleep(460);
+  items.pop();
+  render();
+  lock(false);
+}
+
+async function doPeek() {
+  if (busy) return;
+  if (items.length === 0) { renderCode(CODE.peek, [1]); setStatus(`栈为空。`); return; }
+  lock(true);
+  const idx = items.length - 1;
+  renderCode(CODE.peek, [2]);
+  render({ idx, cls: "peek" });
+  setStatus(`top()：栈顶元素是 ${items[idx]}（不删除）。`);
+  await sleep(650);
+  render();
+  lock(false);
+}
+
+$("pushBtn").onclick = doPush;
+$("popBtn").onclick = doPop;
+$("peekBtn").onclick = doPeek;
+$("clearBtn").onclick = () => { if (busy) return; items = []; render(); setStatus("已清空。"); };
+$("valInput").addEventListener("keydown", e => { if (e.key === "Enter") doPush(); });
+
+$("capCount").textContent = CAP;
+renderCode(CODE.push);
+render();
+setStatus("试试入栈 / 出栈。");
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  stack: { title: "栈 Stack (LIFO) — 数组模拟 C++", code:
+`// 功能：用数组模拟栈(后进先出 LIFO)，演示 push(入栈) / pop(出栈) / top(查看栈顶)。
+// 输入：第一行 m（操作次数）；
+//       接下来 m 行，每行一个操作：
+//         push x   压入值 x
+//         pop      弹出栈顶并输出
+//         top      查看栈顶(不删除)并输出
+// 输出：每个 pop / top 操作输出一行结果；栈空时 pop/top 输出 "empty"。
+#include <iostream>
+#include <string>
+using namespace std;
+
+const int CAP = 1005;   // 容量上限
+int s[CAP];
+int top = -1;           // 栈顶下标，-1 表示空栈
+
+void push(int x) {
+    if (top >= CAP - 1) return;   // 已满则溢出(此处忽略)
+    s[++top] = x;                 // 先移动栈顶指针，再存值
+}
+int pop() {                        // 调用前需保证非空
+    return s[top--];               // 取栈顶值，再下移指针
+}
+int peek() {                       // 查看栈顶，不删除
+    return s[top];
+}
+bool empty() { return top < 0; }
+
+int main() {
+    int m;
+    cin >> m;
+    string op;
+    while (m--) {
+        cin >> op;
+        if (op == "push") {
+            int x; cin >> x;
+            push(x);
+        } else if (op == "pop") {
+            if (empty()) cout << "empty" << endl;
+            else cout << pop() << endl;
+        } else if (op == "top") {
+            if (empty()) cout << "empty" << endl;
+            else cout << peek() << endl;
+        }
+    }
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open("stack");
+</script>
+</body>
+</html>
