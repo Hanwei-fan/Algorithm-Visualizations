@@ -12,3 +12,9 @@ Thumbs.db
 
 # 日志
 *.log
+
+# Claude Code 本地配置
+.claude/
+
+# 参考项目（不纳入版本控制）
+参考项目/
