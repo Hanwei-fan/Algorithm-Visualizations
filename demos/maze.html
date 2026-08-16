@@ -78,7 +78,12 @@
     font-family: "SF Mono", Menlo, monospace; font-size: 11px; font-weight: 700; color: var(--muted);
     cursor: pointer; transition: background .18s, border-color .18s;
   }
-  .mcell.wall { background: #1a1630; border-color: #322a5a; color: transparent; }
+  .mcell.wall {
+    background-color: #6b6790;
+    background-image: repeating-linear-gradient(45deg, rgba(0,0,0,.28) 0 4px, transparent 4px 8px);
+    border-color: #9a95c4; color: transparent;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  }
   .mcell.frontier { background: rgba(0,240,255,0.22); border-color: var(--cyan); color: var(--cyan); }
   .mcell.explored { background: rgba(255,43,214,0.16); border-color: rgba(255,43,214,.5); color: #c98fc0; }
   .mcell.current { background: var(--yellow); border-color: var(--yellow); color: #05060f; box-shadow: 0 0 10px rgba(255,212,0,.6); }
@@ -141,7 +146,7 @@
     <div class="legend">
       <span><i class="dot" style="background:#00ff9c"></i>起点</span>
       <span><i class="dot" style="background:#ff2bd6"></i>终点</span>
-      <span><i class="dot" style="background:#1a1630;border:1px solid #322a5a"></i>墙</span>
+      <span><i class="dot" style="background:#6b6790;border:1px solid #9a95c4"></i>墙(障碍)</span>
       <span><i class="dot" style="background:rgba(0,240,255,.5)"></i>队列/栈中(待扩展)</span>
       <span><i class="dot" style="background:#ffd400"></i>当前格</span>
       <span><i class="dot" style="background:rgba(255,43,214,.4)"></i>已探索</span>
