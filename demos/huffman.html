@@ -111,6 +111,36 @@
   .status { margin-top: 8px; font-size: 14.5px; min-height: 56px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
   .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
   .note code { color: var(--cyan); }
+  /* 模式切换 tab */
+  .tabs { display: flex; gap: 0; padding: 0 30px; margin-top: 6px; }
+  .tab {
+    padding: 9px 22px; border: 1px solid var(--border); border-bottom: none;
+    border-radius: 8px 8px 0 0; background: rgba(18,15,38,0.4); color: var(--muted);
+    font-size: 13px; cursor: pointer; font-family: "SF Mono", Menlo, monospace;
+    letter-spacing: 1px; transition: all .16s; margin-right: 6px;
+  }
+  .tab:hover { color: var(--cyan); }
+  .tab.active { color: var(--cyan); background: var(--panel); border-color: var(--cyan); text-shadow: 0 0 6px rgba(0,240,255,.5); }
+  .manual-only { display: none; }
+  body.manual .manual-only { display: flex; }
+  body.manual .auto-only { display: none !important; }
+  /* 可点击的树节点 */
+  .tnode.clickable { cursor: pointer; }
+  .tnode.clickable circle { stroke: var(--cyan); }
+  .tnode.clickable:hover circle { fill: rgba(0,240,255,0.2); filter: drop-shadow(0 0 8px rgba(0,240,255,.6)); }
+  .tnode.sel circle { stroke: var(--yellow); stroke-width: 3; fill: rgba(255,212,0,0.25); filter: drop-shadow(0 0 10px rgba(255,212,0,.7)); }
+  .tnode.merged circle { animation: pop .4s ease; }
+  /* 手动模式提示/记录 */
+  .win-banner {
+    margin: 12px 0 0; padding: 12px 16px; border-radius: 6px; font-family: "SF Mono", Menlo, monospace;
+    font-size: 14px; line-height: 1.6; border: 1px solid var(--green);
+    background: rgba(0,255,156,0.12); color: var(--green);
+  }
+  .win-banner.bad { border-color: var(--magenta); background: rgba(255,43,214,0.12); color: var(--magenta); }
+  .win-banner.hint { border-color: var(--yellow); background: rgba(255,212,0,0.1); color: var(--yellow); }
+  #mergelog { display: flex; flex-direction: column; gap: 4px; font-family: "SF Mono", Menlo, monospace; font-size: 12.5px; max-height: 180px; overflow-y: auto; }
+  #mergelog .mv { color: var(--text); }
+  #mergelog .mv b { color: var(--magenta); }
 </style>
 </head>
 <body>
@@ -120,19 +150,28 @@
 </header>
 <a class="back" href="../index.html">← 返回门户</a>
 
+<div class="tabs">
+  <div class="tab active" data-mode="auto">自动演示</div>
+  <div class="tab" data-mode="manual">手动挑战</div>
+</div>
+
 <div class="controls">
   <div class="field"><label>输入文本（统计字符频率）</label><input id="txtInput" type="text" value="ABRACADABRA"></div>
-  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1100" value="600" step="50"></div>
-  <button class="btn cy" id="startBtn">开始建树</button>
-  <button class="btn" id="playBtn" disabled>自动播放</button>
-  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <div class="speed auto-only"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1100" value="600" step="50"></div>
+  <button class="btn cy auto-only" id="startBtn">开始建树</button>
+  <button class="btn auto-only" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary auto-only" id="stepBtn" disabled>单步 ▶</button>
+  <button class="btn cy manual-only" id="manualStartBtn">开始 / 重置挑战</button>
+  <button class="btn secondary manual-only" id="undoBtn">撤销一步</button>
+  <button class="btn secondary manual-only" id="hintBtn">提示</button>
   <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
 <main>
   <section class="card">
-    <div class="rowlabel">最小堆（按频率升序，每次取最小的两个）</div>
-    <div class="heap" id="heap"></div>
+    <div class="rowlabel auto-only">最小堆（按频率升序，每次取最小的两个）</div>
+    <div class="heap auto-only" id="heap"></div>
+    <div class="rowlabel manual-only">当前森林 —— 点击两棵树的<b style="color:var(--yellow)">根节点</b>把它们合并（先点第一个，再点第二个）</div>
     <div class="rowlabel mt">Huffman 树（叶子=字符，绿色；内部节点=合并频率，粉色）</div>
     <svg id="tree" viewBox="0 0 640 340" preserveAspectRatio="xMidYMid meet"></svg>
   </section>
@@ -140,8 +179,11 @@
     <div class="plabel">算法与结果</div>
     <div class="formula" id="formula"></div>
     <div class="stats" id="stats"></div>
-    <div class="rowlabel mt" style="margin-top:8px">频率与编码表</div>
-    <div id="codeTable"></div>
+    <div class="rowlabel mt auto-only" style="margin-top:8px">频率与编码表</div>
+    <div class="auto-only" id="codeTable"></div>
+    <div class="rowlabel mt manual-only" style="margin-top:8px">合并记录</div>
+    <div class="manual-only" id="mergelog"></div>
+    <div id="winBanner"></div>
     <div class="status" id="status"></div>
   </section>
 </main>
@@ -235,9 +277,12 @@ function drawHeap(s) {
 // 建树过程中堆里是一片森林（每个节点是一棵子树的根）。
 // 全局中序连续给叶子分配 x，深度分配 y，多棵树自然横向铺开、逐步合并成整树。
 // roots: 当前所有子树根的数组；pick: 本步被选中的两个节点 id；newId: 新合并节点 id
-function drawForest(roots, pick = [], newId = null) {
+// opts.clickableRoots: 森林根 id 集合（手动模式下可点击合并）
+// opts.selId: 已选中的第一个根 id
+function drawForest(roots, pick = [], newId = null, opts = {}) {
   const svg = $("tree");
   if (!roots || roots.length === 0) { svg.innerHTML = ""; return; }
+  const rootIds = new Set(roots.map(r => r.id));
   let leafX = 0;
   const laid = [];
   let maxDepth = 0;
@@ -270,19 +315,30 @@ function drawForest(roots, pick = [], newId = null) {
       edges += `<text class="hbit" x="${(x1 + x2) / 2 + (k === 0 ? -8 : 8)}" y="${(y1 + y2) / 2}">${k === 0 ? "0" : "1"}</text>`;
     });
   });
+  const canClick = opts.clickableRoots;   // Set 或 undefined
   laid.forEach(u => {
     const leaf = u.ch !== null;
     let cls = "tnode" + (leaf ? " leaf" : "");
     if (pick && pick.includes(u.id)) cls += " hl";
-    if (newId === u.id) cls += " hl";
+    if (newId === u.id) cls += " hl merged";
+    const isRoot = rootIds.has(u.id);
+    if (canClick && isRoot) cls += " clickable";
+    if (opts.selId === u.id) cls += " sel";
     const x = X(u), y = Y(u);
-    nodes += `<g class="${cls}"><circle cx="${x}" cy="${y}" r="16"/>`;
+    const dataAttr = (canClick && isRoot) ? ` data-root="${u.id}"` : "";
+    nodes += `<g class="${cls}"${dataAttr}><circle cx="${x}" cy="${y}" r="16"/>`;
     if (leaf) {
       nodes += `<text class="c" x="${x}" y="${y - 22}">${u.ch === " " ? "␣" : u.ch}</text>`;
     }
     nodes += `<text class="f" x="${x}" y="${y + 4}">${u.freq}</text></g>`;
   });
   svg.innerHTML = edges + nodes;
+  // 手动模式：给可点击根节点绑定合并事件
+  if (canClick && typeof onRootClick === "function") {
+    svg.querySelectorAll("[data-root]").forEach(g => {
+      g.addEventListener("click", () => onRootClick(parseInt(g.dataset.root, 10)));
+    });
+  }
 }
 
 // ======== 渲染：编码表 ========
@@ -327,11 +383,151 @@ function prepare() {
   draw(steps[0]);
 }
 
+// ======== 手动挑战模式 ========
+let mode = "auto";
+let forest = [];          // 当前森林：若干棵树的根节点数组
+let selId = null;         // 已选中的第一个根 id
+let mHistory = [];        // 合并记录 [{a,b,parent}]
+let mFreq = {};           // 字符 -> 频率
+let optWPL = 0;           // 贪心最优 WPL（判定基准）
+let mSolved = false;
+let mNodeSeq = 0;
+
+function label(nd) { return nd.ch !== null ? `'${nd.ch === " " ? "␣" : nd.ch}'` : `[${nd.freq}]`; }
+
+// 贪心最优 WPL：反复取两个最小频率相加累计
+function optimalWPL(freqs) {
+  const pq = [...freqs];
+  let wpl = 0;
+  while (pq.length > 1) {
+    pq.sort((a, b) => a - b);
+    const a = pq.shift(), b = pq.shift();
+    wpl += a + b; pq.push(a + b);
+  }
+  return wpl;
+}
+// 树的 WPL = 各叶子 freq*depth 之和
+function treeWPL(root) {
+  let wpl = 0;
+  (function dfs(u, d) {
+    if (!u) return;
+    if (u.ch !== null) { wpl += u.freq * d; return; }
+    dfs(u.l, d + 1); dfs(u.r, d + 1);
+  })(root, 0);
+  return wpl;
+}
+
+function manualStart() {
+  const text = $("txtInput").value;
+  if (!text) { setStatus("请先输入文本。"); return; }
+  mFreq = {};
+  for (const c of text) mFreq[c] = (mFreq[c] || 0) + 1;
+  const chars = Object.keys(mFreq);
+  mNodeSeq = 0;
+  // 初始森林：每个字符一棵单节点树
+  forest = chars.map(c => ({ id: mNodeSeq++, ch: c, freq: mFreq[c], l: null, r: null }));
+  forest.sort((a, b) => a.freq - b.freq || a.ch.localeCompare(b.ch));
+  optWPL = optimalWPL(chars.map(c => mFreq[c]));
+  selId = null; mHistory = []; mSolved = false;
+  $("winBanner").innerHTML = "";
+  $("formula").innerHTML = `目标：把 ${chars.length} 个字符合并成一棵 <b>Huffman 树</b>。<br>点两棵树的根合并（频率相加）。<b>贪心策略</b>是每次挑当前频率最小的两棵。<br>共需合并 ${chars.length - 1} 次，完成后系统检查你的树是否最优。`;
+  renderManual(`森林已就绪，共 ${chars.length} 棵单节点树。点击任意两棵树的根开始合并。`);
+}
+
+// 点击森林中的某个根
+function onRootClick(id) {
+  if (mode !== "manual" || mSolved) return;
+  if (selId === null) {
+    selId = id;
+    renderManual(`已选中 ${label(forest.find(r => r.id === id))}，再点另一棵树的根完成合并（或再次点它取消）。`);
+    return;
+  }
+  if (selId === id) {   // 再次点同一个 -> 取消选择
+    selId = null;
+    renderManual("已取消选择。点两棵树的根进行合并。");
+    return;
+  }
+  doMerge(selId, id);
+}
+
+function doMerge(idA, idB) {
+  const ia = forest.findIndex(r => r.id === idA);
+  const ib = forest.findIndex(r => r.id === idB);
+  if (ia < 0 || ib < 0) { selId = null; return; }
+  const a = forest[ia], b = forest[ib];
+  // 约定：频率小的作左（左0右1），相等时按 id 稳定排序，仅影响展示不影响 WPL
+  const [lft, rgt] = (a.freq < b.freq || (a.freq === b.freq && a.id < b.id)) ? [a, b] : [b, a];
+  const parent = { id: mNodeSeq++, ch: null, freq: a.freq + b.freq, l: lft, r: rgt };
+  forest = forest.filter(r => r.id !== idA && r.id !== idB);
+  forest.push(parent);
+  mHistory.push({ a: label(a), b: label(b), freq: parent.freq, pid: parent.id });
+  selId = null;
+  if (forest.length === 1) { mSolved = true; renderManual(`合并完成！只剩一棵树。`, parent.id); checkTree(); }
+  else renderManual(`合并 ${label(a)} + ${label(b)} = <b style="color:var(--magenta)">${parent.freq}</b>，森林还剩 ${forest.length} 棵树。`, parent.id);
+}
+
+function manualUndo() {
+  if (mode !== "manual" || mHistory.length === 0 || mSolved) return;
+  // 撤销：找到最后合并的 parent，拆回两棵子树
+  const last = mHistory.pop();
+  const pi = forest.findIndex(r => r.id === last.pid);
+  if (pi < 0) return;
+  const parent = forest[pi];
+  forest = forest.filter(r => r.id !== last.pid);
+  forest.push(parent.l, parent.r);
+  selId = null;
+  $("winBanner").innerHTML = "";
+  renderManual("撤销了上一次合并。");
+}
+
+function checkTree() {
+  const root = forest[0];
+  const myWPL = treeWPL(root);
+  const optimal = myWPL === optWPL;
+  $("winBanner").innerHTML = optimal
+    ? `<div class="win-banner">🎉 合法的 Huffman 树！带权路径长度 WPL = <b>${myWPL}</b>，正是最小值。你的合并顺序构造出了最优前缀编码。</div>`
+    : `<div class="win-banner bad">✗ 这是一棵合法二叉树，但<b>不是最优</b>：你的 WPL = ${myWPL}，Huffman 最优 WPL = ${optWPL}（差 ${myWPL - optWPL}）。<br>提示：每一步都要挑当前<b>频率最小的两棵</b>树合并。点「开始 / 重置挑战」再试。</div>`;
+}
+
+function manualHint() {
+  if (mode !== "manual" || mSolved) return;
+  if (forest.length < 2) { setStatus("森林里不足两棵树。"); return; }
+  const sorted = [...forest].sort((a, b) => a.freq - b.freq || a.id - b.id);
+  const [x, y] = sorted;
+  $("winBanner").innerHTML = `<div class="win-banner hint">💡 贪心提示：当前频率最小的两棵是 ${label(x)}(${x.freq}) 和 ${label(y)}(${y.freq})，应该合并它们。</div>`;
+}
+
+function renderManual(statusText, mergedId) {
+  const clickSet = new Set(forest.map(r => r.id));
+  drawForest(forest, [], mergedId || null, { clickableRoots: clickSet, selId });
+  drawHeap({ heap: [] });   // 手动模式不用堆，清空
+  $("stats").innerHTML = `森林中的树：<b>${forest.length}</b>　已合并：${mHistory.length} 次　目标最优 WPL：${optWPL}`;
+  $("mergelog").innerHTML = mHistory.length
+    ? mHistory.map((h, i) => `<div class="mv"><b>${i + 1}.</b> ${h.a} + ${h.b} → 频率 ${h.freq}</div>`).join("")
+    : '<div class="mv" style="color:var(--muted)">（还没有合并）</div>';
+  $("undoBtn").disabled = mHistory.length === 0 || mSolved;
+  setStatus(statusText);
+}
+
+function switchMode(m) {
+  if (m === mode) return;
+  mode = m;
+  stopTimer(); running = false;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === m));
+  document.body.classList.toggle("manual", m === "manual");
+  if (m === "manual") manualStart();
+  else { $("winBanner").innerHTML = ""; prepare(); }
+}
+
 $("startBtn").onclick = () => prepare();
 $("playBtn").onclick = () => { if (idx >= steps.length - 1) prepare(); playAll(); };
 $("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("manualStartBtn").onclick = () => manualStart();
+$("undoBtn").onclick = () => manualUndo();
+$("hintBtn").onclick = () => manualHint();
 $("cppBtn").onclick = () => CppView.open("huffman");
-$("txtInput").addEventListener("keydown", e => { if (e.key === "Enter") prepare(); });
+$("txtInput").addEventListener("keydown", e => { if (e.key === "Enter") { mode === "manual" ? manualStart() : prepare(); } });
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchMode(t.dataset.mode));
 
 CppView.register({
   huffman: { title: "Huffman 编码 — C++", code:
