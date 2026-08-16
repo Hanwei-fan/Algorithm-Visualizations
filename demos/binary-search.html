@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>二分查找演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --bg2: #0d0b1a; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+  }
+  .mono { font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+    color: #fff; text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 12px; padding: 14px 30px 4px; flex-wrap: wrap; }
+  .tab {
+    padding: 10px 22px; border: 1px solid var(--border); border-radius: 4px;
+    background: rgba(0,240,255,0.03); color: var(--cyan); font-size: 14px;
+    letter-spacing: 1px; cursor: pointer;
+    font-family: "SF Mono", Menlo, monospace;
+    transition: all .18s; clip-path: polygon(0 0, 100% 0, 100% 70%, 94% 100%, 0 100%);
+  }
+  .tab:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,240,255,.35) inset; }
+  .tab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); box-shadow: 0 0 18px rgba(0,240,255,.6); font-weight: 700; }
+  .controls { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; padding: 18px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 9px 12px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text); font-family: "SF Mono", Menlo, monospace;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  #arrayInput { width: 340px; }
+  #targetInput { width: 90px; }
+  .btn {
+    padding: 10px 20px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 14px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .btn:hover { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed input { width: 130px; accent-color: var(--magenta); }
+  .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--muted); padding: 0 30px 6px; letter-spacing: .5px; }
+  .legend span { display: inline-flex; align-items: center; gap: 7px; }
+  .swatch { width: 14px; height: 14px; border-radius: 3px; }
+  main { padding: 10px 30px 28px; }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  .array { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .cell { width: 56px; display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; }
+  .cell .box {
+    width: 56px; height: 56px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 6px; font-size: 18px; font-weight: 700;
+    background: rgba(0,240,255,0.03); color: var(--text); font-family: "SF Mono", Menlo, monospace; transition: all .2s;
+  }
+  .cell .idx { font-size: 11px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; }
+  .cell.range .box { background: rgba(0,240,255,0.14); border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,240,255,.25) inset; }
+  .cell.compare .box { background: var(--yellow); border-color: var(--yellow); color: #120e00; transform: translateY(-6px); box-shadow: 0 0 22px rgba(255,212,0,.75); }
+  .cell.found .box { background: var(--green); border-color: var(--green); color: #002915; box-shadow: 0 0 26px rgba(0,255,156,.85); animation: pulse .8s ease-in-out infinite alternate; }
+  @keyframes pulse { to { box-shadow: 0 0 40px rgba(0,255,156,1); } }
+  .cell.discard .box { background: rgba(255,255,255,0.015); color: #45406a; border-color: #1a163a; opacity: .55; }
+  .cell.target-eq .box { border-color: var(--magenta); box-shadow: 0 0 0 2px rgba(255,43,214,.4) inset; }
+  /* 结果位置标记（lower/upper_bound 指向的插入位，可能在末尾之后） */
+  .resultmark { position: absolute; left: -6px; top: -2px; bottom: 18px; width: 3px; background: var(--green); box-shadow: 0 0 10px var(--green); border-radius: 2px; }
+  .resultmark.end { left: auto; right: -6px; }
+  .pointers { min-height: 22px; font-size: 14px; color: var(--cyan); margin-bottom: 14px; font-family: "SF Mono", Menlo, monospace; letter-spacing: .5px; }
+  .pseudocode { background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13.5px; color: #8fb8c9; margin: 10px 0 16px; }
+  .pseudocode .line { padding: 3px 8px; border-radius: 3px; white-space: pre; }
+  .pseudocode .line.active { background: linear-gradient(90deg, rgba(255,43,214,.9), rgba(0,240,255,.6)); color: #fff; box-shadow: 0 0 14px rgba(255,43,214,.5); }
+  .stats { display: flex; gap: 24px; font-size: 15px; align-items: baseline; letter-spacing: .5px; }
+  .stats b { font-size: 26px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(255,212,0,.6); }
+  .status { margin-top: 14px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .note { padding: 10px 30px 0; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">二分查找演示</h1>
+  <p id="subtitle"></p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="tabs">
+  <button class="tab active" data-algo="bs">binary_search</button>
+  <button class="tab" data-algo="lb">lower_bound</button>
+  <button class="tab" data-algo="ub">upper_bound</button>
+</div>
+
+<div class="controls">
+  <div class="field">
+    <label for="arrayInput" id="arrayLabel">数组（逗号分隔，会自动升序排序）</label>
+    <input id="arrayInput" type="text" value="2, 4, 4, 4, 7, 9, 11, 15, 20">
+  </div>
+  <div class="field">
+    <label for="targetInput">查找目标</label>
+    <input id="targetInput" type="number" value="4">
+  </div>
+  <div class="speed">
+    <label for="speedInput">速度</label>
+    <input id="speedInput" type="range" min="200" max="1600" value="800" step="100">
+  </div>
+  <button class="btn" id="playBtn">开始</button>
+  <button class="btn secondary" id="stepBtn">单步</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<div class="legend" id="legend"></div>
+
+<main>
+  <section class="card">
+    <div class="array" id="arrayBox"></div>
+    <div class="pointers" id="pointer"></div>
+    <div class="pseudocode" id="code"></div>
+    <div class="stats">比较次数：<b id="count">0</b></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script>
+const CFG = {
+  bs: {
+    title: "二分查找 binary_search",
+    subtitle: "有序数组中折半查找：判断目标是否存在，返回命中位置。",
+    note: "binary_search 判断目标是否存在。闭区间 [lo,hi]，每次比较中间元素，一次排除一半，最多约 log₂n 次。",
+    legend: [ ["#00f0ff", "当前区间"], ["#ffd400", "中间元素 mid"], ["#00ff9c", "命中"], ["#45406a", "已排除"] ],
+    code: [
+      "lo = 0; hi = n-1",
+      "while lo <= hi:",
+      "    mid = (lo + hi) / 2",
+      "    if a[mid] == target: return mid",
+      "    else if a[mid] < target: lo = mid+1",
+      "    else: hi = mid-1",
+      "return 不存在",
+    ],
+  },
+  lb: {
+    title: "二分查找 lower_bound",
+    subtitle: "返回第一个 ≥ target 的位置（target 的最左插入点）。",
+    note: "lower_bound 找第一个 “≥ target” 的下标。半开区间 [lo,hi)：a[mid] < target 时 lo=mid+1，否则 hi=mid。结束时 lo 即答案（可能等于 n，表示都比 target 小）。",
+    legend: [ ["#00f0ff", "当前区间"], ["#ffd400", "中间元素 mid"], ["#00ff9c", "结果位置"], ["#45406a", "已排除"] ],
+    code: [
+      "lo = 0; hi = n          // 半开区间 [lo, hi)",
+      "while lo < hi:",
+      "    mid = (lo + hi) / 2",
+      "    if a[mid] < target:  // 严格小于才排除左边",
+      "        lo = mid + 1",
+      "    else:                // a[mid] >= target",
+      "        hi = mid",
+      "return lo                // 第一个 >= target",
+    ],
+  },
+  ub: {
+    title: "二分查找 upper_bound",
+    subtitle: "返回第一个 > target 的位置（target 的最右插入点）。",
+    note: "upper_bound 找第一个 “> target” 的下标。半开区间 [lo,hi)：a[mid] <= target 时 lo=mid+1，否则 hi=mid。与 lower_bound 只差一个等号。upper_bound − lower_bound 即 target 出现的次数。",
+    legend: [ ["#00f0ff", "当前区间"], ["#ffd400", "中间元素 mid"], ["#00ff9c", "结果位置"], ["#45406a", "已排除"] ],
+    code: [
+      "lo = 0; hi = n          // 半开区间 [lo, hi)",
+      "while lo < hi:",
+      "    mid = (lo + hi) / 2",
+      "    if a[mid] <= target: // 小于等于都排除左边",
+      "        lo = mid + 1",
+      "    else:                // a[mid] > target",
+      "        hi = mid",
+      "return lo                // 第一个 > target",
+    ],
+  },
+};
+
+let algo = "bs";
+let arr = [], target = 0, steps = [], idx = 0, timer = null;
+const $ = id => document.getElementById(id);
+
+function renderCode(lines) { $("code").innerHTML = lines.map((l, i) => `<div class="line" data-line="${i}">${l}</div>`).join(""); }
+function renderLegend(items) { $("legend").innerHTML = items.map(([c, t]) => `<span><i class="swatch" style="background:${c}"></i>${t}</span>`).join(""); }
+function buildArray(n) {
+  const el = $("arrayBox"); el.innerHTML = "";
+  for (let i = 0; i < n; i++) {
+    const c = document.createElement("div");
+    c.className = "cell"; c.dataset.i = i;
+    c.innerHTML = `<div class="box">${arr[i]}</div><div class="idx">${i}</div>`;
+    el.appendChild(c);
+  }
+}
+function setLine(line) {
+  $("code").querySelectorAll(".line").forEach(l => l.classList.remove("active"));
+  const t = $("code").querySelector(`[data-line="${line}"]`); if (t) t.classList.add("active");
+}
+function clearCells() {
+  $("arrayBox").querySelectorAll(".cell").forEach(c => { c.className = "cell"; const m = c.querySelector(".resultmark"); if (m) m.remove(); });
+}
+
+// binary_search：闭区间 [lo,hi]
+function genBS() {
+  const s = []; let lo = 0, hi = arr.length - 1, count = 0;
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1; count++;
+    if (arr[mid] === target) { s.push({ lo, hi, mid, count, line: 3, status: `a[${mid}] = ${arr[mid]} = 目标，命中！`, found: mid }); return s; }
+    else if (arr[mid] < target) { s.push({ lo, hi, mid, count, line: 4, status: `a[${mid}] = ${arr[mid]} < ${target}，去右半 (lo = ${mid+1})`, found: -1 }); lo = mid + 1; }
+    else { s.push({ lo, hi, mid, count, line: 5, status: `a[${mid}] = ${arr[mid]} > ${target}，去左半 (hi = ${mid-1})`, found: -1 }); hi = mid - 1; }
+  }
+  s.push({ lo, hi, mid: -1, count, line: 6, status: `区间为空，目标 ${target} 不存在。`, found: -1 });
+  return s;
+}
+// lower_bound / upper_bound：半开区间 [lo,hi)。cmp=true 表示 mid 落入“排除左边”分支
+function genBound(isUpper) {
+  const s = []; let lo = 0, hi = arr.length, count = 0;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1; count++;
+    const goRight = isUpper ? (arr[mid] <= target) : (arr[mid] < target);
+    if (goRight) {
+      s.push({ lo, hi, mid, count, line: 4,
+        status: isUpper ? `a[${mid}] = ${arr[mid]} ≤ ${target}，排除左边 (lo = ${mid+1})`
+                        : `a[${mid}] = ${arr[mid]} < ${target}，排除左边 (lo = ${mid+1})`, found: -1 });
+      lo = mid + 1;
+    } else {
+      s.push({ lo, hi, mid, count, line: 6,
+        status: isUpper ? `a[${mid}] = ${arr[mid]} > ${target}，可能是答案 (hi = ${mid})`
+                        : `a[${mid}] = ${arr[mid]} ≥ ${target}，可能是答案 (hi = ${mid})`, found: -1 });
+      hi = mid;
+    }
+  }
+  const inRange = lo < arr.length;
+  const kind = isUpper ? "第一个 > " + target : "第一个 ≥ " + target;
+  s.push({ lo, hi, mid: -1, count, line: 7, result: lo,
+    status: inRange
+      ? `结果：位置 ${lo}（a[${lo}] = ${arr[lo]}），即${kind}的位置。`
+      : `结果：位置 ${lo}（= n，已越过末尾），说明数组中没有${kind}的元素。`,
+    found: -1 });
+  return s;
+}
+
+function draw(k) {
+  const s = steps[k];
+  clearCells();
+  const cells = $("arrayBox").querySelectorAll(".cell");
+  if (algo === "bs") {
+    cells.forEach((c, i) => c.classList.add(i < s.lo || i > s.hi ? "discard" : "range"));
+    if (s.found >= 0) { cells[s.found].classList.remove("range"); cells[s.found].classList.add("found"); }
+    else if (s.mid >= 0) { cells[s.mid].classList.remove("range"); cells[s.mid].classList.add("compare"); }
+    $("pointer").textContent = s.mid >= 0 ? `lo = ${s.lo}   mid = ${s.mid}   hi = ${s.hi}` : `lo = ${s.lo}   hi = ${s.hi}（区间为空）`;
+  } else {
+    // 半开 [lo,hi)：hi 是开区间上界
+    cells.forEach((c, i) => c.classList.add(i < s.lo || i >= s.hi ? "discard" : "range"));
+    if (s.mid >= 0) { cells[s.mid].classList.remove("range"); cells[s.mid].classList.add("compare"); }
+    if (s.result !== undefined) {
+      // 标记结果插入位：在下标 result 的左侧竖线；若 == n 则标在最后一格右侧
+      if (s.result < cells.length) {
+        cells[s.result].classList.add("found");
+        const mk = document.createElement("div"); mk.className = "resultmark"; cells[s.result].appendChild(mk);
+      } else if (cells.length) {
+        const mk = document.createElement("div"); mk.className = "resultmark end"; cells[cells.length - 1].appendChild(mk);
+      }
+    }
+    $("pointer").textContent = s.mid >= 0 ? `lo = ${s.lo}   mid = ${s.mid}   hi = ${s.hi}  [lo, hi)` : `lo = hi = ${s.lo}　→ 结果位置 ${s.lo}`;
+  }
+  setLine(s.line);
+  $("count").textContent = s.count;
+  $("status").textContent = s.status;
+}
+
+function prepare() {
+  arr = $("arrayInput").value.split(",").map(x => parseInt(x.trim(), 10)).filter(x => !isNaN(x));
+  arr.sort((a, b) => a - b);
+  if (arr.length === 0) arr = [0];
+  $("arrayInput").value = arr.join(", ");
+  target = parseInt($("targetInput").value, 10);
+  buildArray(arr.length);
+  renderCode(CFG[algo].code);
+  steps = algo === "bs" ? genBS() : genBound(algo === "ub");
+  idx = 0; draw(0);
+}
+function stepOnce() { if (idx < steps.length - 1) { idx++; draw(idx); return true; } return false; }
+function play() { stop(); const speed = 1800 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (!stepOnce()) stop(); }, speed + 200); }
+function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+function applyAlgo(a) {
+  algo = a; stop();
+  const cfg = CFG[a];
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.algo === a));
+  $("title").textContent = cfg.title;
+  $("subtitle").textContent = cfg.subtitle;
+  $("note").textContent = cfg.note;
+  renderLegend(cfg.legend);
+  prepare();
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => applyAlgo(t.dataset.algo));
+$("playBtn").onclick = () => { prepare(); play(); };
+$("stepBtn").onclick = () => { if (!timer && idx === 0) prepare(); stop(); stepOnce(); };
+$("resetBtn").onclick = () => { stop(); prepare(); };
+
+applyAlgo("bs");
+</script>
+<script src="../assets/cppview.js"></script>
+<script>
+CppView.register({
+  bs: { tab: "binary_search", title: "二分查找 binary_search — C++", code:
+`// 功能：在【升序】数组中判断 target 是否存在，返回一个命中下标(不存在返回 -1)。
+// 输入：第一行 n；第二行 n 个升序整数；第三行 target。
+// 输出：命中下标(0 起)，不存在则 -1。
+// 注：STL 的 binary_search 只返回 bool；这里返回下标便于演示。
+#include <iostream>
+using namespace std;
+
+int main() {
+    int n; cin >> n;
+    int a[100005];
+    for (int i = 0; i < n; i++) cin >> a[i];   // 必须已升序
+    int target; cin >> target;
+
+    int lo = 0, hi = n - 1, pos = -1;
+    while (lo <= hi) {
+        int mid = (lo + hi) / 2;
+        if (a[mid] == target) { pos = mid; break; }
+        else if (a[mid] < target) lo = mid + 1;  // 去右半
+        else hi = mid - 1;                        // 去左半
+    }
+    cout << pos << endl;
+    return 0;
+}` },
+  lb: { tab: "lower_bound", title: "lower_bound（第一个 ≥ target）— C++", code:
+`// 功能：返回第一个 “>= target” 的下标（target 的最左可插入位置）。
+//       若所有元素都比 target 小，返回 n。等价于 STL 的 lower_bound。
+// 输入：第一行 n；第二行 n 个升序整数；第三行 target。
+// 输出：第一个 >= target 的下标(可能为 n)。
+#include <iostream>
+using namespace std;
+
+int main() {
+    int n; cin >> n;
+    int a[100005];
+    for (int i = 0; i < n; i++) cin >> a[i];
+    int target; cin >> target;
+
+    int lo = 0, hi = n;            // 半开区间 [lo, hi)
+    while (lo < hi) {
+        int mid = (lo + hi) / 2;
+        if (a[mid] < target) lo = mid + 1;  // 严格小于才排除左边
+        else hi = mid;                      // a[mid] >= target，可能是答案
+    }
+    cout << lo << endl;            // 第一个 >= target
+    // 也可直接用：int p = lower_bound(a, a + n, target) - a;
+    return 0;
+}` },
+  ub: { tab: "upper_bound", title: "upper_bound（第一个 > target）— C++", code:
+`// 功能：返回第一个 “> target” 的下标（target 的最右可插入位置）。
+//       若所有元素都 <= target，返回 n。等价于 STL 的 upper_bound。
+// 与 lower_bound 只差一个等号：判断条件从 < 变成 <=。
+// upper_bound(target) - lower_bound(target) 即 target 在数组中出现的次数。
+#include <iostream>
+using namespace std;
+
+int main() {
+    int n; cin >> n;
+    int a[100005];
+    for (int i = 0; i < n; i++) cin >> a[i];
+    int target; cin >> target;
+
+    int lo = 0, hi = n;            // 半开区间 [lo, hi)
+    while (lo < hi) {
+        int mid = (lo + hi) / 2;
+        if (a[mid] <= target) lo = mid + 1; // 小于等于都排除左边
+        else hi = mid;                      // a[mid] > target，可能是答案
+    }
+    cout << lo << endl;            // 第一个 > target
+    // 也可直接用：int p = upper_bound(a, a + n, target) - a;
+    return 0;
+}` },
+});
+document.getElementById("cppBtn").onclick = () => CppView.open(algo);
+</script>
+</body>
+</html>

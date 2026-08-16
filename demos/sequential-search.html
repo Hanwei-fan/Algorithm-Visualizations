@@ -3,28 +3,18 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>查找算法演示 // CYBER</title>
+<title>顺序查找演示 // CYBER</title>
 <style>
   :root {
-    --bg: #07060f;
-    --bg2: #0d0b1a;
-    --panel: rgba(18, 15, 38, 0.72);
-    --border: #2a2350;
-    --text: #e6e1ff;
-    --muted: #7d76a8;
-    --cyan: #00f0ff;
-    --magenta: #ff2bd6;
-    --yellow: #ffd400;
-    --green: #00ff9c;
-    --grid: rgba(0, 240, 255, 0.06);
+    --bg: #07060f; --bg2: #0d0b1a; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body {
-    margin: 0;
-    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-    color: var(--text);
-    line-height: 1.55;
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
     background:
       radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
       radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
@@ -35,10 +25,8 @@
   .mono { font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; }
   header { padding: 26px 30px 6px; }
   header h1 {
-    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #fff;
-    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+    color: #fff; text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
   }
   header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
   .back {
@@ -57,17 +45,13 @@
     transition: all .18s; clip-path: polygon(0 0, 100% 0, 100% 70%, 94% 100%, 0 100%);
   }
   .tab:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,240,255,.35) inset; }
-  .tab.active {
-    background: var(--cyan); color: #05060f; border-color: var(--cyan);
-    box-shadow: 0 0 18px rgba(0,240,255,.6); font-weight: 700;
-  }
+  .tab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); box-shadow: 0 0 18px rgba(0,240,255,.6); font-weight: 700; }
   .controls { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; padding: 18px 30px; }
   .field { display: flex; flex-direction: column; gap: 5px; }
   .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
   .field input {
     padding: 9px 12px; border: 1px solid var(--border); border-radius: 4px;
-    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
-    font-family: "SF Mono", Menlo, monospace;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text); font-family: "SF Mono", Menlo, monospace;
   }
   .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
   #arrayInput { width: 340px; }
@@ -89,59 +73,44 @@
   main { padding: 10px 30px 28px; }
   .card {
     background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
-    backdrop-filter: blur(6px);
-    box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
   }
   .array { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
   .cell { width: 56px; display: flex; flex-direction: column; align-items: center; gap: 5px; }
   .cell .box {
     width: 56px; height: 56px; display: flex; align-items: center; justify-content: center;
     border: 1px solid var(--border); border-radius: 6px; font-size: 18px; font-weight: 700;
-    background: rgba(0,240,255,0.03); color: var(--text);
-    font-family: "SF Mono", Menlo, monospace;
-    transition: all .2s;
+    background: rgba(0,240,255,0.03); color: var(--text); font-family: "SF Mono", Menlo, monospace; transition: all .2s;
   }
   .cell .idx { font-size: 11px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; }
   .cell.range .box { background: rgba(0,240,255,0.14); border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,240,255,.25) inset; }
-  .cell.compare .box {
-    background: var(--yellow); border-color: var(--yellow); color: #120e00;
-    transform: translateY(-6px); box-shadow: 0 0 22px rgba(255,212,0,.75);
-  }
-  .cell.found .box {
-    background: var(--green); border-color: var(--green); color: #002915;
-    box-shadow: 0 0 26px rgba(0,255,156,.85); animation: pulse .8s ease-in-out infinite alternate;
-  }
+  .cell.compare .box { background: var(--yellow); border-color: var(--yellow); color: #120e00; transform: translateY(-6px); box-shadow: 0 0 22px rgba(255,212,0,.75); }
+  .cell.found .box { background: var(--green); border-color: var(--green); color: #002915; box-shadow: 0 0 26px rgba(0,255,156,.85); animation: pulse .8s ease-in-out infinite alternate; }
   @keyframes pulse { to { box-shadow: 0 0 40px rgba(0,255,156,1); } }
   .cell.discard .box { background: rgba(255,255,255,0.015); color: #45406a; border-color: #1a163a; opacity: .55; }
-  .pointers { min-height: 22px; font-size: 14px; color: var(--cyan); margin-bottom: 14px;
-    font-family: "SF Mono", Menlo, monospace; letter-spacing: .5px; }
-  .pseudocode {
-    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
-    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13.5px; color: #8fb8c9; margin: 10px 0 16px;
-  }
+  /* 打擂台：当前擂主(最大值)高亮 */
+  .cell.champ .box { background: var(--magenta); border-color: var(--magenta); color: #fff; box-shadow: 0 0 22px rgba(255,43,214,.75); }
+  .cell.champ .idx { color: var(--magenta); }
+  .pointers { min-height: 22px; font-size: 14px; color: var(--cyan); margin-bottom: 14px; font-family: "SF Mono", Menlo, monospace; letter-spacing: .5px; }
+  .pseudocode { background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13.5px; color: #8fb8c9; margin: 10px 0 16px; }
   .pseudocode .line { padding: 3px 8px; border-radius: 3px; white-space: pre; }
-  .pseudocode .line.active {
-    background: linear-gradient(90deg, rgba(255,43,214,.9), rgba(0,240,255,.6));
-    color: #fff; box-shadow: 0 0 14px rgba(255,43,214,.5);
-  }
+  .pseudocode .line.active { background: linear-gradient(90deg, rgba(255,43,214,.9), rgba(0,240,255,.6)); color: #fff; box-shadow: 0 0 14px rgba(255,43,214,.5); }
   .stats { display: flex; gap: 24px; font-size: 15px; align-items: baseline; letter-spacing: .5px; }
-  .stats b { font-size: 26px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace;
-    text-shadow: 0 0 12px rgba(255,212,0,.6); }
-  .status { margin-top: 14px; font-size: 15px; min-height: 22px; color: var(--text);
-    font-family: "SF Mono", Menlo, monospace; }
+  .stats b { font-size: 26px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(255,212,0,.6); }
+  .status { margin-top: 14px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
   .note { padding: 10px 30px 0; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
 </style>
 </head>
 <body>
 <header>
-  <h1 id="title">查找算法演示</h1>
+  <h1 id="title">顺序查找演示</h1>
   <p id="subtitle"></p>
 </header>
 <a class="back" href="../index.html">← 返回门户</a>
 
 <div class="tabs">
   <button class="tab active" data-algo="seq">顺序查找</button>
-  <button class="tab" data-algo="bin">二分查找</button>
+  <button class="tab" data-algo="max">打擂台求最大值</button>
 </div>
 
 <div class="controls">
@@ -149,7 +118,7 @@
     <label for="arrayInput" id="arrayLabel">数组（逗号分隔）</label>
     <input id="arrayInput" type="text" value="42, 8, 15, 23, 4, 16, 68, 55, 31, 77, 9, 90">
   </div>
-  <div class="field">
+  <div class="field" id="targetField">
     <label for="targetInput">查找目标</label>
     <input id="targetInput" type="number" value="68">
   </div>
@@ -157,7 +126,7 @@
     <label for="speedInput">速度</label>
     <input id="speedInput" type="range" min="200" max="1600" value="800" step="100">
   </div>
-  <button class="btn" id="playBtn">开始查找</button>
+  <button class="btn" id="playBtn">开始</button>
   <button class="btn secondary" id="stepBtn">单步</button>
   <button class="btn secondary" id="resetBtn">重置</button>
   <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
@@ -170,7 +139,7 @@
     <div class="array" id="arrayBox"></div>
     <div class="pointers" id="pointer"></div>
     <div class="pseudocode" id="code"></div>
-    <div class="stats">比较次数：<b id="count">0</b></div>
+    <div class="stats"><span id="statLabel">比较次数：</span><b id="count">0</b></div>
     <div class="status" id="status"></div>
   </section>
 </main>
@@ -179,13 +148,11 @@
 <script>
 const CFG = {
   seq: {
+    title: "顺序查找演示",
     subtitle: "从第一个元素开始，逐个比较，直到找到目标或走完整个数组。",
-    arrayLabel: "数组（逗号分隔）",
-    sorted: false,
-    note: "顺序查找不要求数组有序，最坏情况需比较 n 次。",
-    legend: [
-      ["#ffd400", "正在比较"], ["#00ff9c", "命中"], ["#45406a", "已比较(不符)"],
-    ],
+    arrayLabel: "数组（逗号分隔）", needTarget: true, statLabel: "比较次数：",
+    note: "顺序查找不要求数组有序，最坏情况需比较 n 次，时间复杂度 O(n)。",
+    legend: [ ["#ffd400", "正在比较"], ["#00ff9c", "命中"], ["#45406a", "已比较(不符)"] ],
     code: [
       "for i = 0 to n-1:",
       "    if a[i] == target:",
@@ -193,22 +160,18 @@ const CFG = {
       "return -1          // 未找到",
     ],
   },
-  bin: {
-    subtitle: "数组必须有序。每次取中间元素比较，一次排除一半区间。",
-    arrayLabel: "数组（逗号分隔，会自动排序）",
-    sorted: true,
-    note: "数组长度为 n 时，二分查找最多比较约 log₂n 次。例如 12 个元素最多约 4 次。",
-    legend: [
-      ["#00f0ff", "当前区间"], ["#ffd400", "中间元素(mid)"], ["#00ff9c", "命中"], ["#45406a", "已排除"],
-    ],
+  max: {
+    title: "打擂台求最大值",
+    subtitle: "先让第一个元素当擂主，之后逐个挑战：谁更大谁当擂主，走完全程擂主即最大值。",
+    arrayLabel: "数组（逗号分隔）", needTarget: false, statLabel: "比较次数：",
+    note: "“打擂台”是顺序遍历的经典应用：维护当前最大值(擂主)，用后一个元素去挑战。n 个元素比较 n-1 次，O(n)。求最小值同理，把“更大”换成“更小”。",
+    legend: [ ["#ff2bd6", "当前擂主(最大)"], ["#ffd400", "正在挑战"], ["#45406a", "已比较" ] ],
     code: [
-      "low = 0; high = n-1",
-      "while low <= high:",
-      "    mid = (low + high) / 2",
-      "    if a[mid] == target: return mid",
-      "    else if a[mid] < target: low = mid+1",
-      "    else: high = mid-1",
-      "return -1",
+      "max = a[0]           // 第一个先当擂主",
+      "for i = 1 to n-1:",
+      "    if a[i] > max:   // 挑战成功",
+      "        max = a[i]   // 换擂主",
+      "return max",
     ],
   },
 };
@@ -221,8 +184,7 @@ function renderCode(lines) {
   $("code").innerHTML = lines.map((l, i) => `<div class="line" data-line="${i}">${l}</div>`).join("");
 }
 function renderLegend(items) {
-  $("legend").innerHTML = items.map(([c, t]) =>
-    `<span><i class="swatch" style="background:${c}"></i>${t}</span>`).join("");
+  $("legend").innerHTML = items.map(([c, t]) => `<span><i class="swatch" style="background:${c}"></i>${t}</span>`).join("");
 }
 function buildArray(n) {
   const el = $("arrayBox"); el.innerHTML = "";
@@ -252,26 +214,28 @@ function genSeqSteps() {
   s.push({ compare: -1, count, line: 3, status: "遍历结束，未找到目标", found: -1 });
   return s;
 }
-function genBinSteps() {
-  const s = []; let low = 0, high = arr.length - 1, count = 0;
-  while (low <= high) {
-    const mid = Math.floor((low + high) / 2); count++;
-    if (arr[mid] === target) {
-      s.push({ low, high, mid, count, line: 3, status: `a[${mid}] = ${arr[mid]} = 目标，命中！`, found: mid });
-      return s;
-    } else if (arr[mid] < target) {
-      s.push({ low, high, mid, count, line: 4,
-        status: `a[${mid}] = ${arr[mid]} < ${target}，去右半区间 (low = ${mid+1})`, found: -1 });
-      low = mid + 1;
-    } else {
-      s.push({ low, high, mid, count, line: 5,
-        status: `a[${mid}] = ${arr[mid]} > ${target}，去左半区间 (high = ${mid-1})`, found: -1 });
-      high = mid - 1;
+// 打擂台：champ=当前擂主下标，challenger=正在比较的挑战者下标
+function genMaxSteps() {
+  const s = []; let count = 0, champ = 0;
+  s.push({ champ, challenger: -1, done: [], count, line: 0,
+    status: `a[0] = ${arr[0]} 先当擂主（当前最大值）。`, val: arr[champ] });
+  for (let i = 1; i < arr.length; i++) {
+    count++;
+    const win = arr[i] > arr[champ];
+    s.push({ champ, challenger: i, done: range(0, i - 1), count, line: 2,
+      status: win ? `挑战：a[${i}] = ${arr[i]} > 擂主 ${arr[champ]}，挑战成功！`
+                  : `挑战：a[${i}] = ${arr[i]} ≤ 擂主 ${arr[champ]}，擂主不变。`, val: arr[champ] });
+    if (win) {
+      champ = i;
+      s.push({ champ, challenger: -1, done: range(0, i - 1), count, line: 3,
+        status: `a[${i}] = ${arr[i]} 成为新擂主。`, val: arr[champ] });
     }
   }
-  s.push({ low, high, mid: -1, count, line: 6, status: "区间为空，未找到目标", found: -1 });
+  s.push({ champ, challenger: -1, done: range(0, arr.length - 1).filter(x => x !== champ), count, line: 4,
+    status: `遍历结束，擂主 a[${champ}] = ${arr[champ]} 就是最大值。`, val: arr[champ], finished: true });
   return s;
 }
+function range(a, b) { const r = []; for (let i = a; i <= b; i++) r.push(i); return r; }
 
 function draw(k) {
   const s = steps[k];
@@ -282,48 +246,45 @@ function draw(k) {
     if (s.found >= 0) cells[s.found].classList.add("found");
     else if (s.compare >= 0) cells[s.compare].classList.add("compare");
     $("pointer").textContent = s.compare >= 0 ? `当前检查 i = ${s.compare}` : "";
+    $("count").textContent = s.count;
   } else {
-    cells.forEach((c, i) => c.classList.add(i < s.low || i > s.high ? "discard" : "range"));
-    if (s.found >= 0) { cells[s.found].classList.remove("range"); cells[s.found].classList.add("found"); }
-    else if (s.mid >= 0) { cells[s.mid].classList.remove("range"); cells[s.mid].classList.add("compare"); }
-    $("pointer").textContent = s.mid >= 0
-      ? `low = ${s.low}   mid = ${s.mid}   high = ${s.high}`
-      : `low = ${s.low}   high = ${s.high}（区间为空）`;
+    (s.done || []).forEach(i => { if (i !== s.champ) cells[i].classList.add("discard"); });
+    if (s.champ >= 0) cells[s.champ].classList.add("champ");
+    if (s.challenger >= 0) cells[s.challenger].classList.add("compare");
+    $("pointer").textContent = s.challenger >= 0
+      ? `擂主 = a[${s.champ}] (${s.val})    挑战者 i = ${s.challenger} (${arr[s.challenger]})`
+      : `擂主 = a[${s.champ}] (${s.val})`;
+    $("count").textContent = s.count;
   }
   setLine(s.line);
-  $("count").textContent = s.count;
   $("status").textContent = s.status;
 }
 
 function prepare() {
   const cfg = CFG[algo];
   arr = $("arrayInput").value.split(",").map(x => parseInt(x.trim(), 10)).filter(x => !isNaN(x));
-  if (cfg.sorted) arr.sort((a, b) => a - b);
+  if (arr.length === 0) arr = [0];
   $("arrayInput").value = arr.join(", ");
   target = parseInt($("targetInput").value, 10);
   buildArray(arr.length);
   renderCode(cfg.code);
-  steps = algo === "seq" ? genSeqSteps() : genBinSteps();
+  steps = algo === "seq" ? genSeqSteps() : genMaxSteps();
   idx = 0; draw(0);
 }
-function stepOnce() {
-  if (idx < steps.length - 1) { idx++; draw(idx); return true; }
-  return false;
-}
-function play() {
-  stop();
-  const speed = 1800 - parseInt($("speedInput").value, 10);
-  timer = setInterval(() => { if (!stepOnce()) stop(); }, speed + 200);
-}
+function stepOnce() { if (idx < steps.length - 1) { idx++; draw(idx); return true; } return false; }
+function play() { stop(); const speed = 1800 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (!stepOnce()) stop(); }, speed + 200); }
 function stop() { if (timer) { clearInterval(timer); timer = null; } }
 
 function applyAlgo(a) {
   algo = a; stop();
   const cfg = CFG[a];
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.algo === a));
+  $("title").textContent = cfg.title;
   $("subtitle").textContent = cfg.subtitle;
   $("arrayLabel").textContent = cfg.arrayLabel;
+  $("statLabel").textContent = cfg.statLabel;
   $("note").textContent = cfg.note;
+  $("targetField").style.display = cfg.needTarget ? "flex" : "none";
   renderLegend(cfg.legend);
   prepare();
 }
@@ -338,7 +299,7 @@ applyAlgo("seq");
 <script src="../assets/cppview.js"></script>
 <script>
 CppView.register({
-  seq: { title: "顺序查找 (Sequential Search) — C++", code:
+  seq: { tab: "顺序查找", title: "顺序查找 (Sequential Search) — C++", code:
 `// 功能：顺序查找。在数组中从头到尾逐个比较，找到目标值的下标。
 // 输入：第一行 n（元素个数）；第二行 n 个整数（数组，可无序）；第三行 target（要查找的值）。
 // 输出：目标值第一次出现的下标(0 起)；若不存在则输出 -1。
@@ -361,10 +322,11 @@ int main() {
     cout << pos << endl;
     return 0;
 }` },
-  bin: { title: "二分查找 (Binary Search) — C++", code:
-`// 功能：二分查找。在【有序】数组中通过不断折半缩小区间，查找目标值的下标。
-// 输入：第一行 n（元素个数）；第二行 n 个【升序】整数；第三行 target（要查找的值）。
-// 输出：目标值的下标(0 起)；若不存在则输出 -1。
+  max: { tab: "打擂台求最大值", title: "打擂台法求最大值 — C++", code:
+`// 功能：打擂台法求数组最大值。先让第一个元素当擂主，
+//       之后逐个用后面的元素去挑战，谁更大谁当擂主，走完全程擂主即最大值。
+// 输入：第一行 n（元素个数）；第二行 n 个整数。
+// 输出：最大值（以及它第一次出现的下标）。
 #include <iostream>
 using namespace std;
 
@@ -372,19 +334,17 @@ int main() {
     int n;
     cin >> n;
     int a[100005];
-    for (int i = 0; i < n; i++) cin >> a[i];   // 数组必须已按升序排列
-    int target;
-    cin >> target;
+    for (int i = 0; i < n; i++) cin >> a[i];
 
-    int lo = 0, hi = n - 1, pos = -1;
-    while (lo <= hi) {
-        int mid = (lo + hi) / 2;               // 取中间位置
-        if (a[mid] == target) { pos = mid; break; }
-        else if (a[mid] < target) lo = mid + 1; // 目标在右半区间
-        else hi = mid - 1;                      // 目标在左半区间
+    int mx = a[0], pos = 0;     // 第一个元素先当擂主
+    for (int i = 1; i < n; i++) {
+        if (a[i] > mx) {        // 挑战成功：更大
+            mx = a[i];          // 换擂主
+            pos = i;
+        }
     }
 
-    cout << pos << endl;
+    cout << mx << " " << pos << endl;
     return 0;
 }` },
 });

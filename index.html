@@ -125,8 +125,10 @@ const SECTIONS = [
   {
     id: "search", icon: "🔍", title: "查找", desc: "在数据中定位目标元素",
     items: [
-      { icon: "🔍", tag: "查找", title: "查找算法", file: "search.html", ready: true,
-        desc: "顺序查找 / 二分查找，可切换。逐格高亮比较，对比效率差异。" },
+      { icon: "🔍", tag: "查找", title: "顺序查找", file: "sequential-search.html", ready: true,
+        desc: "从头到尾逐个比较查找目标，O(n)，不要求有序。另含「打擂台法求最大值」：首元素当擂主，逐个挑战换擂主。逐格高亮，含两种 C++。" },
+      { icon: "🎯", tag: "查找", title: "二分查找", file: "binary-search.html", ready: true,
+        desc: "有序数组折半查找，可切换 binary_search（判存在）/ lower_bound（第一个≥target）/ upper_bound（第一个>target）。半开区间演示、结果位置标记，含三种 C++。" },
     ],
   },
   {
