@@ -89,6 +89,9 @@
   @keyframes pulse { to { box-shadow: 0 0 40px rgba(0,255,156,1); } }
   .cell.discard .box { background: rgba(255,255,255,0.015); color: #45406a; border-color: #1a163a; opacity: .55; }
   .cell.target-eq .box { border-color: var(--magenta); box-shadow: 0 0 0 2px rgba(255,43,214,.4) inset; }
+  /* 候选答案：半开区间里 a[hi] 是当前已知满足条件的最左元素，不是被舍去 */
+  .cell.cand .box { background: rgba(0,255,156,0.12); border-color: var(--green); color: var(--green); box-shadow: 0 0 10px rgba(0,255,156,.35) inset; border-style: dashed; }
+  .cell.cand .idx { color: var(--green); }
   /* 结果位置标记（lower/upper_bound 指向的插入位，可能在末尾之后） */
   .resultmark { position: absolute; left: -6px; top: -2px; bottom: 18px; width: 3px; background: var(--green); box-shadow: 0 0 10px var(--green); border-radius: 2px; }
   .resultmark.end { left: auto; right: -6px; }
@@ -167,8 +170,8 @@ const CFG = {
   lb: {
     title: "二分查找 lower_bound",
     subtitle: "返回第一个 ≥ target 的位置（target 的最左插入点）。",
-    note: "lower_bound 找第一个 “≥ target” 的下标。半开区间 [lo,hi)：a[mid] < target 时 lo=mid+1，否则 hi=mid。结束时 lo 即答案（可能等于 n，表示都比 target 小）。",
-    legend: [ ["#00f0ff", "当前区间"], ["#ffd400", "中间元素 mid"], ["#00ff9c", "结果位置"], ["#45406a", "已排除"] ],
+    note: "lower_bound 找第一个 “≥ target” 的下标。半开区间 [lo,hi)：a[mid] < target 时 lo=mid+1，否则 hi=mid（把上界收到 mid，但 a[mid] 本身是候选答案、不丢弃）。结束时 lo 即答案（可能等于 n，表示都比 target 小）。",
+    legend: [ ["#00f0ff", "当前区间"], ["#ffd400", "中间元素 mid"], ["#00ff9c", "候选 a[hi] / 结果位置"], ["#45406a", "已排除"] ],
     code: [
       "lo = 0; hi = n          // 半开区间 [lo, hi)",
       "while lo < hi:",
@@ -183,8 +186,8 @@ const CFG = {
   ub: {
     title: "二分查找 upper_bound",
     subtitle: "返回第一个 > target 的位置（target 的最右插入点）。",
-    note: "upper_bound 找第一个 “> target” 的下标。半开区间 [lo,hi)：a[mid] <= target 时 lo=mid+1，否则 hi=mid。与 lower_bound 只差一个等号。upper_bound − lower_bound 即 target 出现的次数。",
-    legend: [ ["#00f0ff", "当前区间"], ["#ffd400", "中间元素 mid"], ["#00ff9c", "结果位置"], ["#45406a", "已排除"] ],
+    note: "upper_bound 找第一个 “> target” 的下标。半开区间 [lo,hi)：a[mid] <= target 时 lo=mid+1，否则 hi=mid（把上界收到 mid，但 a[mid] 本身是候选答案、不丢弃）。与 lower_bound 只差一个等号。upper_bound − lower_bound 即 target 出现的次数。",
+    legend: [ ["#00f0ff", "当前区间"], ["#ffd400", "中间元素 mid"], ["#00ff9c", "候选 a[hi] / 结果位置"], ["#45406a", "已排除"] ],
     code: [
       "lo = 0; hi = n          // 半开区间 [lo, hi)",
       "while lo < hi:",
@@ -271,8 +274,13 @@ function draw(k) {
     else if (s.mid >= 0) { cells[s.mid].classList.remove("range"); cells[s.mid].classList.add("compare"); }
     $("pointer").textContent = s.mid >= 0 ? `lo = ${s.lo}   mid = ${s.mid}   hi = ${s.hi}` : `lo = ${s.lo}   hi = ${s.hi}（区间为空）`;
   } else {
-    // 半开 [lo,hi)：hi 是开区间上界
-    cells.forEach((c, i) => c.classList.add(i < s.lo || i >= s.hi ? "discard" : "range"));
+    // 半开 [lo,hi)：区间内为 range；a[hi]（若 hi<n）是当前候选答案，不是被舍去；
+    // 只有 i>hi 且左侧 i<lo 的才是真正排除。
+    cells.forEach((c, i) => {
+      if (i >= s.lo && i < s.hi) c.classList.add("range");
+      else if (i === s.hi && s.hi < arr.length && s.result === undefined) c.classList.add("cand");
+      else c.classList.add("discard");
+    });
     if (s.mid >= 0) { cells[s.mid].classList.remove("range"); cells[s.mid].classList.add("compare"); }
     if (s.result !== undefined) {
       // 标记结果插入位：在下标 result 的左侧竖线；若 == n 则标在最后一格右侧
@@ -283,7 +291,12 @@ function draw(k) {
         const mk = document.createElement("div"); mk.className = "resultmark end"; cells[cells.length - 1].appendChild(mk);
       }
     }
-    $("pointer").textContent = s.mid >= 0 ? `lo = ${s.lo}   mid = ${s.mid}   hi = ${s.hi}  [lo, hi)` : `lo = hi = ${s.lo}　→ 结果位置 ${s.lo}`;
+    if (s.mid >= 0) {
+      const candTxt = s.hi < arr.length ? `   候选 a[${s.hi}] = ${arr[s.hi]}` : `   候选 = n(暂无)`;
+      $("pointer").textContent = `lo = ${s.lo}   mid = ${s.mid}   hi = ${s.hi}  [lo, hi)${candTxt}`;
+    } else {
+      $("pointer").textContent = `lo = hi = ${s.lo}　→ 结果位置 ${s.lo}`;
+    }
   }
   setLine(s.line);
   $("count").textContent = s.count;
