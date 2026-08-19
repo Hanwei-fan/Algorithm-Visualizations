@@ -171,6 +171,8 @@ const SECTIONS = [
         desc: "DFS（栈实现 / 递归实现，含回溯与调用栈）与 BFS，支持随机生成连通图。" },
       { icon: "🧩", tag: "图", title: "迷宫寻路 (BFS/DFS)", file: "maze.html", ready: true,
         desc: "网格迷宫上的 BFS/DFS 寻路可切换：BFS 用队列扩散求最短路，DFS 用栈走到底回溯。DFS 还可切「数所有方案」模式，用小迷宫回溯枚举 S→T 全部路径并计数。格子标步数、显示队列/栈、回溯高亮路径，可点击画墙，含 C++。" },
+      { icon: "🪣", tag: "图", title: "洪水填充 Flood Fill", file: "flood-fill.html", ready: true,
+        desc: "油漆桶原理：从种子格把同色四连通区域整片染成新色。DFS(栈)/BFS(队列) 可切换，填充结果相同、访问顺序不同。点击选种子、调色板选新色、格内标染色顺序，含两种 C++。" },
       { icon: "🧭", tag: "图", title: "拓扑排序", file: "topo-sort.html", ready: true,
         desc: "Kahn 算法自动演示 + 手动确定拓扑序，节点随边消失，支持随机生成 DAG。" },
       { icon: "✏️", tag: "图", title: "欧拉图 / 一笔画", file: "euler.html", ready: true,

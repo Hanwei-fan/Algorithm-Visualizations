@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>洪水填充 Flood Fill // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 12px; padding: 14px 30px 4px; }
+  .tab {
+    padding: 10px 24px; border: 1px solid var(--border); border-radius: 4px;
+    background: rgba(0,240,255,0.03); color: var(--cyan); font-size: 15px;
+    letter-spacing: 1px; cursor: pointer; font-family: "SF Mono", Menlo, monospace;
+    transition: all .18s; clip-path: polygon(0 0, 100% 0, 100% 70%, 94% 100%, 0 100%);
+  }
+  .tab:hover { border-color: var(--cyan); box-shadow: 0 0 12px rgba(0,240,255,.35) inset; }
+  .tab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 18px rgba(0,240,255,.6); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed input { width: 130px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 16px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  /* 颜色选择器 */
+  .palette { display: flex; gap: 8px; }
+  .swatch { width: 30px; height: 30px; border-radius: 6px; cursor: pointer; border: 2px solid transparent; transition: all .15s; }
+  .swatch:hover { transform: scale(1.1); }
+  .swatch.sel { border-color: #fff; box-shadow: 0 0 10px rgba(255,255,255,.6); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+  }
+  .rowlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 10px; }
+  .rowlabel.mt { margin-top: 18px; }
+  /* 网格 */
+  #grid { display: grid; gap: 3px; user-select: none; touch-action: none; }
+  .fcell {
+    aspect-ratio: 1; border-radius: 4px; border: 1px solid rgba(255,255,255,.08);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    font-family: "SF Mono", Menlo, monospace; font-size: 11px; font-weight: 700; color: rgba(255,255,255,.55);
+    transition: background .25s, box-shadow .2s, transform .12s;
+  }
+  .fcell.frontier { box-shadow: 0 0 0 2px var(--cyan), 0 0 12px rgba(0,240,255,.6) inset; }
+  .fcell.current { box-shadow: 0 0 0 3px var(--yellow), 0 0 16px rgba(255,212,0,.7); transform: scale(1.08); z-index: 2; }
+  .fcell.filled { animation: pop .3s ease; }
+  .fcell.seed::after { content: "◎"; font-size: 15px; color: #fff; text-shadow: 0 0 4px #000; }
+  @keyframes pop { 0% { transform: scale(.5); } 100% { transform: scale(1); } }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .dot { width: 13px; height: 13px; border-radius: 3px; }
+  /* 队列/栈视图 */
+  .fringe { display: flex; gap: 6px; flex-wrap: wrap; min-height: 40px; align-items: center; }
+  .fchip {
+    padding: 4px 9px; border: 1px solid var(--cyan); border-radius: 5px; background: rgba(0,240,255,0.1);
+    font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--cyan);
+  }
+  .fchip.head { border-color: var(--yellow); background: rgba(255,212,0,0.18); color: var(--yellow); }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: #8fb8c9; margin: 0 0 14px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .stats { display: flex; gap: 20px; font-size: 14px; margin-bottom: 8px; flex-wrap: wrap; font-family: "SF Mono", Menlo, monospace; }
+  .stats b { font-size: 18px; color: var(--green); text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .status { margin-top: 8px; font-size: 14.5px; min-height: 44px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .hl { color: var(--green); font-weight: 700; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>洪水填充 Flood Fill</h1>
+  <p>从一个种子格出发，把与它<b>颜色相同且四连通</b>的整片区域换成新颜色（就像画图软件的“油漆桶”）。DFS 一路染到底、BFS 一圈圈扩散，填充结果相同。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="tabs">
+  <div class="tab active" data-mode="dfs">DFS（递归/栈）</div>
+  <div class="tab" data-mode="bfs">BFS（队列）</div>
+</div>
+<div class="controls">
+  <div class="field">
+    <label>填充新色（点色块选择）</label>
+    <div class="palette" id="palette"></div>
+  </div>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="20" max="260" value="140" step="20"></div>
+  <button class="btn cy" id="randBtn">随机色块</button>
+  <button class="btn" id="startBtn" disabled>开始填充</button>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="rowlabel">画布（点击一个格子选它为<b>种子</b>，再点「开始填充」；格内数字=染色顺序）</div>
+    <div id="grid"></div>
+    <div class="legend">
+      <span><i class="dot" style="background:#fff;border:1px solid #999"></i>◎ 种子格</span>
+      <span><i class="dot" style="box-shadow:0 0 0 2px #00f0ff inset;background:#222"></i>队列/栈中(待染)</span>
+      <span><i class="dot" style="box-shadow:0 0 0 3px #ffd400 inset;background:#222"></i>当前格</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel" id="fringeLabel">栈 (Stack · LIFO)</div>
+    <div class="fringe" id="fringe"></div>
+    <div class="plabel mt" style="margin-top:16px">算法说明</div>
+    <div class="formula" id="formula"></div>
+    <div class="stats" id="stats"></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const ROWS = 10, COLS = 12;
+// 调色板（索引 0..N-1）
+const COLORS = ["#3a3560", "#ff6b9d", "#ffd166", "#06d6a0", "#4d96ff", "#c77dff"];
+let mode = "dfs";
+let grid = [];              // grid[r][c] = 颜色索引
+let seed = null;            // [r,c]
+let newColor = 1;           // 目标新色索引
+let steps = [], idx = 0, timer = null, running = false;
+
+function setStatus(t) { $("status").innerHTML = t; }
+const key = (r, c) => r * COLS + c;
+const DR = [-1, 1, 0, 0], DC = [0, 0, -1, 1];  // 上下左右
+
+// ======== 初始化 ========
+function initGrid(randomize) {
+  stopTimer(); running = false; $("stepBtn").disabled = true; $("playBtn").disabled = true;
+  seed = null; steps = []; idx = 0;
+  if (randomize || grid.length === 0) {
+    // 生成几块连续色块：随机漫步涂色，形成成片区域
+    grid = Array.from({ length: ROWS }, () => Array(COLS).fill(0));
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+      // 以邻居色为主，制造成片区域
+      const up = r > 0 ? grid[r - 1][c] : -1, lf = c > 0 ? grid[r][c - 1] : -1;
+      const cands = [up, lf].filter(x => x >= 0);
+      if (cands.length && Math.random() < 0.62) grid[r][c] = cands[Math.floor(Math.random() * cands.length)];
+      else grid[r][c] = Math.floor(Math.random() * 4);  // 用前4色作底
+    }
+  }
+  buildGrid();
+  render({});
+  refreshText();
+  $("startBtn").disabled = true;
+  setStatus("点画布上一个格子，把它选为种子（填充起点）。");
+}
+
+function refreshText() {
+  if (mode === "dfs") {
+    $("fringeLabel").textContent = "栈 (Stack · LIFO 后进先出)";
+    $("formula").innerHTML = `记录种子的<b>原色</b>。从种子入栈。<br>反复取<b>栈顶</b>：若它是原色则染成新色，<br>把四个同为原色的邻居入栈。<br>栈空即整片填完。递归写法等价。`;
+    $("note").innerHTML = `DFS 洪水填充：一路深入把同色连通块染色，用<code>递归</code>或<code>显式栈</code>。注意先记住<code>原色</code>，只对原色格扩散，否则会误染或死循环。`;
+  } else {
+    $("fringeLabel").textContent = "队列 (Queue · FIFO 先进先出)";
+    $("formula").innerHTML = `记录种子的<b>原色</b>。种子染新色后入队。<br>反复<b>队首出队</b>，把四个仍是原色的邻居<br>染新色后<b>入队尾</b>。<br>队空即整片填完。一圈圈向外扩散。`;
+    $("note").innerHTML = `BFS 洪水填充：用<code>队列</code>按距离一层层扩散染色。与 DFS 填充结果<code>完全相同</code>，只是访问顺序不同（BFS 像涟漪、DFS 像藤蔓）。`;
+  }
+}
+
+function clone(m) { return m.map(r => [...r]); }
+
+// ======== 生成分步：DFS（显式栈）========
+function genDFS() {
+  const list = [];
+  const g = clone(grid);
+  const [sr, sc] = seed;
+  const old = g[sr][sc];
+  if (old === newColor) {
+    list.push({ grid: clone(g), fringe: [], cur: null, isStack: true, filled: 0,
+      desc: `种子原色与新色相同，无需填充。`, done: true });
+    return list;
+  }
+  const stack = [[sr, sc]];
+  let filled = 0, order = 0;
+  const orderMap = {};
+  list.push({ grid: clone(g), fringe: [[sr, sc]], cur: null, isStack: true, filled, orderMap: { ...orderMap },
+    desc: `记录原色=区块底色。种子 (${sr},${sc}) 入栈。`, });
+  while (stack.length) {
+    const [r, c] = stack[stack.length - 1];   // 栈顶
+    if (g[r][c] === old) {
+      g[r][c] = newColor; filled++; orderMap[key(r, c)] = ++order;
+    }
+    stack.pop();
+    // 找同为原色的邻居入栈（倒序压，出栈顺序更自然）
+    const pushed = [];
+    for (let k = 3; k >= 0; k--) {
+      const nr = r + DR[k], nc = c + DC[k];
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+      if (g[nr][nc] !== old) continue;
+      // 避免重复入栈：入栈时不改色，取出时才判断；这里检查未在栈中
+      if (!stack.some(x => x[0] === nr && x[1] === nc)) { stack.push([nr, nc]); pushed.push([nr, nc]); }
+    }
+    list.push({ grid: clone(g), fringe: stack.map(x => [...x]), cur: [r, c], isStack: true, filled, orderMap: { ...orderMap },
+      desc: pushed.length ? `染 (${r},${c}) 为新色（第 ${orderMap[key(r, c)]} 个），${pushed.length} 个同色邻居入栈。` : `染 (${r},${c}) 为新色，四周无新的同色邻居。` });
+  }
+  list.push({ grid: clone(g), fringe: [], cur: null, isStack: true, filled, orderMap: { ...orderMap }, done: true,
+    desc: `<span class="hl">填充完成！</span>共染色 ${filled} 格。` });
+  return list;
+}
+
+// ======== 生成分步：BFS（队列）========
+function genBFS() {
+  const list = [];
+  const g = clone(grid);
+  const [sr, sc] = seed;
+  const old = g[sr][sc];
+  if (old === newColor) {
+    list.push({ grid: clone(g), fringe: [], cur: null, isStack: false, filled: 0,
+      desc: `种子原色与新色相同，无需填充。`, done: true });
+    return list;
+  }
+  const q = [[sr, sc]];
+  let filled = 0, order = 0;
+  const orderMap = {};
+  g[sr][sc] = newColor; filled++; orderMap[key(sr, sc)] = ++order;
+  list.push({ grid: clone(g), fringe: [[sr, sc]], cur: null, isStack: false, filled, orderMap: { ...orderMap },
+    desc: `记录原色。种子 (${sr},${sc}) 染新色并入队。` });
+  while (q.length) {
+    const [r, c] = q.shift();   // 队首
+    const pushed = [];
+    for (let k = 0; k < 4; k++) {
+      const nr = r + DR[k], nc = c + DC[k];
+      if (nr < 0 || nr >= ROWS || nc < 0 || nc >= COLS) continue;
+      if (g[nr][nc] !== old) continue;
+      g[nr][nc] = newColor; filled++; orderMap[key(nr, nc)] = ++order;
+      q.push([nr, nc]); pushed.push([nr, nc]);
+    }
+    list.push({ grid: clone(g), fringe: q.map(x => [...x]), cur: [r, c], isStack: false, filled, orderMap: { ...orderMap },
+      desc: pushed.length ? `扩展 (${r},${c})：${pushed.length} 个同色邻居染新色入队。` : `扩展 (${r},${c})：四周无新的同色邻居。` });
+  }
+  list.push({ grid: clone(g), fringe: [], cur: null, isStack: false, filled, orderMap: { ...orderMap }, done: true,
+    desc: `<span class="hl">填充完成！</span>共染色 ${filled} 格。` });
+  return list;
+}
+
+// ======== 构建网格 DOM ========
+function buildGrid() {
+  const m = $("grid");
+  m.style.gridTemplateColumns = `repeat(${COLS}, 1fr)`;
+  m.style.maxWidth = (COLS * 40) + "px";
+  let html = "";
+  for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++)
+    html += `<div class="fcell" data-r="${r}" data-c="${c}"></div>`;
+  m.innerHTML = html;
+}
+
+// ======== 渲染某一步 ========
+function render(s) {
+  const inList = (arr, r, c) => arr && arr.some(x => x[0] === r && x[1] === c);
+  const gg = s.grid || grid;
+  const cells = $("grid").children;
+  for (const el of cells) {
+    const r = +el.dataset.r, c = +el.dataset.c;
+    let cls = "fcell", txt = "";
+    el.style.background = COLORS[gg[r][c]];
+    if (s.orderMap && s.orderMap[key(r, c)]) txt = s.orderMap[key(r, c)];
+    if (inList(s.fringe, r, c)) cls += " frontier";
+    if (s.cur && s.cur[0] === r && s.cur[1] === c) cls += " current";
+    if (seed && seed[0] === r && seed[1] === c) cls += " seed";
+    el.className = cls;
+    el.textContent = txt;
+  }
+  // fringe 视图
+  const fr = s.fringe || [];
+  if (fr.length) {
+    const isStack = s.isStack;
+    const chips = fr.map((x, i) => {
+      const head = isStack ? i === fr.length - 1 : i === 0;
+      return `<span class="fchip${head ? " head" : ""}">(${x[0]},${x[1]})</span>`;
+    });
+    $("fringe").innerHTML = (isStack ? "栈底 " : "队首→ ") + chips.join(" ") + (isStack ? " ←栈顶" : "");
+  } else {
+    $("fringe").innerHTML = '<span style="color:var(--muted);font-family:monospace">（空）</span>';
+  }
+  $("stats").innerHTML = `已染色：<b>${s.filled || 0}</b> 格` + (s.done ? "" : `　${mode === "dfs" ? "栈" : "队列"}中：${fr.length}`);
+}
+
+// ======== 引擎 ========
+function draw(s) { render(s); setStatus(s.desc); }
+function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(steps[idx]); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 280 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(steps[idx]); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+function runFill() {
+  if (!seed) { setStatus("请先点一个格子选为种子。"); return; }
+  stopTimer();
+  steps = mode === "dfs" ? genDFS() : genBFS();
+  idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  draw(steps[0]);
+}
+
+function switchMode(m) {
+  if (m === mode) return;
+  mode = m;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === m));
+  stopTimer(); running = false; $("stepBtn").disabled = true; $("playBtn").disabled = true;
+  steps = []; idx = 0;
+  render({}); refreshText();
+  setStatus(seed ? `已切到 ${m.toUpperCase()}。点「开始填充」。` : "点一个格子选为种子。");
+}
+
+// ======== 调色板 ========
+function buildPalette() {
+  $("palette").innerHTML = COLORS.map((col, i) =>
+    `<div class="swatch${i === newColor ? " sel" : ""}" data-ci="${i}" style="background:${col}"></div>`).join("");
+  $("palette").querySelectorAll(".swatch").forEach(sw => sw.onclick = () => {
+    newColor = +sw.dataset.ci;
+    $("palette").querySelectorAll(".swatch").forEach(x => x.classList.toggle("sel", +x.dataset.ci === newColor));
+  });
+}
+
+// ======== 交互：选种子 ========
+$("grid").addEventListener("click", e => {
+  if (running && idx < steps.length - 1) return;
+  const el = e.target.closest(".fcell");
+  if (!el) return;
+  seed = [+el.dataset.r, +el.dataset.c];
+  steps = []; idx = 0;
+  render({});
+  $("startBtn").disabled = false;
+  setStatus(`已选种子 (${seed[0]},${seed[1]})，原色为该格颜色。选好新色后点「开始填充」。`);
+});
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchMode(t.dataset.mode));
+$("randBtn").onclick = () => initGrid(true);
+$("startBtn").onclick = () => runFill();
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) runFill(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("cppBtn").onclick = () => CppView.open(mode);
+
+CppView.register({
+  dfs: { title: "洪水填充 Flood Fill — DFS（递归）C++", code:
+`// 功能：从 (sr,sc) 出发，把与它同色的四连通区域全部染成 newColor。
+// DFS 递归：先记住原色，只对“仍是原色”的格子染色并向四周深入。
+#include <iostream>
+using namespace std;
+
+const int MAXN = 105;
+int n, m;
+int g[MAXN][MAXN];
+int dr[4] = {-1, 1, 0, 0};
+int dc[4] = {0, 0, -1, 1};
+
+void floodFill(int r, int c, int oldColor, int newColor) {
+    if (r < 0 || r >= n || c < 0 || c >= m) return;
+    if (g[r][c] != oldColor) return;     // 不是原色，停止
+    g[r][c] = newColor;                  // 染色
+    for (int k = 0; k < 4; k++)          // 向四个方向深入
+        floodFill(r + dr[k], c + dc[k], oldColor, newColor);
+}
+
+int main() {
+    int sr, sc, newColor;
+    cin >> n >> m;
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++) cin >> g[i][j];
+    cin >> sr >> sc >> newColor;
+
+    int oldColor = g[sr][sc];
+    if (oldColor != newColor)            // 原色==新色时不填充，防死循环
+        floodFill(sr, sc, oldColor, newColor);
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) cout << g[i][j] << " \\n"[j + 1 == m];
+    }
+    return 0;
+}`
+  },
+  bfs: { title: "洪水填充 Flood Fill — BFS（队列）C++", code:
+`// 功能：从 (sr,sc) 出发，把与它同色的四连通区域全部染成 newColor。
+// BFS 队列：种子先染色入队，出队时把仍是原色的邻居染色入队，一圈圈扩散。
+#include <iostream>
+#include <queue>
+using namespace std;
+
+const int MAXN = 105;
+int n, m;
+int g[MAXN][MAXN];
+int dr[4] = {-1, 1, 0, 0};
+int dc[4] = {0, 0, -1, 1};
+
+void floodFill(int sr, int sc, int newColor) {
+    int oldColor = g[sr][sc];
+    if (oldColor == newColor) return;    // 同色，无需填充
+    queue<pair<int,int>> q;
+    g[sr][sc] = newColor;                // 种子先染色
+    q.push({sr, sc});
+    while (!q.empty()) {
+        auto [r, c] = q.front(); q.pop();
+        for (int k = 0; k < 4; k++) {
+            int nr = r + dr[k], nc = c + dc[k];
+            if (nr < 0 || nr >= n || nc < 0 || nc >= m) continue;
+            if (g[nr][nc] != oldColor) continue;   // 只染原色格
+            g[nr][nc] = newColor;
+            q.push({nr, nc});
+        }
+    }
+}
+
+int main() {
+    int sr, sc, newColor;
+    cin >> n >> m;
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++) cin >> g[i][j];
+    cin >> sr >> sc >> newColor;
+
+    floodFill(sr, sc, newColor);
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < m; j++) cout << g[i][j] << " \\n"[j + 1 == m];
+    }
+    return 0;
+}`
+  }
+});
+
+buildPalette();
+initGrid(true);
+</script>
+</body>
+</html>
