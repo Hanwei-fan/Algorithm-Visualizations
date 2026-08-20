@@ -213,6 +213,7 @@ let steps = [], idx = 0, timer = null, running = false;
 const ALGOS = {
   seq: [
     { id: "lis", name: "最长上升子序列 LIS" },
+    { id: "lisbs", name: "LIS（二分优化 O(n log n)）" },
     { id: "lcs", name: "最长公共子序列 LCS" },
     { id: "mss", name: "最大子段和" },
   ],
@@ -377,6 +378,59 @@ function buildLIS() {
   }
   const best = Math.max(...dp), bi = dp.indexOf(best);
   snap({ [bi]: "pick" }, { [bi]: "best" }, `完成！最长上升子序列长度 = max(dp) = <b>${best}</b>。`, best);
+  return list;
+}
+
+// ---- LIS 二分优化：tails[k]=长度k+1的上升子序列最小末尾 ----
+function buildLISBS() {
+  const n = A.length, list = [];
+  const tails = [];
+  // 渲染：原序列(高亮当前 i / 二分区间) + tails 数组(高亮定位/替换/追加)
+  const snap = (seqMarks, tailsSnapshot, tailsMarks, desc) => {
+    list.push({ render: () => {
+      let html = '<div class="seq">';
+      A.forEach((v, i) => html += `<div class="cell ${seqMarks[i] || ""}"><div class="v">${v}</div><div class="ix">${i}</div></div>`);
+      html += '</div>';
+      html += '<div class="plabel" style="text-align:center;margin-top:10px">tails 数组（长度为 下标+1 的上升子序列的最小末尾值）</div>';
+      if (tailsSnapshot.length === 0) {
+        html += '<div class="seq"><div class="cell" style="opacity:.4"><div class="v">空</div></div></div>';
+      } else {
+        html += '<div class="seq">';
+        tailsSnapshot.forEach((v, k) => html += `<div class="cell ${tailsMarks[k] || ""}"><div class="v">${v}</div><div class="ix">len ${k + 1}</div></div>`);
+        html += '</div>';
+      }
+      $("seqArea").innerHTML = html; $("tableArea").innerHTML = "";
+    }, desc, ans: tailsSnapshot.length });
+  };
+
+  snap({}, [], {}, "tails 数组初始为空。逐个处理序列元素，用二分维护它。");
+  for (let i = 0; i < n; i++) {
+    const x = A[i];
+    // 二分找第一个 >= x 的位置（lower_bound），分步展示 lo/hi/mid
+    let lo = 0, hi = tails.length;
+    snap({ [i]: "cur" }, tails.slice(), {}, `处理 a[${i}]=<b>${x}</b>。在 tails 中二分找第一个 ≥ ${x} 的位置（lo=0, hi=${hi}）。`);
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      const tm = { [mid]: "cur" };
+      if (tails[mid] < x) {
+        snap({ [i]: "cur" }, tails.slice(), tm, `mid=${mid}, tails[${mid}]=${tails[mid]} < ${x}：答案在右边，lo=${mid + 1}。`);
+        lo = mid + 1;
+      } else {
+        snap({ [i]: "cur" }, tails.slice(), tm, `mid=${mid}, tails[${mid}]=${tails[mid]} ≥ ${x}：可能是答案，hi=${mid}。`);
+        hi = mid;
+      }
+    }
+    if (lo === tails.length) {
+      tails.push(x);
+      snap({ [i]: "pick" }, tails.slice(), { [lo]: "best" }, `没有 ≥ ${x} 的元素（${x} 比 tails 里所有都大）→ <b>追加</b> ${x}，LIS 长度增到 <b>${tails.length}</b>。`);
+    } else {
+      const oldv = tails[lo];
+      tails[lo] = x;
+      snap({ [i]: "cur" }, tails.slice(), { [lo]: "src" }, `第一个 ≥ ${x} 的是 tails[${lo}]=${oldv} → 用 ${x} <b>替换</b>它（同为长度 ${lo + 1} 的子序列保留更小末尾），LIS 长度不变。`);
+    }
+  }
+  snap({}, tails.slice(), tails.map((_, k) => k === tails.length - 1 ? "best" : "").reduce((o, c, k) => (c && (o[k] = c), o), {}),
+    `完成！tails 长度 = <b>${tails.length}</b> 即最长上升子序列长度。`);
   return list;
 }
 
@@ -605,6 +659,8 @@ function buildGrid(mode) {
 const CFG = {
   lis: { subtitle: "最长上升子序列 (LIS)：找出最长的、严格递增的子序列长度。", formula: "dp[i] = 1 + max{ dp[j] | j&lt;i 且 a[j]&lt;a[i] }<br>答案 = <b>max</b>(dp[i])",
     note: "dp[i] 表示<code>以 a[i] 结尾</code>的最长上升子序列长度。枚举前面每个 j，若 a[j]&lt;a[i] 则可接在其后。" },
+  lisbs: { subtitle: "LIS 二分优化：用 tails 数组把 O(n²) 降到 O(n log n)。", formula: "tails[k] = 长度为 k+1 的上升子序列中<b>最小</b>的末尾值<br>对每个 a[i]：二分找第一个 ≥ a[i] 的位置<br>· 找不到(比所有都大) → <b>追加</b>，LIS 长度 +1<br>· 找到位置 pos → 用 a[i] <b>替换</b> tails[pos]<br>答案 = <b>tails 的长度</b>",
+    note: "tails 数组始终<code>严格递增</code>。它的长度就是当前 LIS 长度，但里面的值<code>不一定是真实子序列</code>——替换只是为“同长度的子序列保留更小的末尾”，让后面更容易接更长。用 lower_bound 二分定位是加速的关键。" },
   mss: { subtitle: "最大子段和：找出连续子数组的最大和。", formula: "dp[i] = max( dp[i-1] + a[i], a[i] )<br>答案 = <b>max</b>(dp[i])",
     note: "dp[i] 表示<code>以 a[i] 结尾</code>的最大子段和。要么接在前一段后面，要么从 a[i] 另起一段。" },
   lcs: { subtitle: "最长公共子序列 (LCS)：两序列公共子序列的最大长度。", formula: "若 A[i]=B[j]: dp[i][j] = dp[i-1][j-1] + 1<br>否则: dp[i][j] = max( dp[i-1][j], dp[i][j-1] )",
@@ -631,7 +687,7 @@ function initAlgoTabs() {
 }
 
 function defaultData() {
-  if (algo === "lis") { $("dataInput").value = "3, 1, 4, 1, 5, 9, 2, 6"; }
+  if (algo === "lis" || algo === "lisbs") { $("dataInput").value = "3, 1, 4, 1, 5, 9, 2, 6"; }
   else if (algo === "mss") { $("dataInput").value = "-2, 1, -3, 4, -1, 2, 1, -5, 4"; }
   else if (algo === "lcs") { $("dataInput").value = "1, 3, 4, 5, 6, 7, 7, 8"; $("data2Input").value = "3, 5, 7, 4, 8, 6, 7, 8, 2"; }
   else { $("dataInput").value = ""; }
@@ -658,6 +714,7 @@ function readInputs() {
 
 function buildSteps() {
   if (algo === "lis") return buildLIS();
+  if (algo === "lisbs") return buildLISBS();
   if (algo === "mss") return buildMSS();
   if (algo === "lcs") return buildLCS();
   if (algo === "tower") return buildTower();
@@ -789,6 +846,34 @@ int main() {
     }
 
     cout << ans << endl;
+    return 0;
+}` },
+  lisbs: { title: "最长上升子序列 (LIS) · 二分优化 O(n log n) — C++", code:
+`// 功能：求最长【严格】上升子序列的长度（贪心 + 二分，O(n log n)）。
+// 原理：维护 tails 数组，tails[k] = 长度为 k+1 的上升子序列的【最小】末尾值。
+//       tails 始终严格递增。对每个 x：
+//         用 lower_bound 找第一个 >= x 的位置 pos；
+//         pos == 末尾 → 追加(x 能接出更长的子序列)，长度 +1；
+//         否则 → 用 x 替换 tails[pos]（为同长度保留更小末尾，便于后续接得更长）。
+//       tails 的长度即 LIS 长度（注意 tails 内容不一定是真实子序列）。
+// 输入：第一行 n；第二行 n 个整数。输出：LIS 长度。
+#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+
+int main() {
+    int n;
+    cin >> n;
+    vector<int> tails;
+    for (int i = 0; i < n; i++) {
+        int x; cin >> x;
+        // 严格上升用 lower_bound(第一个 >= x)；若允许相等(非严格)改用 upper_bound
+        auto it = lower_bound(tails.begin(), tails.end(), x);
+        if (it == tails.end()) tails.push_back(x);   // 追加：长度 +1
+        else *it = x;                                // 替换：保留更小末尾
+    }
+    cout << tails.size() << endl;                    // tails 长度 = LIS 长度
     return 0;
 }` },
   lcs: { title: "最长公共子序列 (LCS) — C++", code:
