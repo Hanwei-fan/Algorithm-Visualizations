@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>状态压缩 DP // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text); font-family: "SF Mono", Menlo, monospace; width: 80px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 16px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  .rowlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 10px; }
+  .rowlabel.mt { margin-top: 20px; }
+  /* 状态压缩：二进制位 <-> 人集合 */
+  .maskview { display: flex; flex-direction: column; gap: 8px; align-items: center; margin-bottom: 6px; }
+  .bits { display: flex; gap: 6px; }
+  .bit {
+    width: 54px; display: flex; flex-direction: column; align-items: center; gap: 3px;
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .bit .who { font-size: 11px; color: var(--muted); }
+  .bit .b {
+    width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 8px; background: rgba(0,240,255,0.03);
+    font-size: 20px; font-weight: 800; color: var(--muted); transition: all .2s;
+  }
+  .bit.on .b { background: rgba(0,255,156,0.2); border-color: var(--green); color: var(--green); box-shadow: 0 0 12px rgba(0,255,156,.45); }
+  .bit.holder .b { background: var(--yellow); border-color: var(--yellow); color: #120e00; box-shadow: 0 0 16px rgba(255,212,0,.7); }
+  .bit .pw { font-size: 9px; color: #55507a; }
+  .maskeq { font-family: "SF Mono", Menlo, monospace; font-size: 14px; color: var(--text); text-align: center; }
+  .maskeq b { color: var(--cyan); }
+  .maskeq .dec { color: var(--yellow); font-size: 18px; }
+  /* DP 表 dp[mask][holder] */
+  table.dp { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; margin: 0 auto; font-size: 13px; }
+  table.dp th { color: var(--cyan); font-size: 11px; font-weight: 700; padding: 3px 6px; white-space: nowrap; }
+  table.dp td.rh { color: var(--cyan); font-size: 11px; padding: 3px 8px; text-align: right; white-space: nowrap; }
+  table.dp td.rh .bin { color: var(--muted); font-size: 10px; }
+  table.dp td.cell {
+    width: 46px; height: 34px; text-align: center; border: 1px solid var(--border);
+    font-size: 13px; font-weight: 700; color: var(--text); background: rgba(0,240,255,0.02); transition: all .15s;
+  }
+  table.dp td.cell.inf { color: #3a355c; }
+  table.dp td.cell.filled { background: rgba(0,240,255,0.08); }
+  table.dp td.cell.cur { background: var(--yellow); color: #120e00; box-shadow: 0 0 12px rgba(255,212,0,.7) inset; transform: scale(1.1); }
+  table.dp td.cell.src { background: rgba(255,43,214,0.3); color: #fff; box-shadow: 0 0 8px rgba(255,43,214,.5) inset; }
+  table.dp td.cell.best { background: rgba(0,255,156,0.25); color: var(--green); box-shadow: 0 0 10px rgba(0,255,156,.5) inset; }
+  table.dp tr.currow td.rh { color: var(--yellow); }
+  /* 代价矩阵 */
+  table.mat { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 13px; margin: 4px 0 0; }
+  table.mat th, table.mat td { border: 1px solid var(--border); padding: 4px 9px; text-align: center; }
+  table.mat th { color: var(--cyan); background: rgba(0,240,255,0.05); }
+  table.mat td.diag { color: #45406a; }
+  table.mat td.hot { background: rgba(255,43,214,0.25); color: #fff; box-shadow: 0 0 8px rgba(255,43,214,.5) inset; }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: #8fb8c9; margin: 0 0 14px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .stats { display: flex; gap: 22px; font-size: 14px; align-items: baseline; margin-bottom: 10px; }
+  .stats b { font-size: 20px; color: var(--green); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .status { margin-top: 8px; font-size: 14px; min-height: 60px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>状态压缩 DP</h1>
+  <p id="subtitle">传递游戏：n 人依次传物品，代价 a[i][j]。用一个整数的二进制位表示“哪些人已拿过”，求每人恰好拿一次的最小总代价。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="controls">
+  <div class="field">
+    <label>人数 n（2~5）</label>
+    <input id="nInput" type="number" min="2" max="5" value="4">
+  </div>
+  <div class="speed">
+    <label for="speedInput">速度</label>
+    <input id="speedInput" type="range" min="60" max="900" value="420" step="40">
+  </div>
+  <button class="btn" id="playBtn">自动播放</button>
+  <button class="btn secondary" id="stepBtn">单步 ▶</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="btn secondary" id="randBtn">随机代价</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="rowlabel">状态压缩：把“已拿过物品的人的集合”压成一个整数（每一位 = 一个人）</div>
+    <div class="maskview" id="maskview"></div>
+    <div class="maskeq" id="maskeq"></div>
+    <div class="rowlabel mt">DP 表　dp[mask][holder]（行 = 集合 mask，列 = 物品当前在谁手里）</div>
+    <div id="tableArea"></div>
+  </section>
+  <section class="card">
+    <div class="plabel">状态与转移方程</div>
+    <div class="formula" id="formula"></div>
+    <div class="rowlabel">代价矩阵 a[i][j]（i 传给 j）</div>
+    <div id="matArea"></div>
+    <div class="stats" style="margin-top:12px">最小总代价：<b id="ans">-</b></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note">状态压缩 DP：当“状态”是一个<code>集合</code>且元素不多（n≤约20）时，用整数的<b>二进制位</b>表示集合——第 i 位是 1 表示第 i 个元素在集合里。集合运算变成位运算：<code>mask|(1&lt;&lt;j)</code> 加入 j、<code>mask&(1&lt;&lt;i)</code> 判断 i 是否在内。本题 dp[mask][i] 共 2ⁿ×n 个状态，是最短哈密顿路径（TSP）的经典解法。</div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let n = 4;
+let a = [];               // 代价矩阵
+let steps = [], idx = 0, timer = null, running = false;
+function setStatus(t) { $("status").innerHTML = t; }
+
+function bin(mask, w) { return mask.toString(2).padStart(w, "0"); }
+
+// ======== 生成分步 ========
+function genSteps() {
+  const FULL = (1 << n) - 1;
+  const list = [];
+  const dp = Array.from({ length: 1 << n }, () => Array(n).fill(Infinity));
+  const snap = () => dp.map(r => [...r]);
+  const push = (extra) => list.push(Object.assign({ dp: snap() }, extra));
+
+  // 初始化：每个人各作起点，dp[1<<i][i]=0
+  for (let i = 0; i < n; i++) {
+    dp[1 << i][i] = 0;
+    push({ mask: 1 << i, holder: i, from: null, cur: [1 << i, i], src: null, hotIJ: null, ans: null,
+      desc: `初始：物品最初在第 <b>${i}</b> 人手里，集合只含他 → mask=${bin(1 << i, n)}(=${1 << i})，dp[${1 << i}][${i}]=0。` });
+  }
+
+  for (let mask = 1; mask <= FULL; mask++) {
+    for (let i = 0; i < n; i++) {
+      if (!(mask & (1 << i)) || dp[mask][i] === Infinity) continue;
+      for (let j = 0; j < n; j++) {
+        if (mask & (1 << j)) continue;         // j 已拿过，跳过
+        const nm = mask | (1 << j);
+        const cand = dp[mask][i] + a[i][j];
+        const better = cand < dp[nm][j];
+        if (better) dp[nm][j] = cand;
+        push({ mask: nm, holder: j, from: [mask, i], addBit: j,
+          cur: [nm, j], src: [mask, i], hotIJ: [i, j],
+          desc: `从 dp[${bin(mask, n)}][${i}]=${dp[mask][i]}，第 ${i} 人把物品传给未拿过的第 <b>${j}</b> 人（代价 a[${i}][${j}]=${a[i][j]}）。<br>集合加入 j：mask|(1&lt;&lt;${j}) = ${bin(mask, n)} | ${bin(1 << j, n)} = <b>${bin(nm, n)}</b>(=${nm})。<br>候选 ${dp[mask][i]}+${a[i][j]}=${cand}，${better ? `<span style="color:var(--green)">更优，更新 dp[${nm}][${j}]=${cand}</span>` : `不优于当前 dp[${nm}][${j}]=${dp[nm][j]}，保留`}。`,
+          ans: null });
+      }
+    }
+  }
+  // 找答案
+  let best = Infinity, bestI = -1;
+  for (let i = 0; i < n; i++) if (dp[FULL][i] < best) { best = dp[FULL][i]; bestI = i; }
+  push({ mask: FULL, holder: bestI, from: null, cur: [FULL, bestI], src: null, hotIJ: null, best: [FULL, bestI], ans: best, done: true,
+    desc: `全员拿过 mask=${bin(FULL, n)}(全 1)。在最后持有者中取最小：<b>${best}</b>（最后在第 ${bestI} 人手里）。` });
+  return list;
+}
+
+// ======== 渲染：mask 二进制位 <-> 人集合 ========
+function renderMask(s) {
+  const mask = s.mask, holder = s.holder;
+  let bits = "";
+  // 高位在左：第 n-1 位 ... 第 0 位
+  for (let b = n - 1; b >= 0; b--) {
+    const on = (mask >> b) & 1;
+    let cls = "bit" + (on ? " on" : "") + (b === holder ? " holder" : "");
+    bits += `<div class="${cls}"><span class="who">第${b}人</span><span class="b">${on}</span><span class="pw">2^${b}=${1 << b}</span></div>`;
+  }
+  $("maskview").innerHTML = `<div class="bits">${bits}</div>`;
+  const cntOn = [];
+  for (let b = 0; b < n; b++) if ((mask >> b) & 1) cntOn.push(b);
+  $("maskeq").innerHTML = `集合 {${cntOn.join(", ")}} ⇔ 二进制 <b>${bin(mask, n)}</b> ⇔ 整数 <span class="dec">${mask}</span>` +
+    (holder != null && holder >= 0 ? `　｜　物品当前在<b style="color:var(--yellow)">第 ${holder} 人</b>手里` : "");
+}
+
+// ======== 渲染：DP 表 ========
+function renderTable(s) {
+  const FULL = (1 << n) - 1;
+  let html = `<table class="dp"><tr><th>mask ＼ holder</th>`;
+  for (let i = 0; i < n; i++) html += `<th>${i}</th>`;
+  html += `</tr>`;
+  for (let mask = 1; mask <= FULL; mask++) {
+    const isCurRow = s.cur && s.cur[0] === mask;
+    html += `<tr class="${isCurRow ? "currow" : ""}"><td class="rh">${mask}<span class="bin"> (${bin(mask, n)})</span></td>`;
+    for (let i = 0; i < n; i++) {
+      // 只有 i 在 mask 中才有意义
+      const valid = (mask & (1 << i)) !== 0;
+      const v = s.dp[mask][i];
+      let cls = "cell";
+      if (!valid) { html += `<td class="cell inf" style="opacity:.25">·</td>`; continue; }
+      if (v === Infinity) cls += " inf";
+      else cls += " filled";
+      if (s.cur && s.cur[0] === mask && s.cur[1] === i) cls += " cur";
+      else if (s.src && s.src[0] === mask && s.src[1] === i) cls += " src";
+      else if (s.best && s.best[0] === mask && s.best[1] === i) cls += " best";
+      html += `<td class="${cls}">${v === Infinity ? "∞" : v}</td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</table>`;
+  $("tableArea").innerHTML = html;
+}
+
+// ======== 渲染：代价矩阵 ========
+function renderMat(s) {
+  let html = `<table class="mat"><tr><th>a[i][j]</th>`;
+  for (let j = 0; j < n; j++) html += `<th>j=${j}</th>`;
+  html += `</tr>`;
+  for (let i = 0; i < n; i++) {
+    html += `<tr><th>i=${i}</th>`;
+    for (let j = 0; j < n; j++) {
+      let cls = i === j ? "diag" : "";
+      if (s.hotIJ && s.hotIJ[0] === i && s.hotIJ[1] === j) cls += " hot";
+      html += `<td class="${cls}">${i === j ? "—" : a[i][j]}</td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</table>`;
+  $("matArea").innerHTML = html;
+}
+
+function draw(s) {
+  renderMask(s); renderTable(s); renderMat(s);
+  $("ans").textContent = s.ans !== null && s.ans !== undefined ? s.ans : "-";
+  setStatus(s.desc);
+}
+
+// ======== 引擎 ========
+function build() {
+  if (a.length !== n) genMatrix();
+  steps = genSteps();
+  idx = 0; draw(steps[0]);
+}
+function stepOnce() { if (idx < steps.length - 1) { idx++; draw(steps[idx]); return true; } return false; }
+function play() { stop(); const spd = 980 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (!stepOnce()) stop(); }, spd); }
+function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+function genMatrix() {
+  a = Array.from({ length: n }, () => Array(n).fill(0));
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    const v = 1 + Math.floor(Math.random() * 9);
+    a[i][j] = v; a[j][i] = v;   // 对称，便于理解（也可非对称）
+  }
+}
+
+$("nInput").addEventListener("change", () => {
+  n = Math.max(2, Math.min(5, parseInt($("nInput").value, 10) || 4));
+  $("nInput").value = n;
+  genMatrix(); stop(); build();
+});
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) build(); play(); };
+$("stepBtn").onclick = () => { stop(); stepOnce(); };
+$("resetBtn").onclick = () => { stop(); build(); };
+$("randBtn").onclick = () => { genMatrix(); stop(); build(); };
+$("cppBtn").onclick = () => CppView.open("statedp");
+
+CppView.register({
+  statedp: { title: "状态压缩 DP · 传递游戏（最短哈密顿路径）— C++", code:
+`// 传递游戏：n 人传物品，i 传给未拿过的 j 代价 a[i][j]。
+// 求每人恰好拿一次的最小总代价（起点任意）。
+// 状态压缩：用整数 mask 的第 i 位表示“第 i 人是否已拿过”。
+// dp[mask][i] = 已拿过集合为 mask、物品现在在 i 手里的最小代价。
+#include <iostream>
+#include <cstring>
+#include <algorithm>
+using namespace std;
+
+const int MAXN = 20;
+int n;
+int a[MAXN][MAXN];
+int dp[1 << MAXN][MAXN];   // 注意 n 较大时内存/时间为 O(2^n * n)
+
+int main() {
+    cin >> n;
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++) cin >> a[i][j];
+
+    memset(dp, 0x3f, sizeof(dp));
+    for (int i = 0; i < n; i++) dp[1 << i][i] = 0;   // 每人可作起点
+
+    for (int mask = 1; mask < (1 << n); mask++)
+        for (int i = 0; i < n; i++) {
+            if (!(mask & (1 << i))) continue;        // i 必须在集合里
+            if (dp[mask][i] == 0x3f3f3f3f) continue;
+            for (int j = 0; j < n; j++) {
+                if (mask & (1 << j)) continue;       // j 已拿过则跳过
+                int nm = mask | (1 << j);            // 把 j 加入集合
+                dp[nm][j] = min(dp[nm][j], dp[mask][i] + a[i][j]);
+            }
+        }
+
+    int full = (1 << n) - 1, ans = 0x3f3f3f3f;
+    for (int i = 0; i < n; i++) ans = min(ans, dp[full][i]);
+    cout << ans << endl;
+    return 0;
+}`
+  }
+});
+
+const FORMULA = `状态：<b>dp[mask][i]</b> = “已拿过物品的人的集合 = mask，物品当前在 i 手里”的最小代价。<br>集合用整数压缩：第 i 位为 1 ⇔ 第 i 人拿过。<br>转移（i 传给未拿过的 j）：<br><b>dp[mask|(1&lt;&lt;j)][j] = min(dp[mask][i] + a[i][j])</b><br>初始 dp[1&lt;&lt;i][i]=0；答案 = min over i of dp[2ⁿ-1][i]。`;
+
+n = 4; $("formula").innerHTML = FORMULA;
+genMatrix(); build();
+</script>
+</body>
+</html>

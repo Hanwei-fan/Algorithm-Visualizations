@@ -196,6 +196,8 @@ const SECTIONS = [
         desc: "数塔（数字三角形）/ 矩阵最大路径和 / 矩阵路径方案数，进入后可选。DP 表逐格填充、转移来源标注，单步/自动。" },
       { icon: "📐", tag: "DP", title: "区间 DP", file: "interval-dp.html", ready: true,
         desc: "两大模型：①取球最大价值（点+区间，两端取球第 k 个价值 k·a[i]）②合并石子最小代价（区间+区间，枚举分割点）。按区间长度对角线填 dp[i][j] 三角表，转移来源高亮，含 C++。" },
+      { icon: "🔢", tag: "DP", title: "状态压缩 DP", file: "state-dp.html", ready: true,
+        desc: "传递游戏（最短哈密顿路径）：用整数二进制位表示“哪些人已拿过物品”的集合。突出「集合⇔二进制⇔整数」的压缩过程，dp[mask][holder] 逐步转移、位高亮、代价矩阵，含 C++。" },
     ],
   },
   {
