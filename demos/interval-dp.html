@@ -85,7 +85,9 @@
   .seq .cell .ix { font-size: 10px; color: var(--muted); }
   .seq .cell.inrange { border-color: var(--cyan); background: rgba(0,240,255,0.14); }
   .seq .cell.end { border-color: var(--yellow); background: rgba(255,212,0,0.2); color: #120e00; box-shadow: 0 0 10px rgba(255,212,0,.5); }
-  .seq .cell.split { border-color: var(--magenta); background: rgba(255,43,214,0.2); }
+  /* 合并石子：左区间(青框) / 右区间(洋红框) */
+  .seq .cell.leftseg { border-color: var(--cyan); border-width: 2px; background: rgba(0,240,255,0.16); box-shadow: 0 0 8px rgba(0,240,255,.4); }
+  .seq .cell.rightseg { border-color: var(--magenta); border-width: 2px; background: rgba(255,43,214,0.16); box-shadow: 0 0 8px rgba(255,43,214,.4); }
   /* DP 表（三角区 dp[i][j]，i<=j）*/
   table.dp { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; margin: 0 auto; }
   table.dp th { color: var(--cyan); font-size: 12px; font-weight: 700; padding: 4px 8px; }
@@ -243,7 +245,8 @@ function genStone() {
       }
       dp[i][j] = best;
       push({ cur: [i, j], src: [[i, bestK], [bestK + 1, j]], range: [i, j], splitK: bestK,
-        desc: `区间[${i},${j}] (长${len})：枚举分割点，最优在 k=${bestK}。<br>dp[${i}][${bestK}]+dp[${bestK+1}][${j}]+sum(${i},${j})<br>= ${dp[i][bestK]}+${dp[bestK+1][j]}+${sum(i,j)} = <b>${best}</b>。`,
+        leftSeg: [i, bestK], rightSeg: [bestK + 1, j],
+        desc: `区间[${i},${j}] (长${len})：枚举分割点，最优在 k=${bestK}。<br><b style="color:var(--cyan)">左区间[${i},${bestK}]</b> + <b style="color:var(--magenta)">右区间[${bestK+1},${j}]</b>：<br>dp[${i}][${bestK}]+dp[${bestK+1}][${j}]+sum(${i},${j})<br>= ${dp[i][bestK]}+${dp[bestK+1][j]}+${sum(i,j)} = <b>${best}</b>。`,
         ans: (i === 0 && j === n - 1) ? dp[i][j] : null });
     }
   }
@@ -255,11 +258,17 @@ function genStone() {
 // ======== 渲染 ========
 function renderSeq(s) {
   const inR = (i) => s.range && i >= s.range[0] && i <= s.range[1];
+  const inSeg = (seg, i) => seg && i >= seg[0] && i <= seg[1];
   $("seqArea").innerHTML = `<div class="seq">` + a.map((v, i) => {
     let cls = "cell";
-    if (inR(i)) cls += " inrange";
+    // 合并石子：左右子区间各用一个高亮框；否则用整区间高亮
+    if (s.leftSeg || s.rightSeg) {
+      if (inSeg(s.leftSeg, i)) cls += " leftseg";
+      if (inSeg(s.rightSeg, i)) cls += " rightseg";
+      if (inSeg(s.leftSeg, i) && i === s.leftSeg[0]) cls += " segstart";
+      if (inSeg(s.rightSeg, i) && i === s.rightSeg[0]) cls += " segstart";
+    } else if (inR(i)) cls += " inrange";
     if (s.endIdx === i) cls += " end";                       // 取球：本步取的端点
-    if (s.splitK !== undefined && (i === s.splitK)) cls += " split";  // 合并：分割点
     return `<div class="${cls}"><span class="v">${v}</span><span class="ix">${i}</span></div>`;
   }).join("") + `</div>`;
 }
