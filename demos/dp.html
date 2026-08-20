@@ -58,6 +58,7 @@
   .subtab.kind { border-radius: 4px; background: rgba(160,107,255,0.06); color: #c9b3ff; }
   .subtab.kind:hover { border-color: #a06bff; box-shadow: 0 0 10px rgba(160,107,255,.35); }
   .subtab.kind.active { background: #a06bff; color: #05060f; border-color: #a06bff; box-shadow: 0 0 12px rgba(160,107,255,.5); }
+  .btn.lism.active { border-color: var(--cyan); color: #05060f; background: var(--cyan); box-shadow: 0 0 12px rgba(0,240,255,.5); }
   .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; padding: 16px 30px; }
   .field { display: flex; flex-direction: column; gap: 5px; }
   .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
@@ -181,6 +182,12 @@
   <button class="btn secondary" id="stepBtn">单步 ▶</button>
   <button class="btn secondary" id="resetBtn">重置</button>
   <button class="btn secondary" id="randBtn">随机</button>
+  <span id="lisMethodBox" style="display:none;align-items:center;gap:8px">
+    <span class="sublabel" style="margin-left:8px">LIS 实现：</span>
+    <button class="btn secondary lism active" data-method="n2">O(n²) 朴素 dp</button>
+    <button class="btn secondary lism" data-method="bs">tails+二分</button>
+    <button class="btn secondary lism" data-method="inf">tails 初始化 ∞</button>
+  </span>
   <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
@@ -208,13 +215,12 @@ const $ = id => document.getElementById(id);
 
 let kind = "seq";        // seq / knap
 let algo = "lis";        // 具体算法
+let lisMethod = "n2";    // LIS 实现：n2 / bs / inf
 let steps = [], idx = 0, timer = null, running = false;
 
 const ALGOS = {
   seq: [
     { id: "lis", name: "最长上升子序列 LIS" },
-    { id: "lisbs", name: "LIS（tails 数组，直接定位）" },
-    { id: "lisinf", name: "LIS（tails 初始化为 ∞）" },
     { id: "lcs", name: "最长公共子序列 LCS" },
     { id: "mss", name: "最大子段和" },
   ],
@@ -404,18 +410,30 @@ function buildLISBS() {
     }, desc, ans: tailsSnapshot.length });
   };
 
-  snap({}, [], {}, "tails 数组初始为空。逐个处理序列元素，直接定位应插入的位置。");
+  snap({}, [], {}, "tails 数组初始为空。逐个处理序列元素，用二分维护它。");
   for (let i = 0; i < n; i++) {
     const x = A[i];
-    // 直接找第一个 >= x 的位置（不展示二分细节）
-    let pos = tails.findIndex(v => v >= x);
-    if (pos === -1) {
+    // 二分找第一个 >= x 的位置（lower_bound），分步展示 lo/hi/mid
+    let lo = 0, hi = tails.length;
+    snap({ [i]: "cur" }, tails.slice(), {}, `处理 a[${i}]=<b>${x}</b>。在 tails 中二分找第一个 ≥ ${x} 的位置（lo=0, hi=${hi}）。`);
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      const tm = { [mid]: "cur" };
+      if (tails[mid] < x) {
+        snap({ [i]: "cur" }, tails.slice(), tm, `mid=${mid}, tails[${mid}]=${tails[mid]} < ${x}：答案在右边，lo=${mid + 1}。`);
+        lo = mid + 1;
+      } else {
+        snap({ [i]: "cur" }, tails.slice(), tm, `mid=${mid}, tails[${mid}]=${tails[mid]} ≥ ${x}：可能是答案，hi=${mid}。`);
+        hi = mid;
+      }
+    }
+    if (lo === tails.length) {
       tails.push(x);
-      snap({ [i]: "pick" }, tails.slice(), { [tails.length - 1]: "best" }, `处理 a[${i}]=<b>${x}</b>：tails 里没有 ≥ ${x} 的元素（${x} 比它们都大）→ <b>追加</b>到末尾，LIS 长度增到 <b>${tails.length}</b>。`);
+      snap({ [i]: "pick" }, tails.slice(), { [lo]: "best" }, `没有 ≥ ${x} 的元素（${x} 比 tails 里所有都大）→ <b>追加</b> ${x}，LIS 长度增到 <b>${tails.length}</b>。`);
     } else {
-      const oldv = tails[pos];
-      tails[pos] = x;
-      snap({ [i]: "cur" }, tails.slice(), { [pos]: "src" }, `处理 a[${i}]=<b>${x}</b>：第一个 ≥ ${x} 的是 tails[${pos}]=${oldv} → 用 ${x} <b>替换</b>它（同为长度 ${pos + 1} 的子序列保留更小末尾），LIS 长度不变。`);
+      const oldv = tails[lo];
+      tails[lo] = x;
+      snap({ [i]: "cur" }, tails.slice(), { [lo]: "src" }, `第一个 ≥ ${x} 的是 tails[${lo}]=${oldv} → 用 ${x} <b>替换</b>它（同为长度 ${lo + 1} 的子序列保留更小末尾），LIS 长度不变。`);
     }
   }
   snap({}, tails.slice(), tails.length ? { [tails.length - 1]: "best" } : {},
@@ -738,9 +756,7 @@ function readInputs() {
 }
 
 function buildSteps() {
-  if (algo === "lis") return buildLIS();
-  if (algo === "lisbs") return buildLISBS();
-  if (algo === "lisinf") return buildLISINF();
+  if (algo === "lis") return lisMethod === "bs" ? buildLISBS() : lisMethod === "inf" ? buildLISINF() : buildLIS();
   if (algo === "mss") return buildMSS();
   if (algo === "lcs") return buildLCS();
   if (algo === "tower") return buildTower();
@@ -779,10 +795,13 @@ function applyKind(k) {
   applyAlgo(ALGOS[k][0].id);
 }
 
+function lisCfgKey() { return lisMethod === "bs" ? "lisbs" : lisMethod === "inf" ? "lisinf" : "lis"; }
 function applyAlgo(a) {
   algo = a; stopTimer(); running = false;
   $("algoTabs").querySelectorAll(".subtab").forEach(b => b.classList.toggle("active", b.dataset.algo === a));
-  const cfg = CFG[a];
+  // LIS 时显示实现方法选择，用当前 lisMethod 对应的说明
+  $("lisMethodBox").style.display = (a === "lis") ? "inline-flex" : "none";
+  const cfg = CFG[a === "lis" ? lisCfgKey() : a];
   $("subtitle").textContent = cfg.subtitle;
   $("formula").innerHTML = cfg.formula;
   $("note").innerHTML = cfg.note;
@@ -1171,7 +1190,13 @@ int main() {
     return 0;
 }` },
 });
-document.getElementById("cppBtn").onclick = () => CppView.open(algo);
+// LIS 实现方法切换
+document.querySelectorAll(".btn.lism").forEach(b => b.onclick = () => {
+  lisMethod = b.dataset.method;
+  document.querySelectorAll(".btn.lism").forEach(x => x.classList.toggle("active", x.dataset.method === lisMethod));
+  if (algo === "lis") applyAlgo("lis");   // 重跑并刷新说明
+});
+document.getElementById("cppBtn").onclick = () => CppView.open(algo === "lis" ? lisCfgKey() : algo);
 </script>
 </body>
 </html>
