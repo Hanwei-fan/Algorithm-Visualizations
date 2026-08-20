@@ -195,10 +195,12 @@ function genBall() {
   const list = [];
   const dp = Array.from({ length: n }, () => Array(n).fill(null));
   const push = (extra) => list.push(Object.assign({ dp: dp.map(r => [...r]) }, extra));
-  // len=1 初始化
-  for (let i = 0; i < n; i++) dp[i][i] = n * a[i];
-  push({ cur: null, src: [], range: null, ans: null,
-    desc: `初始化长度为 1 的区间：dp[i][i] = n·a[i]（每个球单独时是最后第 ${n} 个取出）。` });
+  // len=1 边界：每个 dp[i][i] 单独一步
+  for (let i = 0; i < n; i++) {
+    dp[i][i] = n * a[i];
+    push({ cur: [i, i], src: [], range: [i, i], endIdx: i, ans: (n === 1 && i === 0) ? dp[i][i] : null,
+      desc: `边界 dp[${i}][${i}] = n·a[${i}] = ${n}×${a[i]} = <b>${dp[i][i]}</b>（只剩这一个球时它是最后第 ${n} 个取出）。` });
+  }
   for (let len = 2; len <= n; len++) {
     const k = n - len + 1;
     for (let i = 0; i + len - 1 < n; i++) {
@@ -225,9 +227,12 @@ function genStone() {
   const sum = (i, j) => pre[j + 1] - pre[i];
   const dp = Array.from({ length: n }, () => Array(n).fill(null));
   const push = (extra) => list.push(Object.assign({ dp: dp.map(r => [...r]) }, extra));
-  for (let i = 0; i < n; i++) dp[i][i] = 0;
-  push({ cur: null, src: [], range: null, ans: null,
-    desc: `初始化：单堆无需合并，dp[i][i]=0。` });
+  // len=1 边界：每个 dp[i][i] 单独一步
+  for (let i = 0; i < n; i++) {
+    dp[i][i] = 0;
+    push({ cur: [i, i], src: [], range: [i, i], ans: (n === 1 && i === 0) ? 0 : null,
+      desc: `边界 dp[${i}][${i}] = <b>0</b>（第 ${i} 堆单独一堆，无需合并，代价 0）。` });
+  }
   for (let len = 2; len <= n; len++) {
     for (let i = 0; i + len - 1 < n; i++) {
       const j = i + len - 1;
