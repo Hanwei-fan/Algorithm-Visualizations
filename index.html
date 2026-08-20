@@ -194,6 +194,8 @@ const SECTIONS = [
         desc: "01 背包 / 完全背包 / 多重背包，二维 DP 表逐格填充、转移来源标注，可调容量，单步/自动。" },
       { icon: "🔷", tag: "DP", title: "二维 DP", file: "dp.html?kind=tower", ready: true,
         desc: "数塔（数字三角形）/ 矩阵最大路径和 / 矩阵路径方案数，进入后可选。DP 表逐格填充、转移来源标注，单步/自动。" },
+      { icon: "📐", tag: "DP", title: "区间 DP", file: "interval-dp.html", ready: true,
+        desc: "两大模型：①取球最大价值（点+区间，两端取球第 k 个价值 k·a[i]）②合并石子最小代价（区间+区间，枚举分割点）。按区间长度对角线填 dp[i][j] 三角表，转移来源高亮，含 C++。" },
     ],
   },
   {

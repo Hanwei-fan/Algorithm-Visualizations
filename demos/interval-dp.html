@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>区间动态规划 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .subtabs { display: flex; align-items: center; gap: 10px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .sublabel { font-size: 12px; color: var(--muted); letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace; }
+  .subtab {
+    padding: 8px 18px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 13px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .subtab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .subtab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 16px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  /* 一维序列展示 */
+  .seq { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-bottom: 16px; }
+  .seq .cell {
+    min-width: 42px; height: 48px; padding: 0 6px; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border: 1px solid var(--border); border-radius: 6px; background: rgba(0,240,255,0.04); font-family: "SF Mono", Menlo, monospace;
+  }
+  .seq .cell .v { font-size: 16px; font-weight: 700; }
+  .seq .cell .ix { font-size: 10px; color: var(--muted); }
+  .seq .cell.inrange { border-color: var(--cyan); background: rgba(0,240,255,0.14); }
+  .seq .cell.end { border-color: var(--yellow); background: rgba(255,212,0,0.2); color: #120e00; box-shadow: 0 0 10px rgba(255,212,0,.5); }
+  .seq .cell.split { border-color: var(--magenta); background: rgba(255,43,214,0.2); }
+  /* DP 表（三角区 dp[i][j]，i<=j）*/
+  table.dp { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; margin: 0 auto; }
+  table.dp th { color: var(--cyan); font-size: 12px; font-weight: 700; padding: 4px 8px; }
+  table.dp td.rh { color: var(--cyan); font-size: 12px; font-weight: 700; padding: 4px 8px; text-align: right; }
+  table.dp td.cell {
+    width: 50px; height: 42px; text-align: center; border: 1px solid var(--border);
+    font-size: 15px; font-weight: 700; color: var(--text); background: rgba(0,240,255,0.03);
+    transition: all .15s; position: relative;
+  }
+  table.dp td.cell.na { background: transparent; border-color: transparent; }
+  table.dp td.cell.filled { background: rgba(0,240,255,0.08); }
+  table.dp td.cell.cur { background: var(--yellow); color: #120e00; box-shadow: 0 0 14px rgba(255,212,0,.7) inset; transform: scale(1.06); }
+  table.dp td.cell.src { background: rgba(255,43,214,0.3); color: #fff; box-shadow: 0 0 10px rgba(255,43,214,.5) inset; }
+  table.dp td.cell.best { background: rgba(0,255,156,0.25); color: var(--green); box-shadow: 0 0 12px rgba(0,255,156,.5) inset; }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: #8fb8c9; margin: 0 0 16px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .stats { display: flex; gap: 22px; font-size: 14px; align-items: baseline; margin-bottom: 10px; }
+  .stats b { font-size: 20px; color: var(--green); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .status { margin-top: 8px; font-size: 14.5px; min-height: 60px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+  .tlegend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--muted); justify-content: center; }
+  .tlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .tlegend .dot { width: 12px; height: 12px; border-radius: 3px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>区间动态规划</h1>
+  <p id="subtitle"></p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="subtabs">
+  <span class="sublabel">例题：</span>
+  <button class="subtab active" data-model="ball">① 取球最大价值（点+区间）</button>
+  <button class="subtab" data-model="stone">② 合并石子最小代价（区间+区间）</button>
+</div>
+
+<div class="controls">
+  <div class="field">
+    <label id="dataLabel">序列 a（逗号分隔）</label>
+    <input id="dataInput" type="text" style="width:280px" value="3, 1, 5, 2">
+  </div>
+  <div class="speed">
+    <label for="speedInput">速度</label>
+    <input id="speedInput" type="range" min="80" max="900" value="480" step="40">
+  </div>
+  <button class="btn" id="playBtn">自动播放</button>
+  <button class="btn secondary" id="stepBtn">单步 ▶</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="btn secondary" id="randBtn">随机</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div id="seqArea"></div>
+    <div id="tableArea"></div>
+    <div class="tlegend">
+      <span><i class="dot" style="background:#ffd400"></i>正在计算 dp[i][j]</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>转移来源</span>
+      <span><i class="dot" style="background:#00ff9c"></i>最终答案</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel">状态与转移方程</div>
+    <div class="formula" id="formula"></div>
+    <div class="stats">当前答案：<b id="ans">-</b></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let model = "ball";
+let a = [];
+let steps = [], idx = 0, timer = null, running = false;
+
+function setStatus(t) { $("status").innerHTML = t; }
+
+const MODELS = {
+  ball: {
+    subtitle: "例题①：管道取球。每次从两端取一个球，第 k 个取出的球 i 价值 k·a[i]，求全部取完的最大总价值。",
+    dataLabel: "各球属性 a（逗号分隔）",
+    formula: `状态：<b>dp[i][j]</b> = 取完区间 [i,j] 内所有球的最大价值。<br>区间外已取走 n−len 个，故区间内<b>第一个</b>取出的球是第 <b>k=n−len+1</b> 个。<br>转移（先取左端 or 右端）：<br><b>dp[i][j] = max(k·a[i]+dp[i+1][j], k·a[j]+dp[i][j-1])</b><br>边界：dp[i][i] = n·a[i]（最后一个取，第 n 个）。答案 dp[0][n-1]。`,
+    note: `“点 + 区间”模型：每一步在区间<code>两端</code>选一个“点”取走，剩下的仍是一个连续区间。倒着想——最后剩的区间越小说明取得越早，价值系数 k 越大。按区间长度从小到大填表。`,
+  },
+  stone: {
+    subtitle: "例题②：合并石子。每次合并相邻两堆，代价为两堆之和，求合并成一堆的最小总代价。",
+    dataLabel: "各堆石子数 a（逗号分隔）",
+    formula: `状态：<b>dp[i][j]</b> = 把区间 [i,j] 合并成一堆的最小代价。<br>枚举最后一次合并的<b>分割点 k</b>（左块 [i,k]，右块 [k+1,j]）：<br><b>dp[i][j] = min( dp[i][k] + dp[k+1][j] + sum(i,j) )</b><br>sum(i,j) 用前缀和 O(1) 取。边界：dp[i][i]=0。答案 dp[0][n-1]。`,
+    note: `“区间 + 区间”模型：把大区间拆成<code>两个相邻子区间</code>分别合并，再合并两者（代价 = 区间总和，与拆法无关）。枚举分割点取最优。按区间长度从小到大填表。`,
+  },
+};
+
+// ======== 生成分步：例题① 取球 ========
+function genBall() {
+  const n = a.length;
+  const list = [];
+  const dp = Array.from({ length: n }, () => Array(n).fill(null));
+  const push = (extra) => list.push(Object.assign({ dp: dp.map(r => [...r]) }, extra));
+  // len=1 初始化
+  for (let i = 0; i < n; i++) dp[i][i] = n * a[i];
+  push({ cur: null, src: [], range: null, ans: null,
+    desc: `初始化长度为 1 的区间：dp[i][i] = n·a[i]（每个球单独时是最后第 ${n} 个取出）。` });
+  for (let len = 2; len <= n; len++) {
+    const k = n - len + 1;
+    for (let i = 0; i + len - 1 < n; i++) {
+      const j = i + len - 1;
+      const left = k * a[i] + dp[i + 1][j];
+      const right = k * a[j] + dp[i][j - 1];
+      const takeLeft = left >= right;
+      dp[i][j] = Math.max(left, right);
+      push({ cur: [i, j], src: takeLeft ? [[i + 1, j]] : [[i, j - 1]], range: [i, j], endIdx: takeLeft ? i : j, k,
+        desc: `区间[${i},${j}] (长${len})：第 ${k} 个取。<br>取左端 a[${i}]=${a[i]}: ${k}×${a[i]}+dp[${i+1}][${j}]=${left}；<br>取右端 a[${j}]=${a[j]}: ${k}×${a[j]}+dp[${i}][${j-1}]=${right}。<br>取 <b>${takeLeft ? "左端" : "右端"}</b> 更优 → dp[${i}][${j}]=<b>${dp[i][j]}</b>。`,
+        ans: (i === 0 && j === n - 1) ? dp[i][j] : null });
+    }
+  }
+  push({ cur: null, src: [], range: [0, n - 1], best: [0, n - 1], ans: dp[0][n - 1], done: true,
+    desc: `<span style="color:var(--green);font-weight:700">完成！</span> dp[0][${n-1}] = <b>${dp[0][n-1]}</b> 即取完全部球的最大价值。` });
+  return list;
+}
+
+// ======== 生成分步：例题② 合并石子 ========
+function genStone() {
+  const n = a.length;
+  const list = [];
+  const pre = [0]; for (let i = 0; i < n; i++) pre.push(pre[i] + a[i]);
+  const sum = (i, j) => pre[j + 1] - pre[i];
+  const dp = Array.from({ length: n }, () => Array(n).fill(null));
+  const push = (extra) => list.push(Object.assign({ dp: dp.map(r => [...r]) }, extra));
+  for (let i = 0; i < n; i++) dp[i][i] = 0;
+  push({ cur: null, src: [], range: null, ans: null,
+    desc: `初始化：单堆无需合并，dp[i][i]=0。` });
+  for (let len = 2; len <= n; len++) {
+    for (let i = 0; i + len - 1 < n; i++) {
+      const j = i + len - 1;
+      let best = Infinity, bestK = i;
+      for (let k = i; k < j; k++) {
+        const v = dp[i][k] + dp[k + 1][j] + sum(i, j);
+        if (v < best) { best = v; bestK = k; }
+      }
+      dp[i][j] = best;
+      push({ cur: [i, j], src: [[i, bestK], [bestK + 1, j]], range: [i, j], splitK: bestK,
+        desc: `区间[${i},${j}] (长${len})：枚举分割点，最优在 k=${bestK}。<br>dp[${i}][${bestK}]+dp[${bestK+1}][${j}]+sum(${i},${j})<br>= ${dp[i][bestK]}+${dp[bestK+1][j]}+${sum(i,j)} = <b>${best}</b>。`,
+        ans: (i === 0 && j === n - 1) ? dp[i][j] : null });
+    }
+  }
+  push({ cur: null, src: [], range: [0, n - 1], best: [0, n - 1], ans: dp[0][n - 1], done: true,
+    desc: `<span style="color:var(--green);font-weight:700">完成！</span> dp[0][${n-1}] = <b>${dp[0][n-1]}</b> 即合并成一堆的最小代价。` });
+  return list;
+}
+
+// ======== 渲染 ========
+function renderSeq(s) {
+  const inR = (i) => s.range && i >= s.range[0] && i <= s.range[1];
+  $("seqArea").innerHTML = `<div class="seq">` + a.map((v, i) => {
+    let cls = "cell";
+    if (inR(i)) cls += " inrange";
+    if (s.endIdx === i) cls += " end";                       // 取球：本步取的端点
+    if (s.splitK !== undefined && (i === s.splitK)) cls += " split";  // 合并：分割点
+    return `<div class="${cls}"><span class="v">${v}</span><span class="ix">${i}</span></div>`;
+  }).join("") + `</div>`;
+}
+function renderTable(s) {
+  const n = a.length;
+  const inSrc = (i, j) => s.src && s.src.some(x => x[0] === i && x[1] === j);
+  let html = `<table class="dp"><tr><th></th>`;
+  for (let j = 0; j < n; j++) html += `<th>j=${j}</th>`;
+  html += `</tr>`;
+  for (let i = 0; i < n; i++) {
+    html += `<tr><td class="rh">i=${i}</td>`;
+    for (let j = 0; j < n; j++) {
+      if (j < i) { html += `<td class="cell na"></td>`; continue; }
+      let cls = "cell";
+      const val = s.dp[i][j];
+      if (val !== null) cls += " filled";
+      if (s.cur && s.cur[0] === i && s.cur[1] === j) cls += " cur";
+      else if (inSrc(i, j)) cls += " src";
+      else if (s.best && s.best[0] === i && s.best[1] === j) cls += " best";
+      html += `<td class="${cls}">${val === null ? "" : val}</td>`;
+    }
+    html += `</tr>`;
+  }
+  html += `</table>`;
+  $("tableArea").innerHTML = html;
+}
+function draw(s) {
+  renderSeq(s); renderTable(s);
+  $("ans").textContent = s.ans !== null && s.ans !== undefined ? s.ans : "-";
+  setStatus(s.desc);
+}
+
+// ======== 引擎 ========
+function build() {
+  a = $("dataInput").value.split(",").map(x => parseInt(x.trim(), 10)).filter(x => !isNaN(x));
+  if (a.length === 0) a = [1];
+  if (a.length > 8) a = a.slice(0, 8);   // 限制规模，表才看得清
+  $("dataInput").value = a.join(", ");
+  steps = model === "ball" ? genBall() : genStone();
+  idx = 0; draw(steps[0]);
+}
+function stepOnce() { if (idx < steps.length - 1) { idx++; draw(steps[idx]); return true; } return false; }
+function play() { stop(); const spd = 980 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (!stepOnce()) stop(); }, spd); }
+function stop() { if (timer) { clearInterval(timer); timer = null; } }
+
+function applyModel(m) {
+  model = m; stop();
+  document.querySelectorAll(".subtab").forEach(t => t.classList.toggle("active", t.dataset.model === m));
+  const cfg = MODELS[m];
+  $("subtitle").textContent = cfg.subtitle;
+  $("dataLabel").textContent = cfg.dataLabel;
+  $("formula").innerHTML = cfg.formula;
+  $("note").innerHTML = cfg.note;
+  build();
+}
+
+document.querySelectorAll(".subtab").forEach(t => t.onclick = () => applyModel(t.dataset.model));
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) build(); play(); };
+$("stepBtn").onclick = () => { stop(); stepOnce(); };
+$("resetBtn").onclick = () => { stop(); build(); };
+$("randBtn").onclick = () => {
+  const n = 4 + Math.floor(Math.random() * 3);
+  a = Array.from({ length: n }, () => 1 + Math.floor(Math.random() * 9));
+  $("dataInput").value = a.join(", ");
+  stop(); build();
+};
+$("dataInput").addEventListener("keydown", e => { if (e.key === "Enter") { stop(); build(); } });
+$("cppBtn").onclick = () => CppView.open(model);
+
+CppView.register({
+  ball: { title: "区间DP · 取球最大价值（点+区间）— C++", code:
+`// 例题①：管道里 n 个球，每次从两端取一个；第 k 个取出的球 i 价值 k*a[i]。
+// 求全部取完的最大总价值。
+// 状态：dp[i][j]=取完区间[i,j]的最大价值。区间外已取 n-len 个，
+//        故区间内第一个取出的球是第 k=n-len+1 个。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+const int MAXN = 1005;
+int a[MAXN];
+long long dp[MAXN][MAXN];
+
+int main() {
+    int n; cin >> n;
+    for (int i = 0; i < n; i++) cin >> a[i];
+
+    for (int i = 0; i < n; i++) dp[i][i] = (long long)n * a[i];   // len=1
+    for (int len = 2; len <= n; len++) {
+        int k = n - len + 1;                    // 区间内第一个球的取出序号
+        for (int i = 0; i + len - 1 < n; i++) {
+            int j = i + len - 1;
+            dp[i][j] = max((long long)k * a[i] + dp[i + 1][j],   // 取左端
+                           (long long)k * a[j] + dp[i][j - 1]);  // 取右端
+        }
+    }
+    cout << dp[0][n - 1] << endl;
+    return 0;
+}`
+  },
+  stone: { title: "区间DP · 合并石子最小代价（区间+区间）— C++", code:
+`// 例题②：n 堆石子，每次合并相邻两堆，代价为两堆之和。
+// 求合并成一堆的最小总代价。
+// 状态：dp[i][j]=把区间[i,j]合并成一堆的最小代价；枚举分割点 k。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+const int MAXN = 1005;
+int a[MAXN];
+long long pre[MAXN];          // 前缀和
+long long dp[MAXN][MAXN];
+
+int main() {
+    int n; cin >> n;
+    for (int i = 0; i < n; i++) { cin >> a[i]; pre[i + 1] = pre[i] + a[i]; }
+
+    for (int i = 0; i < n; i++) dp[i][i] = 0;   // 单堆无需合并
+    for (int len = 2; len <= n; len++) {
+        for (int i = 0; i + len - 1 < n; i++) {
+            int j = i + len - 1;
+            dp[i][j] = 1e18;
+            long long s = pre[j + 1] - pre[i];   // 区间总和(合并代价)
+            for (int k = i; k < j; k++)          // 枚举分割点
+                dp[i][j] = min(dp[i][j], dp[i][k] + dp[k + 1][j] + s);
+        }
+    }
+    cout << dp[0][n - 1] << endl;
+    return 0;
+}`
+  }
+});
+
+applyModel("ball");
+</script>
+</body>
+</html>
