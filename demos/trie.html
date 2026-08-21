@@ -63,6 +63,9 @@
   .btn.gn:hover:not(:disabled) { background: var(--green); color: #05060f; box-shadow: 0 0 16px rgba(0,255,156,.6); }
   .btn.ghost { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
   .btn.ghost:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  #stepInfo { font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--yellow); }
   main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
   @media (max-width: 940px) { main { grid-template-columns: 1fr; } }
   .card {
@@ -127,6 +130,8 @@
   <button class="btn cy" id="insertBtn">插入</button>
   <button class="btn gn" id="searchBtn">查找整词</button>
   <button class="btn" id="prefixBtn">前缀统计</button>
+  <button class="btn secondary" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
   <button class="btn ghost" id="clearBtn">清空</button>
   <button class="btn ghost" id="demoBtn">示例集</button>
   <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="80" max="900" value="480" step="40"></div>
@@ -135,7 +140,7 @@
 
 <main>
   <section class="card">
-    <div class="rowlabel">Trie 树（紫=根，绿圈=单词结尾 ●，黄=当前访问）</div>
+    <div class="rowlabel">Trie 树（紫=根，绿圈=单词结尾 ●，黄=当前访问）　<span id="stepInfo"></span></div>
     <svg id="trie" viewBox="0 0 720 360" preserveAspectRatio="xMidYMin meet"></svg>
     <div class="legend">
       <span><i class="dot" style="background:#a06bff"></i>根节点</span>
@@ -164,13 +169,20 @@ let nodeSeq = 0;
 function newNode() { return { id: nodeSeq++, ch: "", children: {}, isEnd: false, _x: 0, _y: 0 }; }
 let root = newNode();
 let words = [];
-let busy = false;
+let running = false;   // 是否有帧序列在演示中
 
 function setStatus(t) { $("status").innerHTML = t; }
 function speed() { return 980 - parseInt($("speedInput").value, 10); }
 
+// 深拷贝一棵 trie（只留渲染需要的字段），用于每帧快照
+function cloneTrie(u) {
+  const c = { id: u.id, ch: u.ch, isEnd: u.isEnd, children: {} };
+  for (const k of Object.keys(u.children)) c.children[k] = cloneTrie(u.children[k]);
+  return c;
+}
+
 // ======== 布局：按叶子中序分配 x，深度分配 y ========
-function layout() {
+function layout(rt) {
   let leafX = 0;
   let maxDepth = 0;
   (function assign(u, depth) {
@@ -183,15 +195,17 @@ function layout() {
       u._leafx = (Math.min(...xs) + Math.max(...xs)) / 2;
     }
     u._depth = depth;
-  })(root, 0);
+  })(rt, 0);
   return { nLeaf: leafX, maxDepth };
 }
 
 // ======== 渲染 Trie ========
 // marks: { [nodeId]: "cur"|"hit" }, pathEdges: Set("parentId>childId")
-function render(marks = {}, pathEdges = new Set()) {
+// rt: 要渲染的树（默认全局 root；单步回看时传帧内快照）
+function render(marks = {}, pathEdges = new Set(), rt) {
+  const curRoot = rt || root;
   const svg = $("trie");
-  const { nLeaf, maxDepth } = layout();
+  const { nLeaf, maxDepth } = layout(curRoot);
   const W = 720, padX = 34, padY = 34;
   const usableW = W - 2 * padX;
   const dx = nLeaf > 1 ? usableW / (nLeaf - 1) : 0;
@@ -212,16 +226,16 @@ function render(marks = {}, pathEdges = new Set()) {
       walk(c);
     });
     let cls = "tnode";
-    if (u === root) cls += " root";
+    if (u.id === curRoot.id) cls += " root";
     else if (u.isEnd) cls += " word";
     if (marks[u.id]) cls += " " + marks[u.id];
     const x = X(u), y = Y(u);
     nodes += `<g class="${cls}"><circle cx="${x}" cy="${y}" r="16"/>`;
-    if (u === root) nodes += `<text class="ch" x="${x}" y="${y + 5}">◆</text>`;
+    if (u.id === curRoot.id) nodes += `<text class="ch" x="${x}" y="${y + 5}">◆</text>`;
     else nodes += `<text class="ch" x="${x}" y="${y + 5}">${u.ch}</text>`;
     if (u.isEnd) nodes += `<text class="end" x="${x}" y="${y - 22}">●词尾</text>`;
     nodes += `</g>`;
-  })(root);
+  })(curRoot);
   svg.innerHTML = edges + nodes;
   $("nodeCount").textContent = nodeSeq;   // 近似：分配过的节点数（含 root）
   countNodes();
@@ -238,110 +252,122 @@ function renderWordList(hot) {
     ? words.map(w => `<span class="wchip${w === hot ? " hot" : ""}">${w}</span>`).join("")
     : '<span style="color:var(--muted);font-family:monospace">（空）</span>';
 }
-function lock(v) { busy = v; document.querySelectorAll(".btn").forEach(b => b.disabled = v); }
-
 function readWord() {
   const w = ($("wordInput").value || "").toLowerCase().replace(/[^a-z]/g, "");
   return w;
 }
 
-// ======== 插入（分步）========
-async function doInsert() {
-  if (busy) return;
+// ======== 单步/播放引擎 ========
+// 每帧：{ snap: 树快照, marks, pathEdges, desc, hot? }
+let frames = [], fidx = 0, ftimer = null;
+function frame(marks, pathEdges, desc, hot) {
+  frames.push({ snap: cloneTrie(root), marks: { ...marks }, pathEdges: new Set(pathEdges), desc, hot });
+}
+function drawFrame(k) {
+  const f = frames[k];
+  render(f.marks, f.pathEdges, f.snap);
+  setStatus(f.desc);
+  renderWordList(f.hot);
+  $("stepInfo").textContent = `第 ${k + 1} / ${frames.length} 步`;
+}
+function stepFrame() { if (fidx < frames.length - 1) { fidx++; drawFrame(fidx); } if (fidx >= frames.length - 1) endFrames(); }
+function playFrames() { stopTimerF(); ftimer = setInterval(() => { if (fidx < frames.length - 1) { fidx++; drawFrame(fidx); } else endFrames(); }, speed()); }
+function stopTimerF() { if (ftimer) { clearInterval(ftimer); ftimer = null; } }
+function endFrames() { stopTimerF(); running = false; $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function loadFrames() {
+  fidx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  drawFrame(0);
+  if (frames.length <= 1) endFrames();
+}
+
+// ======== 插入（生成帧）========
+function doInsert() {
+  if (running && fidx < frames.length - 1) return;
   const w = readWord();
   if (!w) { setStatus("请输入由小写字母组成的单词。"); return; }
-  lock(true);
+  frames = [];
   let cur = root;
   const pathEdges = new Set();
-  render({ [cur.id]: "cur" }, pathEdges);
-  setStatus(`插入 "<b>${w}</b>"：从根出发，逐个字符往下走。`);
-  await sleep(speed());
+  frame({ [cur.id]: "cur" }, pathEdges, `插入 "<b>${w}</b>"：从根出发，逐个字符往下走。`);
   for (let i = 0; i < w.length; i++) {
     const ch = w[i];
+    let msg;
     if (cur.children[ch]) {
-      setStatus(`第 ${i + 1} 个字符 '${ch}'：已有该分支，<b>复用</b>（公共前缀共享）。`);
+      msg = `第 ${i + 1} 个字符 '${ch}'：已有该分支，<b>复用</b>（公共前缀共享）。`;
     } else {
       const nn = newNode(); nn.ch = ch; cur.children[ch] = nn;
-      setStatus(`第 ${i + 1} 个字符 '${ch}'：没有该分支，<b>新建</b>节点。`);
+      msg = `第 ${i + 1} 个字符 '${ch}'：没有该分支，<b>新建</b>节点。`;
     }
     pathEdges.add(cur.id + ">" + cur.children[ch].id);
     cur = cur.children[ch];
-    render({ [cur.id]: "cur" }, pathEdges);
-    await sleep(speed());
+    frame({ [cur.id]: "cur" }, pathEdges, msg);
   }
   const already = cur.isEnd;
   cur.isEnd = true;
   if (!words.includes(w)) words.push(w);
-  render({ [cur.id]: "hit" }, pathEdges);
-  setStatus(already ? `"${w}" 已存在，末尾节点已是词尾。` : `<span class="hl">插入完成！</span>把末尾节点标记为「单词结尾 ●」。`);
+  frame({ [cur.id]: "hit" }, pathEdges, already ? `"${w}" 已存在，末尾节点已是词尾。` : `<span class="hl">插入完成！</span>把末尾节点标记为「单词结尾 ●」。`);
   $("wordInput").value = "";
-  lock(false);
+  loadFrames();
 }
 
-// ======== 查找整词（分步）========
-async function doSearch() {
-  if (busy) return;
+// ======== 查找整词（生成帧）========
+function doSearch() {
+  if (running && fidx < frames.length - 1) return;
   const w = readWord();
   if (!w) { setStatus("请输入要查找的单词。"); return; }
-  lock(true);
+  frames = [];
   let cur = root;
   const pathEdges = new Set();
-  render({ [cur.id]: "cur" }, pathEdges);
-  setStatus(`查找 "<b>${w}</b>"：沿路径逐字符走。`);
-  await sleep(speed());
+  frame({ [cur.id]: "cur" }, pathEdges, `查找 "<b>${w}</b>"：沿路径逐字符走。`);
+  let failed = false;
   for (let i = 0; i < w.length; i++) {
     const ch = w[i];
     if (!cur.children[ch]) {
-      render({ [cur.id]: "cur" }, pathEdges);
-      setStatus(`第 ${i + 1} 个字符 '${ch}'：<span class="bad">没有该分支 → 单词不存在。</span>`);
-      lock(false); return;
+      frame({ [cur.id]: "cur" }, pathEdges, `第 ${i + 1} 个字符 '${ch}'：<span class="bad">没有该分支 → 单词不存在。</span>`);
+      failed = true; break;
     }
     pathEdges.add(cur.id + ">" + cur.children[ch].id);
     cur = cur.children[ch];
-    render({ [cur.id]: "cur" }, pathEdges);
-    setStatus(`匹配到 '${ch}'，继续。`);
-    await sleep(speed());
+    frame({ [cur.id]: "cur" }, pathEdges, `匹配到 '${ch}'，继续。`);
   }
-  render({ [cur.id]: cur.isEnd ? "hit" : "cur" }, pathEdges);
-  setStatus(cur.isEnd
-    ? `<span class="hl">找到了！</span>路径走到末尾且该节点是「单词结尾」，"${w}" 存在。`
-    : `<span class="bad">路径能走通，但末尾不是词尾 → "${w}" 只是某个词的前缀，不是完整单词。</span>`);
-  renderWordList(cur.isEnd ? w : undefined);
-  lock(false);
+  if (!failed) {
+    frame({ [cur.id]: cur.isEnd ? "hit" : "cur" }, pathEdges, cur.isEnd
+      ? `<span class="hl">找到了！</span>路径走到末尾且该节点是「单词结尾」，"${w}" 存在。`
+      : `<span class="bad">路径能走通，但末尾不是词尾 → "${w}" 只是某个词的前缀，不是完整单词。</span>`, cur.isEnd ? w : undefined);
+  }
+  loadFrames();
 }
 
-// ======== 前缀统计（分步）========
-async function doPrefix() {
-  if (busy) return;
+// ======== 前缀统计（生成帧）========
+function doPrefix() {
+  if (running && fidx < frames.length - 1) return;
   const w = readWord();
   if (!w) { setStatus("请输入前缀。"); return; }
-  lock(true);
+  frames = [];
   let cur = root;
   const pathEdges = new Set();
-  render({ [cur.id]: "cur" }, pathEdges);
-  setStatus(`统计前缀 "<b>${w}</b>"：先沿路径走到前缀末端。`);
-  await sleep(speed());
+  frame({ [cur.id]: "cur" }, pathEdges, `统计前缀 "<b>${w}</b>"：先沿路径走到前缀末端。`);
+  let failed = false;
   for (let i = 0; i < w.length; i++) {
     const ch = w[i];
     if (!cur.children[ch]) {
-      render({ [cur.id]: "cur" }, pathEdges);
-      setStatus(`'${ch}' 分支不存在 → 没有任何单词以 "<b>${w}</b>" 为前缀（0 个）。`);
-      lock(false); return;
+      frame({ [cur.id]: "cur" }, pathEdges, `'${ch}' 分支不存在 → 没有任何单词以 "<b>${w}</b>" 为前缀（0 个）。`);
+      failed = true; break;
     }
     pathEdges.add(cur.id + ">" + cur.children[ch].id);
     cur = cur.children[ch];
-    render({ [cur.id]: "cur" }, pathEdges);
-    await sleep(speed());
+    frame({ [cur.id]: "cur" }, pathEdges, `匹配到 '${ch}'，继续。`);
   }
-  // 统计以 cur 为根的子树里的词尾数
-  let cnt = 0; const sub = [];
-  (function w2(u) { if (u.isEnd) cnt++; Object.values(u.children).forEach(w2); })(cur);
-  const marks = {}; const subEdges = new Set(pathEdges);
-  (function markSub(u) { marks[u.id] = "hit"; Object.keys(u.children).sort().forEach(k => { subEdges.add(u.id + ">" + u.children[k].id); markSub(u.children[k]); }); })(cur);
-  render(marks, subEdges);
-  const matched = words.filter(x => x.startsWith(w));
-  setStatus(`到达前缀末端。以它为根的<b>整棵子树</b>都以 "<b>${w}</b>" 为前缀，其中词尾共 <span class="hl">${cnt}</span> 个：${matched.join(", ") || "无"}。`);
-  lock(false);
+  if (!failed) {
+    let cnt = 0;
+    (function w2(u) { if (u.isEnd) cnt++; Object.values(u.children).forEach(w2); })(cur);
+    const marks = {}; const subEdges = new Set(pathEdges);
+    (function markSub(u) { marks[u.id] = "hit"; Object.keys(u.children).sort().forEach(k => { subEdges.add(u.id + ">" + u.children[k].id); markSub(u.children[k]); }); })(cur);
+    const matched = words.filter(x => x.startsWith(w));
+    frame(marks, subEdges, `到达前缀末端。以它为根的<b>整棵子树</b>都以 "<b>${w}</b>" 为前缀，其中词尾共 <span class="hl">${cnt}</span> 个：${matched.join(", ") || "无"}。`);
+  }
+  loadFrames();
 }
 
 function reset(seed) {
@@ -351,6 +377,8 @@ function reset(seed) {
     for (const ch of w) { if (!cur.children[ch]) { const nn = newNode(); nn.ch = ch; cur.children[ch] = nn; } cur = cur.children[ch]; }
     cur.isEnd = true; words.push(w);
   });
+  stopTimerF(); running = false; frames = []; fidx = 0;
+  $("stepBtn").disabled = true; $("playBtn").disabled = true; $("stepInfo").textContent = "";
   render();
   setStatus(seed ? "已载入示例单词集：cat car card dog do dot。注意 cat/car/card 共享前缀 c-a。" : "已清空。输入单词后点「插入」。");
 }
@@ -358,8 +386,10 @@ function reset(seed) {
 $("insertBtn").onclick = doInsert;
 $("searchBtn").onclick = doSearch;
 $("prefixBtn").onclick = doPrefix;
-$("clearBtn").onclick = () => { if (!busy) reset(false); };
-$("demoBtn").onclick = () => { if (!busy) reset(true); };
+$("stepBtn").onclick = () => { stopTimerF(); stepFrame(); };
+$("playBtn").onclick = () => { if (running && fidx < frames.length - 1) playFrames(); };
+$("clearBtn").onclick = () => reset(false);
+$("demoBtn").onclick = () => reset(true);
 $("wordInput").addEventListener("keydown", e => { if (e.key === "Enter") doInsert(); });
 
 $("formula").innerHTML = `节点 = 一个前缀；边 = 一个字符。<br><b>插入</b>：沿路径走，缺字符就建节点，末尾标「词尾」。<br><b>查找整词</b>：走到末尾 <b>且</b> 该节点是词尾。<br><b>前缀统计</b>：走到前缀末端，其子树内的词尾数即答案。<br>每步复杂度 O(单词长度)。`;
