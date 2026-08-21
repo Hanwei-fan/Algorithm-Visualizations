@@ -72,7 +72,7 @@
     let bg = t.bg.replace(/\s+/g, " ").trim();
     if (light) {
       const base = location.pathname.includes("/demos/") ? "../img/" : "img/";
-      const veil = (id === "sepia") ? "rgba(243,236,222,0.90)" : "rgba(247,249,252,0.90)";
+      const veil = (id === "sepia") ? "rgba(243,236,222,0.80)" : "rgba(247,249,252,0.80)";
       bg = `linear-gradient(${veil}, ${veil}), url("${base}image.png") center top / cover no-repeat fixed, ${bg}`;
     }
     document.body.style.setProperty("background", bg, "important");
