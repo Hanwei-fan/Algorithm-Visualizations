@@ -118,6 +118,19 @@
         .cppview-kw  { color: #cf222e !important; }   /* 关键字 红 */
         .cppview-str { color: #0a3069 !important; }   /* 字符串 深蓝 */
         .cppview-num { color: #0550ae !important; }   /* 数字 蓝 */
+        /* 按钮：写死的深色/霓虹底 → 浅底描边式；hover 才用强调色实心 */
+        .btn { background: #ffffff !important; }
+        .btn:not(:disabled):hover { background: var(--magenta) !important; color: #fff !important; box-shadow: 0 2px 10px rgba(0,0,0,.15) !important; }
+        .btn.cy:not(:disabled):hover { background: var(--cyan) !important; color: #fff !important; }
+        .btn.gn:not(:disabled):hover { background: var(--green) !important; color: #fff !important; }
+        .btn.secondary, .btn.ghost { background: #ffffff !important; color: var(--muted) !important; }
+        .btn.secondary:not(:disabled):hover, .btn.ghost:not(:disabled):hover { background: var(--panel) !important; color: var(--cyan) !important; }
+        /* 悬浮「查看 C++ 代码」按钮：深底 → 浅底 */
+        .cppview-btn { background: #ffffff !important; color: var(--cyan) !important; }
+        .cppview-btn:hover { background: var(--cyan) !important; color: #fff !important; }
+        /* tab 类按钮(部分页面用 .tab)：激活态实心，非激活浅底 */
+        .tab { background: #ffffff !important; }
+        .tab.active { background: var(--cyan) !important; color: #fff !important; }
       `;
     } else if (ov) { ov.remove(); }
   }
