@@ -103,6 +103,21 @@
         /* 关联题目卡片：深底 → 浅底，浅蓝灰 why 文字 → 深灰 */
         .prob { background: ${codeBg} !important; }
         .prob .why { color: ${codeFg} !important; }
+        /* 「查看 C++ 代码」弹窗：整体浅色化 + 浅底语法高亮(类 GitHub light) */
+        .cppview-mask { background: rgba(40,45,60,0.45) !important; }
+        .cppview-modal { background: #ffffff !important; border-color: var(--border) !important;
+          box-shadow: 0 0 0 1px rgba(0,0,0,.06), 0 12px 50px rgba(0,0,0,.25) !important; }
+        .cppview-head { border-bottom-color: var(--border) !important; }
+        .cppview-head h3 { color: var(--text) !important; text-shadow: none !important; }
+        .cppview-close { border-color: var(--border) !important; color: var(--muted) !important; }
+        .cppview-tabs { border-bottom-color: var(--border) !important; }
+        .cppview-tab { background: ${codeBg} !important; color: var(--muted) !important; border-color: var(--border) !important; }
+        .cppview-tab.active { background: #ffffff !important; color: var(--cyan) !important; border-bottom-color: #ffffff !important; text-shadow: none !important; }
+        .cppview-body pre, .cppview-body code { background: #ffffff !important; color: #24292e !important; }
+        .cppview-cmt { color: #6a737d !important; }   /* 注释 灰 */
+        .cppview-kw  { color: #cf222e !important; }   /* 关键字 红 */
+        .cppview-str { color: #0a3069 !important; }   /* 字符串 深蓝 */
+        .cppview-num { color: #0550ae !important; }   /* 数字 蓝 */
       `;
     } else if (ov) { ov.remove(); }
   }
