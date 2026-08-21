@@ -446,18 +446,19 @@ function buildLISINF() {
   const n = A.length, list = [];
   const INF = Infinity;
   const tails = Array(n).fill(INF);
-  const cntFinite = () => tails.filter(v => v !== INF).length;
+  const cntFinite = (arr) => arr.filter(v => v !== INF).length;
   const snap = (seqMarks, tailsMarks, desc) => {
+    const snapshot = tails.slice();   // 快照当前 tails，避免闭包读到被后续修改的最终值
     list.push({ render: () => {
       let html = '<div class="seq">';
       A.forEach((v, i) => html += `<div class="cell ${seqMarks[i] || ""}"><div class="v">${v}</div><div class="ix">${i}</div></div>`);
       html += '</div>';
       html += '<div class="plabel" style="text-align:center;margin-top:10px">tails 数组（定长 n，初始全为 +∞；非 ∞ 的个数即 LIS 长度）</div>';
       html += '<div class="seq">';
-      tails.forEach((v, k) => html += `<div class="cell ${tailsMarks[k] || ""}"><div class="v">${v === INF ? "∞" : v}</div><div class="ix">${k}</div></div>`);
+      snapshot.forEach((v, k) => html += `<div class="cell ${tailsMarks[k] || ""}"><div class="v">${v === INF ? "∞" : v}</div><div class="ix">${k}</div></div>`);
       html += '</div>';
       $("seqArea").innerHTML = html; $("tableArea").innerHTML = "";
-    }, desc, ans: cntFinite() });
+    }, desc, ans: cntFinite(snapshot) });
   };
   snap({}, {}, `tails 数组初始化为 ${n} 个 <b>+∞</b>。每个元素找第一个 ≥ 它的位置替换即可，无需追加/长度判断。`);
   for (let i = 0; i < n; i++) {
@@ -468,10 +469,10 @@ function buildLISINF() {
     const oldTxt = oldv === INF ? "∞" : oldv;
     snap({ [i]: (oldv === INF ? "pick" : "cur") }, { [pos]: (oldv === INF ? "best" : "src") },
       `处理 a[${i}]=<b>${x}</b>：第一个 ≥ ${x} 的是 tails[${pos}]=${oldTxt} → 替换为 ${x}。` +
-      (oldv === INF ? `（原来是 ∞，说明找到了更长的上升子序列，LIS 长度 +1 → <b>${cntFinite()}</b>）` : `（替换有限值，长度不变）`));
+      (oldv === INF ? `（原来是 ∞，说明找到了更长的上升子序列，LIS 长度 +1 → <b>${cntFinite(tails)}</b>）` : `（替换有限值，长度不变）`));
   }
   snap({}, tails.reduce((o, v, k) => (v !== INF && (o[k] = "best"), o), {}),
-    `完成！tails 中非 ∞ 的元素共 <b>${cntFinite()}</b> 个，即最长上升子序列长度。`);
+    `完成！tails 中非 ∞ 的元素共 <b>${cntFinite(tails)}</b> 个，即最长上升子序列长度。`);
   return list;
 }
 
