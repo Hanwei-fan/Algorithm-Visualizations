@@ -95,6 +95,11 @@
   .cell.ok .ch { background: rgba(0,255,156,0.25); border-color: var(--green); color: var(--green); }
   .cell.bad .ch { background: var(--magenta); border-color: var(--magenta); color: #fff; }
   .cell.matched .ch { background: rgba(0,255,156,0.15); border-color: var(--green); color: var(--green); }
+  /* 求 next 时的 i/j 指针徽标 */
+  .cell .badge { height: 15px; font-size: 11px; font-weight: 800; font-family: "SF Mono", Menlo, monospace; line-height: 15px; }
+  .cell .badge.pi { color: var(--yellow); }
+  .cell .badge.pj { color: var(--cyan); }
+  .cell.pfx .ch { border-color: var(--cyan); background: rgba(0,240,255,0.10); }
   /* next 数组表 */
   .ntable { display: flex; gap: 4px; flex-wrap: wrap; font-family: "SF Mono", Menlo, monospace; }
   .ncol { display: flex; flex-direction: column; align-items: center; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
@@ -240,7 +245,7 @@ function draw(k) {
     return `<div class="${cls}"><div class="k">${i}</div><div class="c">${c}</div><div class="v">${val}</div></div>`;
   }).join("");
 
-  // 主串行
+  // 主串行（next 阶段不涉及主串，仅 match 阶段高亮）
   $("textRow").innerHTML = text.split("").map((c, i) => {
     let cls = "cell";
     if (s.phase === "match") {
@@ -248,21 +253,33 @@ function draw(k) {
       if (s.matchWhole && i >= s.off && i < s.off + pat.length) cls += " matched";
       if (s.cmp && s.cmp[0] === i) cls += " " + s.mark;
     }
-    return `<div class="${cls}"><div class="ch">${c === " " ? "␣" : c}</div><div class="ix">${i}</div></div>`;
+    return `<div class="${cls}"><div class="badge"></div><div class="ch">${c === " " ? "␣" : c}</div><div class="ix">${i}</div></div>`;
   }).join("");
 
-  // 模式串行：整体左对齐到 off 位置（用透明占位格）
+  // 模式串行
   const off = s.phase === "match" && s.off >= 0 ? s.off : 0;
   let pcells = "";
-  for (let g = 0; g < off; g++) pcells += `<div class="cell"><div class="ch" style="border:0;background:transparent"></div><div class="ix"></div></div>`;
+  for (let g = 0; g < off; g++) pcells += `<div class="cell"><div class="badge"></div><div class="ch" style="border:0;background:transparent"></div><div class="ix"></div></div>`;
   pcells += pat.split("").map((c, j) => {
-    let cls = "cell";
+    let cls = "cell", badge = "";
     if (s.phase === "match") {
       if (s.matchWhole) cls += " matched";
       else if (s.cmp && s.cmp[1] === j) cls += " " + s.mark;
       else if (s.off >= 0 && j < s.j) cls += " win";
+    } else {
+      // ---- 求 next：向前迭代过程可视化 ----
+      // 已确定 next 的前缀区间 [0, nCur-1] 淡显为"已知"
+      // j 指针=候选前后缀的前缀端；i 指针=当前正在延伸的字符
+      const isJ = (s.cmpJ === j), isI = (s.cmpI === j);
+      if (isJ && isI) cls += (s.matchNext ? " ok" : " bad");
+      else if (isJ) cls += " pfx";
+      else if (isI) cls += (s.matchNext ? " ok" : (s.cmpJ != null ? " bad" : " cmp"));
+      if (isI && isJ) badge = `<div class="badge pi">i=j</div>`;
+      else if (isJ) badge = `<div class="badge pj">j</div>`;
+      else if (isI) badge = `<div class="badge pi">i</div>`;
     }
-    return `<div class="${cls}"><div class="ch">${c === " " ? "␣" : c}</div><div class="ix">${j}</div></div>`;
+    if (!badge) badge = `<div class="badge"></div>`;
+    return `<div class="${cls}">${badge}<div class="ch">${c === " " ? "␣" : c}</div><div class="ix">${j}</div></div>`;
   }).join("");
   $("patRow").innerHTML = pcells;
 
