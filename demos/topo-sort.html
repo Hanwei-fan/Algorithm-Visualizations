@@ -90,7 +90,7 @@
   .edge.removing { stroke: #ff5555; stroke-width: 3; filter: drop-shadow(0 0 6px rgba(255,85,85,.7)); }
   .edge.gone { opacity: 0; }
   /* 节点 */
-  .gnode circle { fill: rgba(0,240,255,0.05); stroke: var(--border); stroke-width: 2; transition: all .2s; }
+  .gnode circle { fill: var(--node-fill, #16213e); stroke: var(--border); stroke-width: 2; transition: all .2s; }
   .gnode text.lbl { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 16px; font-weight: 700; }
   .gnode text.ind { font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; fill: var(--yellow); }
   .gnode.ready circle { fill: rgba(255,212,0,0.16); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.5)); }

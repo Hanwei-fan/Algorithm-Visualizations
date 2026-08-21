@@ -80,7 +80,7 @@
   .edge.path { stroke: var(--yellow); stroke-width: 3; filter: drop-shadow(0 0 4px rgba(255,212,0,.6)); }
   .elabel { fill: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700; text-anchor: middle; }
   /* 不透明深色底，挡住穿过圆心的黄色路径边，保证白字清晰 */
-  .tnode circle { fill: #16213e; stroke: var(--border); stroke-width: 1.5; transition: all .2s; }
+  .tnode circle { fill: var(--node-fill, #16213e); stroke: var(--border); stroke-width: 1.5; transition: all .2s; }
   .tnode.root circle { fill: #2a1f47; stroke: #a06bff; }
   .tnode.word circle { fill: #0f3326; stroke: var(--green); stroke-width: 2.5; }
   .tnode.cur circle { fill: var(--yellow); stroke: #fff; stroke-width: 3; filter: drop-shadow(0 0 8px rgba(255,212,0,.9)); }

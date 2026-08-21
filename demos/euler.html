@@ -81,7 +81,7 @@
   .edge.used { stroke: var(--green); stroke-width: 4; filter: drop-shadow(0 0 6px rgba(0,255,156,.7)); }
   .edge.current { stroke: var(--magenta); stroke-width: 5; filter: drop-shadow(0 0 8px rgba(255,43,214,.9)); }
   .elabel { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 11px; }
-  .gnode circle { fill: rgba(0,240,255,0.06); stroke: var(--border); stroke-width: 2; transition: all .2s; }
+  .gnode circle { fill: var(--node-fill, #16213e); stroke: var(--border); stroke-width: 2; transition: all .2s; }
   .gnode text.lbl { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; }
   .gnode text.deg { font-family: "SF Mono", Menlo, monospace; font-size: 11px; font-weight: 700; fill: var(--yellow); }
   .gnode.start circle { fill: rgba(0,255,156,0.2); stroke: var(--green); filter: drop-shadow(0 0 8px rgba(0,255,156,.5)); }
