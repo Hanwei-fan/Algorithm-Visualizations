@@ -71,9 +71,31 @@
     let ov = document.getElementById("theme-lightfix");
     if (light) {
       if (!ov) { ov = document.createElement("style"); ov.id = "theme-lightfix"; document.head.appendChild(ov); }
+      // 关联那些写死的深色底/浅色字，让浅色主题下也协调、易读
+      const inputBg = (id === "sepia") ? "#fffdf6" : "#ffffff";
+      const codeBg  = (id === "sepia") ? "rgba(255,251,242,0.9)" : "rgba(248,250,252,0.95)";
+      const codeFg  = (id === "sepia") ? "#5c5342" : "#33404f";
       ov.textContent = `
-        header h1 { text-shadow: 0 1px 0 rgba(0,0,0,.08) !important; }
+        /* 标题霓虹发光减弱 */
+        header h1 { text-shadow: 0 1px 0 rgba(0,0,0,.08) !important; color: var(--text) !important; }
         .cppview-btn { box-shadow: 0 2px 10px rgba(0,0,0,.12) !important; }
+        /* 输入框/下拉：深底浅字 → 浅底深字 */
+        input, select, textarea {
+          background: ${inputBg} !important; color: var(--text) !important;
+          border-color: var(--border) !important;
+        }
+        input::placeholder { color: var(--muted) !important; }
+        /* 代码/公式/伪代码块：深底 → 浅底，浅蓝灰字 → 深灰字 */
+        .formula, .pseudocode, .code, pre, .cppview-body pre {
+          background: ${codeBg} !important; color: ${codeFg} !important;
+        }
+        /* 写死的浅蓝灰正文色统一收敛到深灰 */
+        .formula, .note, .status, .sublabel { }
+        /* 反色按钮里的白字/深字在浅底仍成立(它们底色是强调色)，不改 */
+        /* 卡片阴影减淡，避免浅色下发脏 */
+        .card { box-shadow: 0 0 0 1px rgba(0,0,0,.04), 0 6px 24px rgba(0,0,0,.08) !important; }
+        /* SVG/网格里常见的白色描边文字在浅底看不清时略加深(仅纯白 fill 的文字) */
+        text[fill="#fff"], text[fill="#ffffff"] { fill: var(--text) !important; }
       `;
     } else if (ov) { ov.remove(); }
   }
@@ -81,8 +103,17 @@
   function injectStyle() {
     if (document.getElementById("theme-picker-style")) return;
     const css = `
-      .theme-picker { display: inline-flex; align-items: center; gap: 6px; margin: 14px 0 0 14px; vertical-align: top; }
+      .theme-picker {
+        position: fixed; top: 14px; left: 16px; z-index: 80;
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 6px 12px; border-radius: 999px;
+        background: var(--panel); border: 1px solid var(--border);
+        box-shadow: 0 2px 12px rgba(0,0,0,.25); backdrop-filter: blur(6px);
+      }
       .theme-picker .tlabel { font-size: 11px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; letter-spacing: 1px; }
+      /* 给页面顶部让出固定切换器的空间 */
+      body { padding-top: 46px; }
+      header { padding-top: 8px !important; }
       .theme-dot {
         width: 22px; height: 22px; border-radius: 50%; cursor: pointer; padding: 0;
         border: 2px solid transparent; transition: all .15s; position: relative;
