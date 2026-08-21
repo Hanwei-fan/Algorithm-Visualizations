@@ -235,25 +235,32 @@ function genSteps(s) {
 // ======== 渲染 ========
 function draw(k) {
   const s = steps[k];
-  const inPalLo = 2 * s.idx - s.mx, inPalHi = s.mx;   // 当前回文覆盖 [2·idx−mx … mx]
+  const inPalLo = 2 * s.idx - s.mx, inPalHi = s.mx;   // 当前回文覆盖 [mx'…mx]，mx'=2·idx−mx
+  // 有已知回文且正在处理某个 i 时，始终展示两个对称点：
+  //   mxp = 2·idx−mx（mx 关于 idx 的对称=当前回文左端点，对应 mx−i 的对称边界）
+  //   jj  = 2·idx−i （i 关于 idx 的对称镜像，对应 d[j] 的来源）
+  const hasPal = s.mx > s.idx;
+  const mxp = hasPal ? 2 * s.idx - s.mx : -1;
+  const jj = (hasPal && s.i >= 0 && s.i < s.mx) ? 2 * s.idx - s.i : -1;
   $("marr").innerHTML = T.split("").map((c, i) => {
     let cls = "mcol";
     // 当前回文范围
-    if (s.mx > s.idx && i >= inPalLo && i <= inPalHi) cls += " inpal";
+    if (hasPal && i >= inPalLo && i <= inPalHi) cls += " inpal";
     if (s.idx === i) cls += " center";
-    if (s.mirror === i && s.mirror >= 0) cls += " mirror";
+    if (jj === i) cls += " mirror";
     if (s.cur === i && s.cur >= 0) cls += " cur";
     // 镜像步：高亮镜像 j 的回文范围（d[j] 的来源）
     if (s.mirPal && i >= s.mirPal[0] && i <= s.mirPal[1]) cls += " mirpal";
     // 中心扩展：高亮正在比较的左右两端
     if (s.phase === "compare" && (s.cmpL === i || s.cmpR === i)) cls += " expand";
     if (s.done && s.best && i >= s.best.center - s.best.len && i <= s.best.center + s.best.len) cls += " inpal";
-    // 徽标：i / idx / mx / j
+    // 徽标：i / idx / mx / mx'(左端点) / j(镜像)
     const tags = [];
     if (s.cur === i && s.cur >= 0 && s.phase !== "done") tags.push(`<span class="badge pi">i</span>`);
     if (s.idx === i) tags.push(`<span class="badge pc">idx</span>`);
     if (s.mx === i) tags.push(`<span class="badge pr">mx</span>`);
-    if (s.mirror === i && s.mirror >= 0) tags.push(`<span class="badge pj">j</span>`);
+    if (mxp === i && mxp !== s.idx) tags.push(`<span class="badge pr">mx'</span>`);
+    if (jj === i) tags.push(`<span class="badge pj">j</span>`);
     const badge = `<div class="badge">${tags.join(" ") || ""}</div>`;
     const pv = s.d[i];
     const bestCls = (s.done && i === s.best.center) ? " best" : "";
@@ -265,7 +272,7 @@ function draw(k) {
     const cols = $("marr").children;
     if (cols[s.mx]) cols[s.mx].classList.add("rbound");
   }
-  $("vars").innerHTML = `idx = <b>${s.idx}</b>　mx = <b>${s.mx}</b>` + (s.i >= 0 ? `　i = <b>${s.i}</b>` : "") + (s.mirror >= 0 ? `　j = <b>${s.mirror}</b>` : "");
+  $("vars").innerHTML = `idx = <b>${s.idx}</b>　mx = <b>${s.mx}</b>` + (mxp >= 0 ? `　mx' = <b>${mxp}</b>` : "") + (s.i >= 0 ? `　i = <b>${s.i}</b>` : "") + (jj >= 0 ? `　j = <b>${jj}</b>` : "");
   $("stats").innerHTML = s.done ? `最长回文半径 = <b>${s.best.len}</b>` : "";
   setStatus(s.desc);
 }
