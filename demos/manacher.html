@@ -138,8 +138,8 @@
     <div class="marr" id="marr"></div>
     <div class="legend">
       <span><i class="dot" style="background:#ffd400"></i>当前 i</span>
-      <span><i class="dot" style="background:#00ff9c"></i>中心 C</span>
-      <span><i class="dot" style="background:#ff2bd6"></i>镜像 j=2C−i</span>
+      <span><i class="dot" style="background:#00ff9c"></i>中心 idx</span>
+      <span><i class="dot" style="background:#ff2bd6"></i>镜像 j=2·idx−i</span>
       <span><i class="dot" style="background:rgba(0,240,255,.5)"></i>当前回文 [C−R…R]</span>
       <span><i class="dot" style="background:#ff9ae6"></i>正在扩展</span>
     </div>
@@ -152,7 +152,7 @@
     <div class="status" id="status"></div>
   </section>
 </main>
-<div class="note" id="note">核心：维护「目前右端最靠右的回文」的中心 <code>C</code> 与右边界 <code>R</code>。求 p[i] 时若 i 在该回文内（i&lt;R），它关于 C 的镜像位置 <code>j=2C−i</code> 的回文半径 p[j] 可以复用：<code>p[i]=min(p[j], R−i)</code>——这一步跳过了重复比较，是 O(n) 的关键。之后再从 p[i] 处继续中心扩展，若超过 R 就更新 C、R。</div>
+<div class="note" id="note">核心：维护「目前右端最靠右的回文」的对称中心 <code>idx</code> 与右端点 <code>mx</code>。求 p[i] 时若 i 在该回文内（i&lt;mx），它关于 idx 的镜像位置 <code>j=2·idx−i</code> 的回文半径 p[j] 可以复用：<code>p[i]=min(p[j], mx−i)</code>——这一步跳过了重复比较，是 O(n) 的关键。之后再从 p[i] 处继续中心扩展，若超过 mx 就更新 idx、mx。首尾哨兵 <code>$</code>、<code>!</code> 保证扩展时天然停下，无需边界判断。</div>
 
 <script src="../assets/cppview.js"></script>
 <script>
@@ -162,97 +162,96 @@ let T = "";   // 处理后字符串
 function setStatus(t) { $("status").innerHTML = t; }
 
 // ======== 生成分步 ========
-// step: { p:[..], i, C, R, mirror, cur, phase, desc, vars, best:{center,len}, done }
+// step: { p:[..], i, idx, mx, mirror, cur, phase, desc, best:{center,len}, done }
+// idx = 当前最右回文的对称中心；mx = 该回文的右端点
 function genSteps(s) {
   const list = [];
-  // 预处理：^ # a # b # ... # $（^ $ 为哨兵，仅内部用，不在 T 显示区参与，但保留于 t 便于边界）
-  const t = "#" + s.split("").join("#") + "#";
+  // 预处理：$ # a # b # ... # !（首尾各放一个不同于任何字符的哨兵，扩展时天然停在哨兵处，无需边界判断）
+  const t = "$#" + s.split("").join("#") + "#!";
   T = t;
   const n = t.length;
   const p = new Array(n).fill(0);
-  let C = 0, R = 0;               // 当前最右回文的中心与右边界(开区间右端=R)
+  let idx = 0, mx = 0;            // 当前最右回文的对称中心 idx、右端点 mx
   let bestLen = 0, bestCenter = 0;
-  const snap = (extra) => list.push(Object.assign({ p: [...p], C, R }, extra));
+  const snap = (extra) => list.push(Object.assign({ p: [...p], idx, mx }, extra));
 
   snap({ i: -1, mirror: -1, cur: -1, phase: "init",
-    desc: `预处理：在每个字符间插入 <code>#</code>，得到 t = "${t}"（长度 ${n}，任何回文都变成奇数长，中心唯一）。p[i] = 以 i 为中心、在 t 上的回文半径。`,
-    vars: { C, R } });
+    desc: `预处理：字符间插 <code>#</code>，首尾各加哨兵 <code>$</code>、<code>!</code>，得到 t = "${t}"。哨兵与任何字符都不同，中心扩展会在此自动停下，<b>无需边界判断</b>。p[i] = 以 i 为中心、在 t 上的回文半径。`,
+    vars: { idx, mx } });
 
-  for (let i = 0; i < n; i++) {
-    const mir = 2 * C - i;
-    // ① 借助镜像/右边界初始化 p[i]
-    if (i < R) {
-      p[i] = Math.min(R - i, p[mir]);
-      const which = (R - i <= p[mir]) ? `R−i=${R - i}（触到右边界，超出部分未知，需再扩展）` : `p[镜像 ${mir}]=${p[mir]}（完全在回文内，对称照搬）`;
+  for (let i = 1; i < n - 1; i++) {   // 跳过首尾哨兵
+    const mir = 2 * idx - i;
+    // ① 借助镜像/右端点初始化 p[i]
+    if (i < mx) {
+      p[i] = Math.min(mx - i, p[mir]);
+      const which = (mx - i <= p[mir]) ? `mx−i=${mx - i}（触到右端点，超出部分未知，需再扩展）` : `p[镜像 ${mir}]=${p[mir]}（完全在回文内，对称照搬）`;
       snap({ i, mirror: mir, cur: i, phase: "mirror",
-        desc: `求 p[${i}]：i=${i} 在当前回文 [${C - (R - C)}…${R - 1}] 内。<br>镜像位置 <b>j=2C−i=2×${C}−${i}=${mir}</b>。<br>借助已知：<b>p[${i}]=min(R−i, p[j])=min(${R - i}, ${p[mir]})=${p[i]}</b>。取的是 ${which}。`,
-        vars: { C, R, mirror: mir, formula: `p[${i}]=min(${R - i},${p[mir]})=${p[i]}` } });
+        desc: `求 p[${i}]：i=${i} 在当前回文 [${2 * idx - mx}…${mx}] 内。<br>镜像位置 <b>j=2·idx−i=2×${idx}−${i}=${mir}</b>。<br>借助已知：<b>p[${i}]=min(mx−i, p[j])=min(${mx - i}, ${p[mir]})=${p[i]}</b>。取的是 ${which}。`,
+        vars: { idx, mx, mirror: mir, formula: `p[${i}]=min(${mx - i},${p[mir]})=${p[i]}` } });
     } else {
       p[i] = 0;
       snap({ i, mirror: -1, cur: i, phase: "outside",
-        desc: `求 p[${i}]：i=${i} <b>不在</b>当前回文内（i≥R=${R}），没有可复用的镜像信息，p[${i}] 从 0 开始，直接中心扩展。`,
-        vars: { C, R } });
+        desc: `求 p[${i}]：i=${i} <b>不在</b>当前回文内（i≥mx=${mx}），没有可复用的镜像信息，p[${i}] 从 0 开始，直接中心扩展。`,
+        vars: { idx, mx } });
     }
-    // ② 中心扩展
+    // ② 中心扩展（哨兵兜底，无需边界判断）
     let expanded = 0;
-    while (i - p[i] - 1 >= 0 && i + p[i] + 1 < n && t[i - p[i] - 1] === t[i + p[i] + 1]) {
-      p[i]++; expanded++;
-    }
+    while (t[i - p[i] - 1] === t[i + p[i] + 1]) { p[i]++; expanded++; }
+    if (p[i] > bestLen) { bestLen = p[i]; bestCenter = i; }
     snap({ i, mirror: -1, cur: i, phase: "expand", expandTo: p[i],
       desc: expanded > 0
         ? `从 p[${i}] 向两侧中心扩展：<b>t[${i - p[i]}]…t[${i + p[i]}]</b> 都对称，扩展了 ${expanded} 步 → p[${i}]=<b>${p[i]}</b>。`
-        : `尝试扩展 p[${i}]：两侧字符不等（或越界），无法扩展，p[${i}]=<b>${p[i]}</b>。`,
-      vars: { C, R } });
-    // ③ 更新中心与右边界
-    if (i + p[i] > R) {
-      const oldC = C, oldR = R;
-      C = i; R = i + p[i];
+        : `尝试扩展 p[${i}]：两侧字符不等（哨兵挡住），无法扩展，p[${i}]=<b>${p[i]}</b>。`,
+      vars: { idx, mx } });
+    // ③ 更新中心 idx 与右端点 mx
+    if (i + p[i] > mx) {
+      const oldIdx = idx, oldMx = mx;
+      idx = i; mx = i + p[i];
       snap({ i, mirror: -1, cur: i, phase: "update",
-        desc: `i+p[i]=${i + p[i]} > R=${oldR}：以 ${i} 为中心的回文更靠右 → <b>更新 C=${C}, R=${R}</b>（之前 C=${oldC}, R=${oldR}）。`,
-        vars: { C, R } });
+        desc: `i+p[i]=${i + p[i]} > mx=${oldMx}：以 ${i} 为中心的回文更靠右 → <b>更新 idx=${idx}, mx=${mx}</b>（之前 idx=${oldIdx}, mx=${oldMx}）。`,
+        vars: { idx, mx } });
     }
-    if (p[i] > bestLen) { bestLen = p[i]; bestCenter = i; }
   }
 
-  // 完成：映射回原串
-  const start = (bestCenter - bestLen) / 2;
+  // 完成：映射回原串（前哨兵使位置整体右移，起点 = (center-len-1)/2）
+  const start = (bestCenter - bestLen - 1) / 2;
   const sub = s.substr(start, bestLen);
   snap({ i: -1, mirror: -1, cur: bestCenter, phase: "done", done: true,
     best: { center: bestCenter, len: bestLen },
     desc: `<span class="hl">完成！</span>最大 p[i]=${bestLen}（在 t 的位置 ${bestCenter}），即原串最长回文子串 = "<b>${sub}</b>"（长 ${bestLen}）。`,
-    vars: { C, R } });
+    vars: { idx, mx } });
   return list;
 }
 
 // ======== 渲染 ========
 function draw(k) {
   const s = steps[k];
-  const inPalLo = s.C - (s.R - s.C), inPalHi = s.R - 1;  // 当前回文覆盖 [2C-R+1 … R-1]
+  const inPalLo = 2 * s.idx - s.mx, inPalHi = s.mx;   // 当前回文覆盖 [2·idx−mx … mx]
   $("marr").innerHTML = T.split("").map((c, i) => {
-    let cls = "mcol", badge = "";
+    let cls = "mcol";
     // 当前回文范围
-    if (s.R > s.C && i >= inPalLo && i <= inPalHi) cls += " inpal";
-    if (s.phase === "expand" && s.cur === i && s.expandTo != null && Math.abs(i - s.cur) === 0) {}
-    if (s.C === i && s.R > 0) { cls += " center"; }
+    if (s.mx > s.idx && i >= inPalLo && i <= inPalHi) cls += " inpal";
+    if (s.idx === i && s.mx > 0) cls += " center";
     if (s.mirror === i && s.mirror >= 0) cls += " mirror";
     if (s.cur === i && s.cur >= 0) cls += " cur";
     if (s.done && s.best && i >= s.best.center - s.best.len && i <= s.best.center + s.best.len) cls += " inpal";
-    // 徽标：i / C / j / R
+    // 徽标：i / idx / j
     const tags = [];
     if (s.cur === i && s.cur >= 0 && s.phase !== "done") tags.push(`<span class="badge pi">i</span>`);
-    if (s.C === i && s.R > 0) tags.push(`<span class="badge pc">C</span>`);
+    if (s.idx === i && s.mx > 0) tags.push(`<span class="badge pc">idx</span>`);
     if (s.mirror === i && s.mirror >= 0) tags.push(`<span class="badge pj">j</span>`);
-    badge = `<div class="badge">${tags.join(" ") || ""}</div>`;
+    const badge = `<div class="badge">${tags.join(" ") || ""}</div>`;
     const pv = s.p[i];
     const bestCls = (s.done && i === s.best.center) ? " best" : "";
-    return `<div class="${cls}">${badge}<div class="ch">${c === "#" ? '<span class="sep">#</span>' : c}</div><div class="pv${bestCls}">${pv}</div><div class="ix">${i}</div></div>`;
+    // 下标在字符上方：badge → 下标 → 字符 → p 值
+    return `<div class="${cls}">${badge}<div class="ix">${i}</div><div class="ch">${c === "#" ? '<span class="sep">#</span>' : c}</div><div class="pv${bestCls}">${pv}</div></div>`;
   }).join("");
-  // R 边界竖线：标在 R-1 列右侧
-  if (s.R > 0 && s.R - 1 < T.length) {
+  // mx 右端点竖线：标在 mx 列右侧
+  if (s.mx > 0 && s.mx < T.length) {
     const cols = $("marr").children;
-    if (cols[s.R - 1]) cols[s.R - 1].classList.add("rbound");
+    if (cols[s.mx]) cols[s.mx].classList.add("rbound");
   }
-  $("vars").innerHTML = `C = <b>${s.C}</b>　R = <b>${s.R}</b>` + (s.i >= 0 ? `　i = <b>${s.i}</b>` : "") + (s.mirror >= 0 ? `　j = <b>${s.mirror}</b>` : "");
+  $("vars").innerHTML = `idx = <b>${s.idx}</b>　mx = <b>${s.mx}</b>` + (s.i >= 0 ? `　i = <b>${s.i}</b>` : "") + (s.mirror >= 0 ? `　j = <b>${s.mirror}</b>` : "");
   $("stats").innerHTML = s.done ? `最长回文半径 = <b>${s.best.len}</b>` : "";
   setStatus(s.desc);
 }
@@ -276,7 +275,7 @@ $("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
 $("resetBtn").onclick = prepare;
 $("strInput").addEventListener("keydown", e => { if (e.key === "Enter") prepare(); });
 
-$("formula").innerHTML = `插 # 后 t 上每个中心 i 求回文半径 p[i]：<br>① 若 i&lt;R：<b>p[i]=min(p[2C−i], R−i)</b>（借镜像/右边界）<br>② 从 p[i] 起<b>中心扩展</b>：两侧相等则 p[i]++<br>③ 若 i+p[i]&gt;R：<b>更新 C=i, R=i+p[i]</b><br>最大 p[i] 即最长回文（原串长度=p[i]）。`;
+$("formula").innerHTML = `插 # + 首尾哨兵后，t 上每个中心 i 求回文半径 p[i]：<br>① 若 i&lt;mx：<b>p[i]=min(p[2·idx−i], mx−i)</b>（借镜像/右端点）<br>② 从 p[i] 起<b>中心扩展</b>：两侧相等则 p[i]++（哨兵兜底免判界）<br>③ 若 i+p[i]&gt;mx：<b>更新 idx=i, mx=i+p[i]</b><br>最大 p[i] 即最长回文（原串长度=p[i]）。`;
 
 CppView.register({
   manacher: { title: "马拉车 Manacher（O(n) 最长回文子串）— C++", code:
@@ -290,19 +289,19 @@ CppView.register({
 using namespace std;
 
 string longestPalindrome(const string& s) {
-    // 预处理：^ # s0 # s1 # ... # $
-    string t = "^";
+    // 预处理：$ # s0 # s1 # ... # !（首尾哨兵不同于任何字符，扩展天然停下、免判界）
+    string t = "$";
     for (char ch : s) { t += '#'; t += ch; }
-    t += "#$";
+    t += "#!";
     int n = t.size();
     vector<int> p(n, 0);
-    int c = 0, r = 0;                 // 当前最右回文的中心与右边界
+    int idx = 0, mx = 0;              // 当前最右回文的对称中心 idx、右端点 mx
     int bestLen = 0, bestCenter = 0;
     for (int i = 1; i < n - 1; i++) {
-        int mir = 2 * c - i;          // i 关于 c 的镜像
-        if (i < r) p[i] = min(r - i, p[mir]);   // 借助已算出的镜像/右边界
-        while (t[i + p[i] + 1] == t[i - p[i] - 1]) p[i]++;   // 中心扩展
-        if (i + p[i] > r) { c = i; r = i + p[i]; }           // 更新 c, r
+        int mir = 2 * idx - i;                    // i 关于 idx 的镜像
+        if (i < mx) p[i] = min(mx - i, p[mir]);   // 借助已算出的镜像/右端点
+        while (t[i + p[i] + 1] == t[i - p[i] - 1]) p[i]++;   // 中心扩展(哨兵兜底)
+        if (i + p[i] > mx) { idx = i; mx = i + p[i]; }       // 更新 idx, mx
         if (p[i] > bestLen) { bestLen = p[i]; bestCenter = i; }
     }
     int start = (bestCenter - bestLen) / 2;   // 映射回原串起点
