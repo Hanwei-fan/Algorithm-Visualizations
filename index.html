@@ -238,12 +238,14 @@ const SECTIONS = [
     ],
   },
   {
-    id: "string", icon: "🔤", title: "字符串", desc: "KMP · 字典树",
+    id: "string", icon: "🔤", title: "字符串", desc: "KMP · 字典树 · 回文",
     items: [
       { icon: "🔤", tag: "字符串", title: "KMP 字符串匹配", file: "kmp.html", ready: true,
         desc: "先为模式串构建 next 数组（最长相同前后缀），匹配失配时只回退模式串指针 j=next[j-1]，主串指针 i 不回退，O(n+m)。字符格子高亮比较/命中，含 C++。" },
       { icon: "🌲", tag: "字符串", title: "字典树 Trie", file: "trie.html", ready: true,
         desc: "前缀树：单词按字符逐层存入，公共前缀共享路径。插入/查找整词/前缀统计逐步动画，路径高亮、词尾标记、子树统计，每步 O(单词长度)，含 C++。" },
+      { icon: "🪞", tag: "字符串", title: "马拉车 Manacher", file: "manacher.html", ready: true,
+        desc: "O(n) 求最长回文子串。插 # 统一奇偶回文，分步演示对称半径 p[i]=min(p[镜像j], R−i) 如何借助中心 C/右边界 R/镜像位置复用已知信息，再中心扩展、更新 C/R，含 C++。" },
     ],
   },
   {
