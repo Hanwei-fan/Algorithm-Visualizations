@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>字典树 Trie // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 150px; text-transform: lowercase;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 110px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.gn { border-color: var(--green); color: var(--green); background: rgba(0,255,156,.08); }
+  .btn.gn:hover:not(:disabled) { background: var(--green); color: #05060f; box-shadow: 0 0 16px rgba(0,255,156,.6); }
+  .btn.ghost { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.ghost:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 20px; }
+  @media (max-width: 940px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  .rowlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 10px; }
+  /* Trie 树 SVG */
+  svg#trie { width: 100%; height: auto; display: block; min-height: 260px; }
+  .edge { stroke: #4a4478; stroke-width: 1.5; transition: stroke .2s; }
+  .edge.path { stroke: var(--yellow); stroke-width: 3; filter: drop-shadow(0 0 4px rgba(255,212,0,.6)); }
+  .elabel { fill: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700; text-anchor: middle; }
+  .tnode circle { fill: rgba(0,240,255,0.08); stroke: var(--border); stroke-width: 1.5; transition: all .2s; }
+  .tnode.root circle { fill: rgba(160,107,255,0.2); stroke: #a06bff; }
+  .tnode.word circle { fill: rgba(0,255,156,0.18); stroke: var(--green); stroke-width: 2.5; }
+  .tnode.cur circle { fill: var(--yellow); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.7)); }
+  .tnode.hit circle { fill: rgba(0,255,156,0.3); stroke: var(--green); filter: drop-shadow(0 0 8px rgba(0,255,156,.6)); }
+  .tnode text.ch { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; text-anchor: middle; }
+  .tnode.cur text.ch { fill: #120e00; }
+  .tnode text.end { fill: var(--green); font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 800; text-anchor: middle; }
+  /* 单词表 */
+  .wordlist { display: flex; gap: 8px; flex-wrap: wrap; }
+  .wchip {
+    padding: 5px 12px; border: 1px solid var(--border); border-radius: 999px;
+    font-family: "SF Mono", Menlo, monospace; font-size: 13px; color: var(--cyan); background: rgba(0,240,255,0.06);
+  }
+  .wchip.hot { border-color: var(--yellow); color: var(--yellow); background: rgba(255,212,0,0.15); box-shadow: 0 0 10px rgba(255,212,0,.4); }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .plabel.mt { margin-top: 16px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: #8fb8c9; margin: 0 0 14px; line-height: 1.7;
+  }
+  .formula b { color: var(--yellow); }
+  .stats { display: flex; gap: 20px; font-size: 14px; margin-bottom: 8px; flex-wrap: wrap; font-family: "SF Mono", Menlo, monospace; }
+  .stats b { font-size: 18px; color: var(--green); text-shadow: 0 0 12px rgba(0,255,156,.6); }
+  .status { margin-top: 8px; font-size: 14.5px; min-height: 44px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .hl { color: var(--green); font-weight: 700; }
+  .bad { color: var(--magenta); font-weight: 700; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .dot { width: 12px; height: 12px; border-radius: 50%; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>字典树 Trie</h1>
+  <p>字典树（前缀树）：把多个单词按<b>字符逐层</b>存进一棵树，<b>公共前缀共享同一条路径</b>。插入、查找、前缀统计都是 O(单词长度)。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="controls">
+  <div class="field">
+    <label for="wordInput">单词（小写字母）</label>
+    <input id="wordInput" type="text" placeholder="如 cat" value="cat">
+  </div>
+  <button class="btn cy" id="insertBtn">插入</button>
+  <button class="btn gn" id="searchBtn">查找整词</button>
+  <button class="btn" id="prefixBtn">前缀统计</button>
+  <button class="btn ghost" id="clearBtn">清空</button>
+  <button class="btn ghost" id="demoBtn">示例集</button>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="80" max="900" value="480" step="40"></div>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="rowlabel">Trie 树（紫=根，绿圈=单词结尾 ●，黄=当前访问）</div>
+    <svg id="trie" viewBox="0 0 720 360" preserveAspectRatio="xMidYMin meet"></svg>
+    <div class="legend">
+      <span><i class="dot" style="background:#a06bff"></i>根节点</span>
+      <span><i class="dot" style="background:#00ff9c"></i>单词结尾</span>
+      <span><i class="dot" style="background:#ffd400"></i>当前访问</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel">算法说明</div>
+    <div class="formula" id="formula"></div>
+    <div class="plabel">已插入的单词</div>
+    <div class="wordlist" id="wordlist"></div>
+    <div class="stats" style="margin-top:12px">节点数：<b id="nodeCount">1</b>　单词数：<b id="wordCount">0</b></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note">Trie 每个节点代表“从根到此的字符串前缀”，每条边标一个字符。插入单词时沿路径走，缺哪个字符就<code>新建子节点</code>，走到末尾把该节点标记为<code>单词结尾</code>。查找同理沿路径走，看能否走到且结尾有标记。<b>公共前缀天然共享</b>，所以能高效做前缀查询、自动补全、字典序遍历等。</div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ======== Trie 数据结构 ========
+let nodeSeq = 0;
+function newNode() { return { id: nodeSeq++, ch: "", children: {}, isEnd: false, _x: 0, _y: 0 }; }
+let root = newNode();
+let words = [];
+let busy = false;
+
+function setStatus(t) { $("status").innerHTML = t; }
+function speed() { return 980 - parseInt($("speedInput").value, 10); }
+
+// ======== 布局：按叶子中序分配 x，深度分配 y ========
+function layout() {
+  let leafX = 0;
+  let maxDepth = 0;
+  (function assign(u, depth) {
+    maxDepth = Math.max(maxDepth, depth);
+    const kids = Object.keys(u.children).sort();
+    if (kids.length === 0) { u._leafx = leafX++; }
+    else {
+      kids.forEach(k => assign(u.children[k], depth + 1));
+      const xs = kids.map(k => u.children[k]._leafx);
+      u._leafx = (Math.min(...xs) + Math.max(...xs)) / 2;
+    }
+    u._depth = depth;
+  })(root, 0);
+  return { nLeaf: leafX, maxDepth };
+}
+
+// ======== 渲染 Trie ========
+// marks: { [nodeId]: "cur"|"hit" }, pathEdges: Set("parentId>childId")
+function render(marks = {}, pathEdges = new Set()) {
+  const svg = $("trie");
+  const { nLeaf, maxDepth } = layout();
+  const W = 720, padX = 34, padY = 34;
+  const usableW = W - 2 * padX;
+  const dx = nLeaf > 1 ? usableW / (nLeaf - 1) : 0;
+  const dy = Math.min(72, (330 - padY) / Math.max(maxDepth, 1));
+  const H = padY * 2 + maxDepth * dy + 20;
+  svg.setAttribute("viewBox", `0 0 ${W} ${Math.max(H, 200)}`);
+  const X = u => nLeaf <= 1 ? W / 2 : padX + u._leafx * dx;
+  const Y = u => padY + u._depth * dy;
+  let edges = "", nodes = "";
+  (function walk(u) {
+    const kids = Object.keys(u.children).sort();
+    kids.forEach(k => {
+      const c = u.children[k];
+      const x1 = X(u), y1 = Y(u), x2 = X(c), y2 = Y(c);
+      const isPath = pathEdges.has(u.id + ">" + c.id);
+      edges += `<line class="edge${isPath ? " path" : ""}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+      edges += `<text class="elabel" x="${(x1 + x2) / 2 + (x2 >= x1 ? 8 : -8)}" y="${(y1 + y2) / 2 + 4}">${k}</text>`;
+      walk(c);
+    });
+    let cls = "tnode";
+    if (u === root) cls += " root";
+    else if (u.isEnd) cls += " word";
+    if (marks[u.id]) cls += " " + marks[u.id];
+    const x = X(u), y = Y(u);
+    nodes += `<g class="${cls}"><circle cx="${x}" cy="${y}" r="16"/>`;
+    if (u === root) nodes += `<text class="ch" x="${x}" y="${y + 5}">◆</text>`;
+    else nodes += `<text class="ch" x="${x}" y="${y + 5}">${u.ch}</text>`;
+    if (u.isEnd) nodes += `<text class="end" x="${x}" y="${y - 22}">●词尾</text>`;
+    nodes += `</g>`;
+  })(root);
+  svg.innerHTML = edges + nodes;
+  $("nodeCount").textContent = nodeSeq;   // 近似：分配过的节点数（含 root）
+  countNodes();
+  $("wordCount").textContent = words.length;
+  renderWordList();
+}
+function countNodes() {
+  let c = 0;
+  (function w(u) { c++; Object.values(u.children).forEach(w); })(root);
+  $("nodeCount").textContent = c;
+}
+function renderWordList(hot) {
+  $("wordlist").innerHTML = words.length
+    ? words.map(w => `<span class="wchip${w === hot ? " hot" : ""}">${w}</span>`).join("")
+    : '<span style="color:var(--muted);font-family:monospace">（空）</span>';
+}
+function lock(v) { busy = v; document.querySelectorAll(".btn").forEach(b => b.disabled = v); }
+
+function readWord() {
+  const w = ($("wordInput").value || "").toLowerCase().replace(/[^a-z]/g, "");
+  return w;
+}
+
+// ======== 插入（分步）========
+async function doInsert() {
+  if (busy) return;
+  const w = readWord();
+  if (!w) { setStatus("请输入由小写字母组成的单词。"); return; }
+  lock(true);
+  let cur = root;
+  const pathEdges = new Set();
+  render({ [cur.id]: "cur" }, pathEdges);
+  setStatus(`插入 "<b>${w}</b>"：从根出发，逐个字符往下走。`);
+  await sleep(speed());
+  for (let i = 0; i < w.length; i++) {
+    const ch = w[i];
+    if (cur.children[ch]) {
+      setStatus(`第 ${i + 1} 个字符 '${ch}'：已有该分支，<b>复用</b>（公共前缀共享）。`);
+    } else {
+      const nn = newNode(); nn.ch = ch; cur.children[ch] = nn;
+      setStatus(`第 ${i + 1} 个字符 '${ch}'：没有该分支，<b>新建</b>节点。`);
+    }
+    pathEdges.add(cur.id + ">" + cur.children[ch].id);
+    cur = cur.children[ch];
+    render({ [cur.id]: "cur" }, pathEdges);
+    await sleep(speed());
+  }
+  const already = cur.isEnd;
+  cur.isEnd = true;
+  if (!words.includes(w)) words.push(w);
+  render({ [cur.id]: "hit" }, pathEdges);
+  setStatus(already ? `"${w}" 已存在，末尾节点已是词尾。` : `<span class="hl">插入完成！</span>把末尾节点标记为「单词结尾 ●」。`);
+  $("wordInput").value = "";
+  lock(false);
+}
+
+// ======== 查找整词（分步）========
+async function doSearch() {
+  if (busy) return;
+  const w = readWord();
+  if (!w) { setStatus("请输入要查找的单词。"); return; }
+  lock(true);
+  let cur = root;
+  const pathEdges = new Set();
+  render({ [cur.id]: "cur" }, pathEdges);
+  setStatus(`查找 "<b>${w}</b>"：沿路径逐字符走。`);
+  await sleep(speed());
+  for (let i = 0; i < w.length; i++) {
+    const ch = w[i];
+    if (!cur.children[ch]) {
+      render({ [cur.id]: "cur" }, pathEdges);
+      setStatus(`第 ${i + 1} 个字符 '${ch}'：<span class="bad">没有该分支 → 单词不存在。</span>`);
+      lock(false); return;
+    }
+    pathEdges.add(cur.id + ">" + cur.children[ch].id);
+    cur = cur.children[ch];
+    render({ [cur.id]: "cur" }, pathEdges);
+    setStatus(`匹配到 '${ch}'，继续。`);
+    await sleep(speed());
+  }
+  render({ [cur.id]: cur.isEnd ? "hit" : "cur" }, pathEdges);
+  setStatus(cur.isEnd
+    ? `<span class="hl">找到了！</span>路径走到末尾且该节点是「单词结尾」，"${w}" 存在。`
+    : `<span class="bad">路径能走通，但末尾不是词尾 → "${w}" 只是某个词的前缀，不是完整单词。</span>`);
+  renderWordList(cur.isEnd ? w : undefined);
+  lock(false);
+}
+
+// ======== 前缀统计（分步）========
+async function doPrefix() {
+  if (busy) return;
+  const w = readWord();
+  if (!w) { setStatus("请输入前缀。"); return; }
+  lock(true);
+  let cur = root;
+  const pathEdges = new Set();
+  render({ [cur.id]: "cur" }, pathEdges);
+  setStatus(`统计前缀 "<b>${w}</b>"：先沿路径走到前缀末端。`);
+  await sleep(speed());
+  for (let i = 0; i < w.length; i++) {
+    const ch = w[i];
+    if (!cur.children[ch]) {
+      render({ [cur.id]: "cur" }, pathEdges);
+      setStatus(`'${ch}' 分支不存在 → 没有任何单词以 "<b>${w}</b>" 为前缀（0 个）。`);
+      lock(false); return;
+    }
+    pathEdges.add(cur.id + ">" + cur.children[ch].id);
+    cur = cur.children[ch];
+    render({ [cur.id]: "cur" }, pathEdges);
+    await sleep(speed());
+  }
+  // 统计以 cur 为根的子树里的词尾数
+  let cnt = 0; const sub = [];
+  (function w2(u) { if (u.isEnd) cnt++; Object.values(u.children).forEach(w2); })(cur);
+  const marks = {}; const subEdges = new Set(pathEdges);
+  (function markSub(u) { marks[u.id] = "hit"; Object.keys(u.children).sort().forEach(k => { subEdges.add(u.id + ">" + u.children[k].id); markSub(u.children[k]); }); })(cur);
+  render(marks, subEdges);
+  const matched = words.filter(x => x.startsWith(w));
+  setStatus(`到达前缀末端。以它为根的<b>整棵子树</b>都以 "<b>${w}</b>" 为前缀，其中词尾共 <span class="hl">${cnt}</span> 个：${matched.join(", ") || "无"}。`);
+  lock(false);
+}
+
+function reset(seed) {
+  nodeSeq = 0; root = newNode(); words = [];
+  if (seed) ["cat", "car", "card", "dog", "do", "dot"].forEach(w => {
+    let cur = root;
+    for (const ch of w) { if (!cur.children[ch]) { const nn = newNode(); nn.ch = ch; cur.children[ch] = nn; } cur = cur.children[ch]; }
+    cur.isEnd = true; words.push(w);
+  });
+  render();
+  setStatus(seed ? "已载入示例单词集：cat car card dog do dot。注意 cat/car/card 共享前缀 c-a。" : "已清空。输入单词后点「插入」。");
+}
+
+$("insertBtn").onclick = doInsert;
+$("searchBtn").onclick = doSearch;
+$("prefixBtn").onclick = doPrefix;
+$("clearBtn").onclick = () => { if (!busy) reset(false); };
+$("demoBtn").onclick = () => { if (!busy) reset(true); };
+$("wordInput").addEventListener("keydown", e => { if (e.key === "Enter") doInsert(); });
+
+$("formula").innerHTML = `节点 = 一个前缀；边 = 一个字符。<br><b>插入</b>：沿路径走，缺字符就建节点，末尾标「词尾」。<br><b>查找整词</b>：走到末尾 <b>且</b> 该节点是词尾。<br><b>前缀统计</b>：走到前缀末端，其子树内的词尾数即答案。<br>每步复杂度 O(单词长度)。`;
+
+CppView.register({
+  trie: { title: "字典树 Trie（插入 / 查找 / 前缀）— C++", code:
+`// 字典树 Trie：把单词按字符逐层存入一棵树，公共前缀共享路径。
+// 支持 insert(插入)、search(查完整单词)、startsWith(前缀是否存在)。
+#include <iostream>
+#include <string>
+using namespace std;
+
+const int MAXN = 100005;   // 最多节点数
+int nxt[MAXN][26];         // nxt[u][c] = 节点 u 沿字符 c 的子节点(0 表示不存在)
+bool isEnd[MAXN];          // 该节点是否是某单词的结尾
+int cnt = 0;               // 已用节点数，0 号为根
+
+void insert(const string& s) {
+    int u = 0;
+    for (char c : s) {
+        int c2 = c - 'a';
+        if (!nxt[u][c2]) nxt[u][c2] = ++cnt;   // 缺则新建
+        u = nxt[u][c2];
+    }
+    isEnd[u] = true;                           // 标记词尾
+}
+bool search(const string& s) {                 // 是否存在完整单词 s
+    int u = 0;
+    for (char c : s) {
+        int c2 = c - 'a';
+        if (!nxt[u][c2]) return false;
+        u = nxt[u][c2];
+    }
+    return isEnd[u];                           // 必须走到词尾
+}
+bool startsWith(const string& s) {             // 是否存在以 s 为前缀的单词
+    int u = 0;
+    for (char c : s) {
+        int c2 = c - 'a';
+        if (!nxt[u][c2]) return false;
+        u = nxt[u][c2];
+    }
+    return true;                               // 能走通即可
+}
+
+int main() {
+    insert("cat"); insert("car"); insert("card");
+    cout << search("car") << endl;        // 1
+    cout << search("ca") << endl;         // 0（只是前缀，非完整单词）
+    cout << startsWith("ca") << endl;     // 1
+    return 0;
+}`
+  }
+});
+$("cppBtn").onclick = () => CppView.open("trie");
+
+reset(true);
+</script>
+</body>
+</html>
