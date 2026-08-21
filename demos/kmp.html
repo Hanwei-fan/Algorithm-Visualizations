@@ -100,6 +100,8 @@
   .cell .badge.pi { color: var(--yellow); }
   .cell .badge.pj { color: var(--cyan); }
   .cell.pfx .ch { border-color: var(--cyan); background: rgba(0,240,255,0.10); }
+  /* 匹配阶段：当前已匹配部分的「最长公共前后缀」两段高亮 */
+  .cell.lps .ch { box-shadow: inset 0 0 0 2px var(--magenta); }
   /* next 数组表 */
   .ntable { display: flex; gap: 4px; flex-wrap: wrap; font-family: "SF Mono", Menlo, monospace; }
   .ncol { display: flex; flex-direction: column; align-items: center; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
@@ -151,7 +153,7 @@
     <div class="rowlabel mt">阶段 ②：主串中匹配（黄=正在比较，绿=已匹配，粉=失配）</div>
     <div class="rowlabel" style="color:var(--muted);text-transform:none">主串 text</div>
     <div class="strrow" id="textRow"></div>
-    <div class="rowlabel" style="color:var(--muted);text-transform:none;margin-top:14px">模式串 pattern（整体对齐到 i-j 处）</div>
+    <div class="rowlabel" style="color:var(--muted);text-transform:none;margin-top:14px">模式串 pattern（整体对齐到 i-j 处；<span style="color:var(--magenta)">洋红框</span>=已匹配部分的最长公共前后缀，失配时 j 回退到它）</div>
     <div class="strrow" id="patRow" style="margin-bottom:6px"></div>
   </section>
   <section class="card">
@@ -245,27 +247,35 @@ function draw(k) {
     return `<div class="${cls}"><div class="k">${i}</div><div class="c">${c}</div><div class="v">${val}</div></div>`;
   }).join("");
 
-  // 主串行（next 阶段不涉及主串，仅 match 阶段高亮）
+  // 主串行（next 阶段不涉及主串，仅 match 阶段高亮 + i 指针）
   $("textRow").innerHTML = text.split("").map((c, i) => {
-    let cls = "cell";
+    let cls = "cell", badge = "";
     if (s.phase === "match") {
       if (s.off >= 0 && i >= s.off && i < s.off + pat.length) cls += " win";
       if (s.matchWhole && i >= s.off && i < s.off + pat.length) cls += " matched";
-      if (s.cmp && s.cmp[0] === i) cls += " " + s.mark;
+      if (s.cmp && s.cmp[0] === i) { cls += " " + s.mark; badge = `<div class="badge pi">i</div>`; }
     }
-    return `<div class="${cls}"><div class="badge"></div><div class="ch">${c === " " ? "␣" : c}</div><div class="ix">${i}</div></div>`;
+    if (!badge) badge = `<div class="badge"></div>`;
+    return `<div class="${cls}">${badge}<div class="ch">${c === " " ? "␣" : c}</div><div class="ix">${i}</div></div>`;
   }).join("");
 
   // 模式串行
   const off = s.phase === "match" && s.off >= 0 ? s.off : 0;
   let pcells = "";
   for (let g = 0; g < off; g++) pcells += `<div class="cell"><div class="badge"></div><div class="ch" style="border:0;background:transparent"></div><div class="ix"></div></div>`;
+  // 匹配阶段：已匹配长度 = s.j；其最长公共前后缀长度 L = next[s.j-1]
+  const mlen = s.phase === "match" ? (s.j || 0) : 0;
+  const L = (s.phase === "match" && mlen > 0 && s.nxt) ? s.nxt[mlen - 1] : 0;
   pcells += pat.split("").map((c, j) => {
     let cls = "cell", badge = "";
     if (s.phase === "match") {
       if (s.matchWhole) cls += " matched";
-      else if (s.cmp && s.cmp[1] === j) cls += " " + s.mark;
-      else if (s.off >= 0 && j < s.j) cls += " win";
+      else {
+        if (s.off >= 0 && j < s.j) cls += " win";                 // 已匹配部分
+        // 已匹配部分的最长公共前后缀：前缀段 [0,L) 与 后缀段 [mlen-L, mlen)
+        if (L > 0 && !s.matchWhole && (j < L || (j >= mlen - L && j < mlen))) cls += " lps";
+        if (s.cmp && s.cmp[1] === j) { cls += " " + s.mark; badge = `<div class="badge pj">j</div>`; }
+      }
     } else {
       // ---- 求 next：向前迭代过程可视化 ----
       // 已确定 next 的前缀区间 [0, nCur-1] 淡显为"已知"
