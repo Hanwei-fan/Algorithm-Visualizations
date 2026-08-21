@@ -1,0 +1,130 @@
+/* 共享风格（主题）系统：覆盖各页面共用的 CSS 变量 + 主体背景，左上角悬浮切换器。
+   用法：任意页面在 </body> 前引入 <script src="../assets/theme.js"></script>（门户用 assets/theme.js）。
+   选择记忆在 localStorage。 */
+(function () {
+  const THEMES = {
+    cyber: {
+      name: "赛博朋克", swatch: "#00f0ff",
+      vars: {
+        "--bg": "#07060f", "--panel": "rgba(18, 15, 38, 0.72)", "--border": "#2a2350",
+        "--text": "#e6e1ff", "--muted": "#7d76a8", "--cyan": "#00f0ff", "--magenta": "#ff2bd6",
+        "--yellow": "#ffd400", "--green": "#00ff9c", "--grid": "rgba(0, 240, 255, 0.06)",
+      },
+      bg: `radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+           radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+           linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+           linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+           var(--bg)`,
+    },
+    ocean: {
+      name: "深空蓝", swatch: "#5eb8ff",
+      vars: {
+        "--bg": "#0e1524", "--panel": "rgba(22, 32, 52, 0.82)", "--border": "#2b3b57",
+        "--text": "#e8eef7", "--muted": "#8fa2bd", "--cyan": "#4db8e8", "--magenta": "#e88ab5",
+        "--yellow": "#f0c674", "--green": "#7fc99a", "--grid": "rgba(120, 170, 220, 0.05)",
+      },
+      bg: `radial-gradient(circle at 15% 0%, rgba(120,170,220,0.10), transparent 50%),
+           radial-gradient(circle at 90% 10%, rgba(90,140,190,0.10), transparent 50%),
+           linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+           linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+           var(--bg)`,
+    },
+    sepia: {
+      name: "护眼米", swatch: "#c8956d",
+      vars: {
+        "--bg": "#f3ecde", "--panel": "rgba(255, 251, 242, 0.86)", "--border": "#d8c9ad",
+        "--text": "#3a332a", "--muted": "#8a7f6c", "--cyan": "#1f8a70", "--magenta": "#c0567e",
+        "--yellow": "#b8860b", "--green": "#2e8b57", "--grid": "rgba(150, 130, 95, 0.06)",
+      },
+      bg: `radial-gradient(circle at 15% 0%, rgba(200,175,130,0.14), transparent 50%),
+           radial-gradient(circle at 90% 10%, rgba(180,150,110,0.12), transparent 50%),
+           linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+           linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+           var(--bg)`,
+    },
+    light: {
+      name: "极简白", swatch: "#4a90d9",
+      vars: {
+        "--bg": "#f7f9fc", "--panel": "rgba(255, 255, 255, 0.9)", "--border": "#d5dde8",
+        "--text": "#1f2733", "--muted": "#6b7688", "--cyan": "#0a84c7", "--magenta": "#c026a0",
+        "--yellow": "#b8860b", "--green": "#1a9e5f", "--grid": "rgba(80, 120, 170, 0.05)",
+      },
+      bg: `radial-gradient(circle at 15% 0%, rgba(74,144,217,0.08), transparent 50%),
+           radial-gradient(circle at 90% 10%, rgba(120,90,200,0.06), transparent 50%),
+           linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+           linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+           var(--bg)`,
+    },
+  };
+  const ORDER = ["cyber", "ocean", "sepia", "light"];
+  const KEY = "algoviz-theme";
+
+  function apply(id) {
+    const t = THEMES[id] || THEMES.cyber;
+    const root = document.documentElement;
+    for (const [k, v] of Object.entries(t.vars)) root.style.setProperty(k, v);
+    // 主体背景（用 !important 覆盖页面内联的 body background）
+    document.body.style.setProperty("background", t.bg.replace(/\s+/g, " ").trim(), "important");
+    // 浅色主题下把标题的霓虹发光文字阴影减弱，避免糊
+    const light = (id === "sepia" || id === "light");
+    root.style.setProperty("color-scheme", light ? "light" : "dark");
+    let ov = document.getElementById("theme-lightfix");
+    if (light) {
+      if (!ov) { ov = document.createElement("style"); ov.id = "theme-lightfix"; document.head.appendChild(ov); }
+      ov.textContent = `
+        header h1 { text-shadow: 0 1px 0 rgba(0,0,0,.08) !important; }
+        .cppview-btn { box-shadow: 0 2px 10px rgba(0,0,0,.12) !important; }
+      `;
+    } else if (ov) { ov.remove(); }
+  }
+
+  function injectStyle() {
+    if (document.getElementById("theme-picker-style")) return;
+    const css = `
+      .theme-picker { display: inline-flex; align-items: center; gap: 6px; margin: 14px 0 0 14px; vertical-align: top; }
+      .theme-picker .tlabel { font-size: 11px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; letter-spacing: 1px; }
+      .theme-dot {
+        width: 22px; height: 22px; border-radius: 50%; cursor: pointer; padding: 0;
+        border: 2px solid transparent; transition: all .15s; position: relative;
+      }
+      .theme-dot:hover { transform: scale(1.15); }
+      .theme-dot.sel { border-color: var(--text); box-shadow: 0 0 0 2px var(--bg), 0 0 8px rgba(0,0,0,.3); }
+      .theme-dot::after {
+        content: attr(data-name); position: absolute; top: 130%; left: 50%; transform: translateX(-50%);
+        font-size: 11px; white-space: nowrap; color: var(--text); background: var(--panel);
+        border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; opacity: 0; pointer-events: none;
+        transition: opacity .15s; font-family: "SF Mono", Menlo, monospace; z-index: 60;
+      }
+      .theme-dot:hover::after { opacity: 1; }
+    `;
+    const el = document.createElement("style");
+    el.id = "theme-picker-style"; el.textContent = css;
+    document.head.appendChild(el);
+  }
+
+  function buildPicker(cur) {
+    injectStyle();
+    const wrap = document.createElement("span");
+    wrap.className = "theme-picker";
+    wrap.innerHTML = `<span class="tlabel">风格</span>` + ORDER.map(id =>
+      `<button class="theme-dot${id === cur ? " sel" : ""}" data-id="${id}" data-name="${THEMES[id].name}" style="background:${THEMES[id].swatch}"></button>`).join("");
+    // 放到左上角「返回门户」链接旁
+    const back = document.querySelector("a.back");
+    if (back && back.parentNode) back.parentNode.insertBefore(wrap, back.nextSibling);
+    else document.body.insertBefore(wrap, document.body.firstChild);
+    wrap.querySelectorAll(".theme-dot").forEach(b => b.onclick = () => {
+      const id = b.dataset.id;
+      localStorage.setItem(KEY, id);
+      apply(id);
+      wrap.querySelectorAll(".theme-dot").forEach(x => x.classList.toggle("sel", x.dataset.id === id));
+    });
+  }
+
+  function init() {
+    const saved = localStorage.getItem(KEY) || "cyber";
+    apply(saved);
+    buildPicker(THEMES[saved] ? saved : "cyber");
+  }
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+  else init();
+})();
