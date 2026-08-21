@@ -279,38 +279,51 @@ $("formula").innerHTML = `插 # + 首尾哨兵后，t 上每个中心 i 求回�
 
 CppView.register({
   manacher: { title: "马拉车 Manacher（O(n) 最长回文子串）— C++", code:
-`// 功能：O(n) 求最长回文子串。
-// 预处理：字符间插 '#'，首尾加不同哨兵，把奇偶回文统一成奇数长、并防越界。
-// 核心：维护当前最右回文的中心 c、右边界 r；
-//       p[i] = min(p[2*c-i], r-i) 复用镜像信息，再中心扩展，最后更新 c,r。
+`// 功能：O(n) 求最长回文子串（返回最长回文半径，即原串最长回文长度）。
+// 预处理：首部 "&#"，字符间插 '#'，尾部 '!'，首尾哨兵不同于任何字符，
+//         扩展时天然停下、免判界。d[i]=以 i 为中心在 t 上的回文半径。
+#include <algorithm>
 #include <iostream>
 #include <string>
-#include <algorithm>
 using namespace std;
-
-string longestPalindrome(const string& s) {
-    // 预处理：$ # s0 # s1 # ... # !（首尾哨兵不同于任何字符，扩展天然停下、免判界）
-    string t = "$";
-    for (char ch : s) { t += '#'; t += ch; }
-    t += "#!";
-    int n = t.size();
-    vector<int> p(n, 0);
-    int idx = 0, mx = 0;              // 当前最右回文的对称中心 idx、右端点 mx
-    int bestLen = 0, bestCenter = 0;
-    for (int i = 1; i < n - 1; i++) {
-        int mir = 2 * idx - i;                    // i 关于 idx 的镜像
-        if (i < mx) p[i] = min(mx - i, p[mir]);   // 借助已算出的镜像/右端点
-        while (t[i + p[i] + 1] == t[i - p[i] - 1]) p[i]++;   // 中心扩展(哨兵兜底)
-        if (i + p[i] > mx) { idx = i; mx = i + p[i]; }       // 更新 idx, mx
-        if (p[i] > bestLen) { bestLen = p[i]; bestCenter = i; }
+const int maxn = 2 * (1e7 + 1e6) + 10;
+int d[maxn];
+int manacher(string s)
+{
+    string t = "&#";
+    for (int i = 0; i < s.size(); i++)
+    { // 预处理
+        t += s[i];
+        t += "#";
     }
-    int start = (bestCenter - bestLen) / 2;   // 映射回原串起点
-    return s.substr(start, bestLen);
+    t += "!";
+    int id = 0, mx = 0;
+    for (int i = 1; i < t.size(); i++)
+    {
+        // 计算 d[i] 的最小值
+        if (i < mx)
+            d[i] = min(d[2 * id - i], mx - i);
+        else
+            d[i] = 0;
+        // 枚举 d[i] 的最大值
+        while (t[i - d[i] - 1] == t[i + d[i] + 1])
+            d[i]++;
+        if (i + d[i] > mx)
+        {
+            mx = i + d[i];
+            id = i;
+        }
+    }
+    int ans = 0;
+    for (int i = 1; i < t.size(); i++)
+        ans = max(ans, d[i]);
+    return ans;
 }
-
-int main() {
-    string s; getline(cin, s);
-    cout << longestPalindrome(s) << endl;
+int main()
+{
+    string s;
+    cin >> s;
+    cout << manacher(s) << endl;
     return 0;
 }`
   }
