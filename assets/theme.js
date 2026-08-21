@@ -4,7 +4,7 @@
 (function () {
   const THEMES = {
     cyber: {
-      name: "赛博朋克", swatch: "#00f0ff",
+      name: "赛博朋克", swatch: "linear-gradient(135deg,#07060f 0 42%,#00f0ff 42% 71%,#ff2bd6 71%)",
       vars: {
         "--bg": "#07060f", "--panel": "rgba(18, 15, 38, 0.72)", "--border": "#2a2350",
         "--text": "#e6e1ff", "--muted": "#7d76a8", "--cyan": "#00f0ff", "--magenta": "#ff2bd6",
@@ -18,7 +18,7 @@
            var(--bg)`,
     },
     ocean: {
-      name: "深空蓝", swatch: "#5eb8ff",
+      name: "深空蓝", swatch: "linear-gradient(135deg,#0e1524 0 50%,#5eb8ff 50%)",
       vars: {
         "--bg": "#0e1524", "--panel": "rgba(22, 32, 52, 0.82)", "--border": "#2b3b57",
         "--text": "#e8eef7", "--muted": "#8fa2bd", "--cyan": "#4db8e8", "--magenta": "#e88ab5",
@@ -32,7 +32,7 @@
            var(--bg)`,
     },
     sepia: {
-      name: "护眼米", swatch: "#c8956d",
+      name: "护眼米", swatch: "linear-gradient(135deg,#f3ecde 0 50%,#2e8b57 50%)",
       vars: {
         "--bg": "#f3ecde", "--panel": "rgba(255, 251, 242, 0.86)", "--border": "#d8c9ad",
         "--text": "#3a332a", "--muted": "#8a7f6c", "--cyan": "#1f8a70", "--magenta": "#c0567e",
@@ -46,7 +46,7 @@
            var(--bg)`,
     },
     light: {
-      name: "极简白", swatch: "#4a90d9",
+      name: "极简白", swatch: "linear-gradient(135deg,#f7f9fc 0 50%,#4a90d9 50%)",
       vars: {
         "--bg": "#f7f9fc", "--panel": "rgba(255, 255, 255, 0.9)", "--border": "#d5dde8",
         "--text": "#1f2733", "--muted": "#6b7688", "--cyan": "#0a84c7", "--magenta": "#c026a0",
@@ -155,10 +155,19 @@
       header { padding-top: 8px !important; }
       .theme-dot {
         width: 22px; height: 22px; border-radius: 50%; cursor: pointer; padding: 0;
-        border: 2px solid transparent; transition: all .15s; position: relative;
+        border: 2px solid var(--border); transition: all .15s; position: relative; opacity: .55;
       }
-      .theme-dot:hover { transform: scale(1.15); }
-      .theme-dot.sel { border-color: var(--text); box-shadow: 0 0 0 2px var(--bg), 0 0 8px rgba(0,0,0,.3); }
+      .theme-dot:hover { transform: scale(1.15); opacity: 1; }
+      /* 当前主题：放大 + 亮描边 + 光晕 + 中心白点，一眼可辨 */
+      .theme-dot.sel {
+        opacity: 1; transform: scale(1.28);
+        border-color: var(--cyan);
+        box-shadow: 0 0 0 2px var(--panel), 0 0 10px var(--cyan);
+      }
+      .theme-dot.sel::before {
+        content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+        width: 6px; height: 6px; border-radius: 50%; background: #fff; box-shadow: 0 0 3px rgba(0,0,0,.5);
+      }
       .theme-dot::after {
         content: attr(data-name); position: absolute; top: 130%; left: 50%; transform: translateX(-50%);
         font-size: 11px; white-space: nowrap; color: var(--text); background: var(--panel);
