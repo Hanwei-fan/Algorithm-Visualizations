@@ -189,7 +189,9 @@ function genSteps(s, p) {
     while (j > 0 && p[i] !== p[j]) {
       const oldj = j;
       j = next[j - 1];
-      list.push({ phase: "next", nxt: [...next], nCur: i, cmpJ: j, cmpI: i, desc: `p[${i}]='${p[i]}' ≠ p[${oldj}]='${p[oldj]}' 失配：令 j = next[${oldj-1}] = ${j}，缩短候选前后缀继续比较。`, ptrs: `i = ${i}　j = ${j}` });
+      list.push({ phase: "next", nxt: [...next], nCur: i, cmpJ: j, cmpI: i, matchedLen: oldj,
+        desc: `p[${i}]='${p[i]}' ≠ p[${oldj}]='${p[oldj]}' 失配。<br>已匹配前缀 p[0..${oldj-1}]（长 ${oldj}）的最长相同前后缀长 next[${oldj-1}]=${j}（下方<b style="color:var(--magenta)">洋红框</b>标出的前缀段与后缀段相同）。<br>所以 j 跳到 <b>next[${oldj-1}]=${j}</b>——前缀段末尾，复用这段已知相同的部分继续比较。`,
+        ptrs: `i = ${i}　j = ${oldj} → ${j}` });
     }
     if (p[i] === p[j]) {
       list.push({ phase: "next", nxt: [...next], nCur: i, cmpJ: j, cmpI: i, matchNext: true, desc: `p[${i}]='${p[i]}' = p[${j}]='${p[j]}' 匹配：相同前后缀长度 +1，j = ${j + 1}。`, ptrs: `i = ${i}　j = ${j + 1}` });
@@ -278,7 +280,13 @@ function draw(k) {
       }
     } else {
       // ---- 求 next：向前迭代过程可视化 ----
-      // 已确定 next 的前缀区间 [0, nCur-1] 淡显为"已知"
+      // 失配步：把已匹配前缀 p[0..matchedLen-1] 的最长相同前后缀两段用洋红框标出
+      // （前缀段 [0,NL) 与 后缀段 [matchedLen-NL, matchedLen)，NL=next[matchedLen-1]=跳转后的 j）
+      if (s.matchedLen != null && s.matchedLen > 0) {
+        const ml = s.matchedLen, NL = s.nxt[ml - 1];
+        if (j < ml) cls += " win";                                        // 已匹配前缀
+        if (NL > 0 && (j < NL || (j >= ml - NL && j < ml))) cls += " lps"; // 最长相同前后缀两段
+      }
       // j 指针=候选前后缀的前缀端；i 指针=当前正在延伸的字符
       const isJ = (s.cmpJ === j), isI = (s.cmpI === j);
       if (isJ && isI) cls += (s.matchNext ? " ok" : " bad");
