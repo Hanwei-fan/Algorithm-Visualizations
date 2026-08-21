@@ -76,11 +76,12 @@
   .edge { stroke: #4a4478; stroke-width: 1.5; transition: stroke .2s; }
   .edge.path { stroke: var(--yellow); stroke-width: 3; filter: drop-shadow(0 0 4px rgba(255,212,0,.6)); }
   .elabel { fill: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700; text-anchor: middle; }
-  .tnode circle { fill: rgba(0,240,255,0.08); stroke: var(--border); stroke-width: 1.5; transition: all .2s; }
-  .tnode.root circle { fill: rgba(160,107,255,0.2); stroke: #a06bff; }
-  .tnode.word circle { fill: rgba(0,255,156,0.18); stroke: var(--green); stroke-width: 2.5; }
+  /* 不透明深色底，挡住穿过圆心的黄色路径边，保证白字清晰 */
+  .tnode circle { fill: #16213e; stroke: var(--border); stroke-width: 1.5; transition: all .2s; }
+  .tnode.root circle { fill: #2a1f47; stroke: #a06bff; }
+  .tnode.word circle { fill: #0f3326; stroke: var(--green); stroke-width: 2.5; }
   .tnode.cur circle { fill: var(--yellow); stroke: #fff; stroke-width: 3; filter: drop-shadow(0 0 8px rgba(255,212,0,.9)); }
-  .tnode.hit circle { fill: rgba(0,255,156,0.3); stroke: var(--green); filter: drop-shadow(0 0 8px rgba(0,255,156,.6)); }
+  .tnode.hit circle { fill: #12503a; stroke: var(--green); filter: drop-shadow(0 0 8px rgba(0,255,156,.6)); }
   .tnode text.ch { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; text-anchor: middle; }
   .tnode.cur text.ch { fill: #120e00; }
   .tnode text.end { fill: var(--green); font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 800; text-anchor: middle; }
