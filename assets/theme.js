@@ -131,6 +131,10 @@
         /* tab 类按钮(部分页面用 .tab)：激活态实心，非激活浅底 */
         .tab { background: #ffffff !important; }
         .tab.active { background: var(--cyan) !important; color: #fff !important; }
+        /* 汉诺塔：柱子/底座深紫渐变 → 中性灰；编号去霓虹发光 */
+        .rod { background: linear-gradient(180deg, #b8b3c8, #9891b0) !important; }
+        .base { background: linear-gradient(180deg, #9891b0, #6f6a86) !important; }
+        .tower-label { color: var(--text) !important; text-shadow: none !important; }
       `;
     } else if (ov) { ov.remove(); }
   }
