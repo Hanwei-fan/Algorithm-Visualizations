@@ -76,8 +76,8 @@
       const codeBg  = (id === "sepia") ? "rgba(255,251,242,0.9)" : "rgba(248,250,252,0.95)";
       const codeFg  = (id === "sepia") ? "#5c5342" : "#33404f";
       ov.textContent = `
-        /* 标题霓虹发光减弱 */
-        header h1 { text-shadow: 0 1px 0 rgba(0,0,0,.08) !important; color: var(--text) !important; }
+        /* 标题霓虹发光减弱；门户里写死的白色标题(区标题/卡片名)改为主题文字色 */
+        header h1, .section-head h2, .card h3 { text-shadow: 0 1px 0 rgba(0,0,0,.08) !important; color: var(--text) !important; }
         .cppview-btn { box-shadow: 0 2px 10px rgba(0,0,0,.12) !important; }
         /* 输入框/下拉：深底浅字 → 浅底深字 */
         input, select, textarea {
