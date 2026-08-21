@@ -67,10 +67,15 @@
     const t = THEMES[id] || THEMES.cyber;
     const root = document.documentElement;
     for (const [k, v] of Object.entries(t.vars)) root.style.setProperty(k, v);
-    // 主体背景（用 !important 覆盖页面内联的 body background）
-    document.body.style.setProperty("background", t.bg.replace(/\s+/g, " ").trim(), "important");
-    // 浅色主题下把标题的霓虹发光文字阴影减弱，避免糊
     const light = (id === "sepia" || id === "light");
+    // 主体背景。浅色主题叠加背景图(img/image.png)：图作淡纹理 + 高透明主题色遮罩保证可读
+    let bg = t.bg.replace(/\s+/g, " ").trim();
+    if (light) {
+      const base = location.pathname.includes("/demos/") ? "../img/" : "img/";
+      const veil = (id === "sepia") ? "rgba(243,236,222,0.90)" : "rgba(247,249,252,0.90)";
+      bg = `linear-gradient(${veil}, ${veil}), url("${base}image.png") center top / cover no-repeat fixed, ${bg}`;
+    }
+    document.body.style.setProperty("background", bg, "important");
     root.style.setProperty("color-scheme", light ? "light" : "dark");
     let ov = document.getElementById("theme-lightfix");
     if (light) {
