@@ -92,6 +92,7 @@
   .mcol.cur .ch { border-color: var(--yellow); background: var(--yellow); color: #120e00; box-shadow: 0 0 12px rgba(255,212,0,.7); }
   .mcol.mirror .ch { border-color: var(--magenta); background: rgba(255,43,214,0.2); }
   .mcol.inpal .ch { border-color: var(--cyan); background: rgba(0,240,255,0.12); }   /* 当前回文范围 */
+  .mcol.mirpal .ch { border-color: #c77dff; background: rgba(199,125,255,0.22); box-shadow: 0 0 8px rgba(199,125,255,.4) inset; }  /* 镜像 j 的回文范围(d[j]来源) */
   .mcol.expand .ch { border-color: #ff9ae6; background: rgba(255,154,230,0.25); box-shadow: 0 0 10px rgba(255,154,230,.5); }
   .mcol.rbound .ch { border-right: 3px solid #ff9ae6; }
   .mcol.best .pv { color: var(--green); font-weight: 800; }
@@ -140,6 +141,7 @@
       <span><i class="dot" style="background:#ffd400"></i>当前 i</span>
       <span><i class="dot" style="background:#00ff9c"></i>中心 idx</span>
       <span><i class="dot" style="background:#ff2bd6"></i>镜像 j=2·idx−i</span>
+      <span><i class="dot" style="background:#c77dff"></i>镜像 j 的回文(d[j] 来源)</span>
       <span><i class="dot" style="background:rgba(0,240,255,.5)"></i>当前回文 [2·idx−mx…mx]</span>
       <span><i class="dot" style="background:#ff9ae6"></i>正在比较的两端</span>
     </div>
@@ -186,7 +188,8 @@ function genSteps(s) {
       d[i] = Math.min(mx - i, d[mir]);
       const which = (mx - i <= d[mir]) ? `mx−i=${mx - i}（触到右端点，超出部分未知，需再扩展）` : `d[镜像 ${mir}]=${d[mir]}（完全在回文内，对称照搬）`;
       snap({ i, mirror: mir, cur: i, phase: "mirror",
-        desc: `求 d[${i}]：i=${i} 在当前回文 [${2 * idx - mx}…${mx}] 内。<br>镜像位置 <b>j=2·idx−i=2×${idx}−${i}=${mir}</b>。<br>借助已知：<b>d[${i}]=min(mx−i, d[j])=min(${mx - i}, ${d[mir]})=${d[i]}</b>。取的是 ${which}。`,
+        mirPal: [mir - d[mir], mir + d[mir]],   // 镜像 j 的回文覆盖范围(d[j] 的来源)
+        desc: `求 d[${i}]：i=${i} 在当前回文 [${2 * idx - mx}…${mx}] 内。<br>镜像位置 <b>j=2·idx−i=2×${idx}−${i}=${mir}</b>，它的回文范围 <b style="color:#c77dff">[${mir - d[mir]}…${mir + d[mir]}]</b>（长度 d[j]=${d[mir]}）。<br>借助已知：<b>d[${i}]=min(mx−i, d[j])=min(${mx - i}, ${d[mir]})=${d[i]}</b>。取的是 ${which}。`,
         vars: { idx, mx, mirror: mir, formula: `d[${i}]=min(${mx - i},${d[mir]})=${d[i]}` } });
     } else {
       d[i] = 0;
@@ -240,6 +243,8 @@ function draw(k) {
     if (s.idx === i) cls += " center";
     if (s.mirror === i && s.mirror >= 0) cls += " mirror";
     if (s.cur === i && s.cur >= 0) cls += " cur";
+    // 镜像步：高亮镜像 j 的回文范围（d[j] 的来源）
+    if (s.mirPal && i >= s.mirPal[0] && i <= s.mirPal[1]) cls += " mirpal";
     // 中心扩展：高亮正在比较的左右两端
     if (s.phase === "compare" && (s.cmpL === i || s.cmpR === i)) cls += " expand";
     if (s.done && s.best && i >= s.best.center - s.best.len && i <= s.best.center + s.best.len) cls += " inpal";
