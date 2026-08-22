@@ -208,10 +208,12 @@ const SECTIONS = [
     ],
   },
   {
-    id: "range", icon: "📊", title: "区间数据结构", desc: "线段树",
+    id: "range", icon: "📊", title: "区间数据结构", desc: "线段树 · 树状数组",
     items: [
       { icon: "📊", tag: "线段树", title: "线段树 Segment Tree", file: "segment-tree.html", ready: true,
         desc: "区间和线段树：建树 / 单点修改 / 区间修改(懒标记) / 区间查询。树形+数组双视图，递归路径与懒标记高亮，单步/自动。" },
+      { icon: "🌲", tag: "树状数组", title: "树状数组 Fenwick", file: "fenwick.html", ready: true,
+        desc: "用 lowbit 维护前缀和：每个 c[i] 管辖区间 [i−lowbit+1, i]。update 沿 i+=lowbit 向上跳、query 沿 i−=lowbit 向下跳，逐步高亮跳跃路径与管辖区间，O(log n)，含 C++。" },
     ],
   },
   {

@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>树状数组 Fenwick // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+    --node-fill: #16213e;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text); font-family: "SF Mono", Menlo, monospace;
+  }
+  .field input.wide { width: 240px; }
+  .field input.sm { width: 70px; }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 110px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.gn { border-color: var(--green); color: var(--green); background: rgba(0,255,156,.08); }
+  .btn.gn:hover:not(:disabled) { background: var(--green); color: #05060f; box-shadow: 0 0 16px rgba(0,255,156,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.7fr 1fr; gap: 20px; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    overflow-x: auto;
+  }
+  .rowlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .rowlabel.mt { margin-top: 18px; }
+  /* 数组行：每列一个格子 */
+  /* SVG 树形 */
+  #tree .edge { stroke: #4a4478; stroke-width: 1.5; transition: stroke .2s; }
+  #tree .edge.path { stroke: var(--magenta); stroke-width: 2.5; }        /* update 父边路径 */
+  #tree .edge.acc { stroke: var(--green); stroke-width: 2.5; }           /* query 跳跃路径 */
+  #tree .cedge { stroke: #3a3560; stroke-width: 1; stroke-dasharray: 3 3; }  /* c[i]→a[i] 拥有边 */
+  #tree rect.box { fill: var(--node-fill); stroke: var(--border); stroke-width: 1.5; transition: all .18s; }
+  #tree g.cur rect.box { fill: var(--yellow); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.7)); }
+  #tree g.path rect.box { fill: rgba(255,43,214,0.25); stroke: var(--magenta); }
+  #tree g.acc rect.box { fill: rgba(0,255,156,0.25); stroke: var(--green); }
+  #tree g.arr rect.box { fill: #1a2033; }
+  #tree g.arr.inrange rect.box { stroke: var(--cyan); stroke-width: 2.5; }   /* c[i] 管辖区间映射到 a */
+  #tree g.arr.qrange rect.box { stroke: var(--green); stroke-width: 2; }     /* query 目标前缀 */
+  #tree text.v { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-weight: 700; font-size: 15px; text-anchor: middle; }
+  #tree g.cur text.v { fill: #120e00; }
+  #tree g.acc text.v { fill: var(--green); }
+  #tree text.lbl { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 10px; text-anchor: middle; }
+  #tree text.cov { fill: #6f8a9c; font-family: "SF Mono", Menlo, monospace; font-size: 9px; text-anchor: middle; }
+  /* 右栏 */
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .formula {
+    background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px;
+    font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: #8fb8c9; margin: 0 0 14px; line-height: 1.75;
+  }
+  .formula b { color: var(--yellow); }
+  .vars { display: flex; gap: 16px; font-family: "SF Mono", Menlo, monospace; font-size: 14px; margin-bottom: 8px; flex-wrap: wrap; }
+  .vars b { color: var(--green); }
+  .status { margin-top: 8px; font-size: 14px; min-height: 60px; color: var(--text); font-family: "SF Mono", Menlo, monospace; line-height: 1.6; }
+  .hl { color: var(--green); font-weight: 700; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .dot { width: 12px; height: 12px; border-radius: 3px; }
+  .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .note code { color: var(--cyan); }
+</style>
+</head>
+<body>
+<header>
+  <h1>树状数组 Fenwick</h1>
+  <p>用一个数组 c[] 高效维护前缀和：单点修改、前缀/区间查询都是 O(log n)。核心是 <code>lowbit(i)=i&(-i)</code> 决定每个 c[i] 管辖的区间。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="controls">
+  <div class="field"><label>初始数组 a[1..n]</label><input id="arrInput" class="wide" type="text" value="3, 2, 5, 1, 4, 6, 2, 7"></div>
+  <button class="btn cy" id="buildBtn">建树</button>
+  <div class="field"><label>update 位置 i</label><input id="uPos" class="sm" type="number" value="3"></div>
+  <div class="field"><label>增量 Δ</label><input id="uDelta" class="sm" type="number" value="4"></div>
+  <button class="btn" id="updateBtn">单点修改</button>
+  <div class="field"><label>query 前缀 [1..r]</label><input id="qPos" class="sm" type="number" value="7"></div>
+  <button class="btn gn" id="queryBtn">前缀和查询</button>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="80" max="900" value="480" step="40"></div>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="rowlabel">树状数组树形（上方 c[] 按 lowbit 分层，树边连管辖关系 j → j+lowbit(j)；最底为原数组 a[]）</div>
+    <svg id="tree" viewBox="0 0 760 380" preserveAspectRatio="xMidYMin meet" style="width:100%;height:auto;display:block"></svg>
+    <div class="legend">
+      <span><i class="dot" style="background:#ffd400"></i>当前节点 i</span>
+      <span><i class="dot" style="background:rgba(255,43,214,.5)"></i>跳跃路径</span>
+      <span><i class="dot" style="background:rgba(0,255,156,.5)"></i>query 已累加</span>
+      <span><i class="dot" style="box-shadow:0 0 0 2px #00f0ff inset;background:#222"></i>c[i] 管辖区间</span>
+    </div>
+  </section>
+  <section class="card">
+    <div class="plabel">算法说明</div>
+    <div class="formula" id="formula"></div>
+    <div class="vars" id="vars"></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+<div class="note" id="note"><code>lowbit(i)=i&(-i)</code> 取 i 二进制最低位的 1 所代表的值。c[i] 管辖区间 <code>(i−lowbit(i), i]</code>，长度 = lowbit(i)。<b>update(i)</b>：i 及其所有祖先都包含位置 i，沿 <code>i += lowbit(i)</code> <b>向上跳</b>逐个 +Δ，直到越过 n。<b>query(r)</b>：把前缀 [1,r] 拆成若干段 c[]，沿 <code>i −= lowbit(i)</code> <b>向下跳</b>逐段累加，直到 i=0。</div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let steps = [], idx = 0, timer = null, running = false;
+let a = [], c = [], N = 0;   // 1-indexed，a[0]/c[0] 占位
+function setStatus(t) { $("status").innerHTML = t; }
+function lowbit(x) { return x & (-x); }
+
+// ======== 分步生成 ========
+// step: { a:[..], c:[..], cur, path:[..], acc:[..], inRange:[lo,hi], qRange:[lo,hi], desc, vars }
+function snapBase() { return { a: [...a], c: [...c] }; }
+
+// 建树：逐个 update(i, a[i])。这里简化为一次性建好，仅展示各 c[i] 管辖区间
+function genBuild() {
+  const list = [];
+  list.push(Object.assign(snapBase(), { cur: -1, path: [], acc: [], desc: `建树完成。下方每个 c[i] 已标出它管辖的区间 [i−lowbit(i)+1, i]（长度 = lowbit(i)）。试试 update / query。`, vars: {} }));
+  return list;
+}
+
+// update(pos, delta)：沿 i += lowbit(i) 向上跳
+function genUpdate(pos, delta) {
+  const list = [];
+  a[pos] += delta;
+  const path = [];
+  list.push(Object.assign(snapBase(), { cur: pos, path: [], acc: [], desc: `update(${pos}, ${delta})：位置 ${pos} 的值 +${delta}。所有<b>管辖区间包含 ${pos}</b> 的 c[] 都要更新，从 i=${pos} 开始沿 <b>i += lowbit(i)</b> 向上跳。`, vars: { i: pos, lowbit: lowbit(pos) } }));
+  let i = pos;
+  while (i <= N) {
+    c[i] += delta;
+    path.push(i);
+    const cov = [i - lowbit(i) + 1, i];
+    const ni = i + lowbit(i);
+    list.push(Object.assign(snapBase(), { cur: i, path: [...path], acc: [], inRange: cov, desc: `c[${i}] += ${delta}（c[${i}] 管辖 [${cov[0]}, ${cov[1]}]，含位置 ${pos}）。<br>lowbit(${i})=${lowbit(i)}，下一个：i = ${i} + ${lowbit(i)} = <b>${ni}</b>${ni > N ? "（&gt; n，结束）" : ""}。`, vars: { i, lowbit: lowbit(i), next: ni } }));
+    i = ni;
+  }
+  list.push(Object.assign(snapBase(), { cur: -1, path: [...path], acc: [], desc: `<span class="hl">update 完成！</span>沿路径 [${path.join(" → ")}] 共更新 ${path.length} 个节点，O(log n)。`, vars: {} }));
+  return list;
+}
+
+// query(r)：沿 i -= lowbit(i) 向下跳，累加 c[i]
+function genQuery(r) {
+  const list = [];
+  const acc = [];
+  let sum = 0;
+  list.push(Object.assign(snapBase(), { cur: r, path: [], acc: [], qRange: [1, r], desc: `query(${r})：求前缀和 a[1..${r}]。把 [1, ${r}] 拆成若干段 c[]，从 i=${r} 开始沿 <b>i −= lowbit(i)</b> 向下跳累加。`, vars: { i: r, sum: 0 } }));
+  let i = r;
+  while (i > 0) {
+    sum += c[i];
+    acc.push(i);
+    const cov = [i - lowbit(i) + 1, i];
+    const ni = i - lowbit(i);
+    list.push(Object.assign(snapBase(), { cur: i, path: [], acc: [...acc], inRange: cov, qRange: [1, r], desc: `加上 c[${i}]=${c[i]}（管辖 [${cov[0]}, ${cov[1]}]），sum = <b>${sum}</b>。<br>lowbit(${i})=${lowbit(i)}，下一个：i = ${i} − ${lowbit(i)} = <b>${ni}</b>${ni === 0 ? "（=0，结束）" : ""}。`, vars: { i, lowbit: lowbit(i), sum, next: ni } }));
+    i = ni;
+  }
+  list.push(Object.assign(snapBase(), { cur: -1, path: [], acc: [...acc], qRange: [1, r], desc: `<span class="hl">query 完成！</span>前缀和 a[1..${r}] = <b>${sum}</b>（累加了 ${acc.length} 段 c[]：[${acc.join(", ")}]），O(log n)。`, vars: { sum } }));
+  return list;
+}
+
+// ======== 渲染：SVG 树形（c[] 按 level 分层在上，a[] 在最底，父边连管辖关系）========
+function draw(k) {
+  const s = steps[k];
+  const svg = $("tree");
+  const maxLvl = Math.floor(Math.log2(N));       // 最高层
+  const colW = Math.max(52, Math.min(72, 720 / N));
+  const padX = 30, topY = 26, rowH = 58;
+  const cX = i => padX + (i - 0.5) * colW;         // 第 i 列中心 x
+  const cY = i => topY + (maxLvl - Math.log2(lowbit(i))) * rowH;  // level 越大越靠上
+  const aY = topY + (maxLvl + 1) * rowH + 24;      // 原数组行 y
+  const W = padX * 2 + N * colW, boxW = colW - 12, boxH = 34;
+  const H = aY + boxH + 30;
+  svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+
+  const inPath = i => s.path && s.path.includes(i);
+  const inAcc = i => s.acc && s.acc.includes(i);
+
+  let edges = "", nodes = "";
+  // 父边 c[j] → c[j+lowbit(j)]，以及拥有边 c[i] → a[i]
+  for (let i = 1; i <= N; i++) {
+    const par = i + lowbit(i);
+    if (par <= N) {
+      // 高亮：update 路径(i,par 都在 path)标 path；query 中相邻(i,par 都 acc)一般不共父边，故只 path
+      const hot = inPath(i) && inPath(par);
+      edges += `<line class="edge${hot ? " path" : ""}" x1="${cX(i)}" y1="${cY(i) + boxH / 2}" x2="${cX(par)}" y2="${cY(par) - boxH / 2}"/>`;
+    }
+    // c[i] 竖直连到 a[i]（表示 c[i] 直接含元素 a[i]）
+    edges += `<line class="cedge" x1="${cX(i)}" y1="${cY(i) + boxH / 2}" x2="${cX(i)}" y2="${aY - boxH / 2}"/>`;
+  }
+  // c 节点
+  for (let i = 1; i <= N; i++) {
+    let cls = "";
+    if (inAcc(i)) cls = "acc";
+    if (inPath(i)) cls = "path";
+    if (s.cur === i) cls = "cur";
+    const x = cX(i), y = cY(i), cov = [i - lowbit(i) + 1, i];
+    nodes += `<g class="${cls}"><rect class="box" x="${x - boxW / 2}" y="${y - boxH / 2}" width="${boxW}" height="${boxH}" rx="5"/>` +
+      `<text class="v" x="${x}" y="${y + 5}">${s.c[i]}</text>` +
+      `<text class="lbl" x="${x}" y="${y - boxH / 2 - 4}">c${i}</text>` +
+      `<text class="cov" x="${x}" y="${y + boxH / 2 + 11}">[${cov[0]},${cov[1]}]</text></g>`;
+  }
+  // a 节点（最底）
+  for (let i = 1; i <= N; i++) {
+    let cls = "arr";
+    if (s.qRange && i >= s.qRange[0] && i <= s.qRange[1]) cls += " qrange";
+    if (s.inRange && i >= s.inRange[0] && i <= s.inRange[1]) cls += " inrange";
+    const x = cX(i);
+    nodes += `<g class="${cls}"><rect class="box" x="${x - boxW / 2}" y="${aY - boxH / 2}" width="${boxW}" height="${boxH}" rx="5"/>` +
+      `<text class="v" x="${x}" y="${aY + 5}">${s.a[i]}</text>` +
+      `<text class="lbl" x="${x}" y="${aY + boxH / 2 + 12}">a${i}</text></g>`;
+  }
+  svg.innerHTML = edges + nodes;
+
+  const v = s.vars || {};
+  $("vars").innerHTML = [
+    v.i != null ? `i = <b>${v.i}</b>` : "",
+    v.lowbit != null ? `lowbit(i) = <b>${v.lowbit}</b>` : "",
+    v.next != null ? `下一个 = <b>${v.next}</b>` : "",
+    v.sum != null ? `sum = <b>${v.sum}</b>` : "",
+  ].filter(Boolean).join("　");
+  setStatus(s.desc);
+}
+
+// ======== 引擎 ========
+function load(list) {
+  steps = list; idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  draw(0);
+  if (steps.length <= 1) endRun();
+}
+function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(idx); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 980 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+function build() {
+  stopTimer(); running = false;
+  const nums = ($("arrInput").value || "").split(/[,，\s]+/).map(x => parseInt(x, 10)).filter(x => !isNaN(x)).slice(0, 16);
+  if (!nums.length) { setStatus("请输入初始数组。"); return; }
+  N = nums.length;
+  a = new Array(N + 1).fill(0);
+  c = new Array(N + 1).fill(0);
+  for (let i = 1; i <= N; i++) a[i] = nums[i - 1];
+  // 构建 c：标准 O(n) 建法
+  for (let i = 1; i <= N; i++) { c[i] += a[i]; const j = i + lowbit(i); if (j <= N) c[j] += c[i]; }
+  load(genBuild());
+}
+function doUpdate() {
+  if (N === 0) { build(); }
+  const pos = parseInt($("uPos").value, 10), delta = parseInt($("uDelta").value, 10);
+  if (isNaN(pos) || pos < 1 || pos > N || isNaN(delta)) { setStatus(`位置需在 1..${N}，增量为整数。`); return; }
+  stopTimer(); load(genUpdate(pos, delta));
+}
+function doQuery() {
+  if (N === 0) { build(); }
+  const r = parseInt($("qPos").value, 10);
+  if (isNaN(r) || r < 1 || r > N) { setStatus(`查询前缀 r 需在 1..${N}。`); return; }
+  stopTimer(); load(genQuery(r));
+}
+
+$("buildBtn").onclick = build;
+$("updateBtn").onclick = doUpdate;
+$("queryBtn").onclick = doQuery;
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) return; playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+
+$("formula").innerHTML = `<b>lowbit(i) = i & (−i)</b>：i 二进制最低位的 1。<br>c[i] 管辖 <b>(i−lowbit(i), i]</b>，长度 lowbit(i)。<br><b>update(i,Δ)</b>：i += lowbit(i) 向上跳，逐个 c[] += Δ。<br><b>query(r)</b>：i −= lowbit(i) 向下跳，逐段累加 c[i]。<br>单点改 / 前缀查询均 <b>O(log n)</b>。`;
+
+CppView.register({
+  fenwick: { title: "树状数组 Fenwick / BIT — C++", code:
+`// 树状数组：O(log n) 单点修改 + 前缀和查询。1-indexed。
+// lowbit(i)=i&(-i)：i 二进制最低位的 1；c[i] 管辖区间 (i-lowbit(i), i]。
+#include <iostream>
+using namespace std;
+
+const int MAXN = 100005;
+int n;
+long long c[MAXN];        // 树状数组
+
+int lowbit(int x) { return x & (-x); }
+
+// 单点修改：位置 i 加上 delta，沿 i += lowbit(i) 向上跳更新所有含 i 的区间
+void update(int i, long long delta) {
+    for (; i <= n; i += lowbit(i))
+        c[i] += delta;
+}
+
+// 前缀和查询：a[1..r] 之和，沿 i -= lowbit(i) 向下跳逐段累加
+long long query(int r) {
+    long long sum = 0;
+    for (int i = r; i > 0; i -= lowbit(i))
+        sum += c[i];
+    return sum;
+}
+
+// 区间和 a[l..r] = query(r) - query(l-1)
+long long rangeSum(int l, int r) { return query(r) - query(l - 1); }
+
+int main() {
+    cin >> n;
+    for (int i = 1; i <= n; i++) {
+        long long x; cin >> x;
+        update(i, x);              // 逐个插入建树，O(n log n)
+    }
+    // 示例：把第 3 个数 +4，再查前缀和 a[1..7]
+    update(3, 4);
+    cout << query(7) << endl;
+    return 0;
+}`
+  }
+});
+$("cppBtn").onclick = () => CppView.open("fenwick");
+
+build();
+</script>
+<script src="../assets/theme.js"></script>
+</body>
+</html>
