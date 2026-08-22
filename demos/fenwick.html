@@ -164,10 +164,28 @@ function lowbit(x) { return x & (-x); }
 // step: { a:[..], c:[..], cur, path:[..], acc:[..], inRange:[lo,hi], qRange:[lo,hi], desc, vars }
 function snapBase() { return { a: [...a], c: [...c] }; }
 
-// 建树：逐个 update(i, a[i])。这里简化为一次性建好，仅展示各 c[i] 管辖区间
-function genBuild() {
+// 建树：c[] 从全 0 开始，依次对 a[1..n] 做单点修改 update(i, a[i])
+// init: 初始值数组(1-indexed)。演示每次插入沿 i += lowbit(i) 向上跳
+function genBuild(init) {
   const list = [];
-  list.push(Object.assign(snapBase(), { cur: -1, path: [], acc: [], desc: `建树完成。下方每个 c[i] 已标出它管辖的区间 [i−lowbit(i)+1, i]（长度 = lowbit(i)）。试试 update / query。`, vars: {} }));
+  a = new Array(N + 1).fill(0);
+  c = new Array(N + 1).fill(0);
+  list.push(Object.assign(snapBase(), { cur: -1, path: [], acc: [], desc: `建树：树状数组 c[] 初始全为 0。依次把每个 a[i] 用 <b>单点修改 update(i, a[i])</b> 插入——沿 <b>i += lowbit(i)</b> 向上跳更新所有管辖它的 c[]。`, vars: {} }));
+  for (let pos = 1; pos <= N; pos++) {
+    a[pos] = init[pos];
+    const path = [];
+    list.push(Object.assign(snapBase(), { cur: pos, path: [], acc: [], desc: `插入第 ${pos} 个：update(${pos}, ${init[pos]})。a[${pos}]=${init[pos]}，从 i=${pos} 向上跳更新。`, vars: { i: pos, lowbit: lowbit(pos) } }));
+    let i = pos;
+    while (i <= N) {
+      c[i] += init[pos];
+      path.push(i);
+      const cov = [i - lowbit(i) + 1, i];
+      const ni = i + lowbit(i);
+      list.push(Object.assign(snapBase(), { cur: i, path: [...path], acc: [], inRange: cov, desc: `c[${i}] += ${init[pos]} → ${c[i]}（c[${i}] 管辖 [${cov[0]}, ${cov[1]}]，含位置 ${pos}）。<br>lowbit(${i})=${lowbit(i)}，下一个 i = ${i} + ${lowbit(i)} = <b>${ni}</b>${ni > N ? "（&gt; n，本次插入结束）" : ""}。`, vars: { i, lowbit: lowbit(i), next: ni } }));
+      i = ni;
+    }
+  }
+  list.push(Object.assign(snapBase(), { cur: -1, path: [], acc: [], desc: `<span class="hl">建树完成！</span>共执行 ${N} 次单点修改。每个 c[i] 已累加好它管辖区间 [i−lowbit(i)+1, i] 的元素和。试试 update / query。`, vars: {} }));
   return list;
 }
 
@@ -291,12 +309,10 @@ function build() {
   const nums = ($("arrInput").value || "").split(/[,，\s]+/).map(x => parseInt(x, 10)).filter(x => !isNaN(x)).slice(0, 16);
   if (!nums.length) { setStatus("请输入初始数组。"); return; }
   N = nums.length;
-  a = new Array(N + 1).fill(0);
-  c = new Array(N + 1).fill(0);
-  for (let i = 1; i <= N; i++) a[i] = nums[i - 1];
-  // 构建 c：标准 O(n) 建法
-  for (let i = 1; i <= N; i++) { c[i] += a[i]; const j = i + lowbit(i); if (j <= N) c[j] += c[i]; }
-  load(genBuild());
+  const init = new Array(N + 1).fill(0);
+  for (let i = 1; i <= N; i++) init[i] = nums[i - 1];
+  // genBuild 内部从 c[]=0 开始，逐个 update(i, a[i]) 累加建树（分步演示）
+  load(genBuild(init));
 }
 function doUpdate() {
   if (N === 0) { build(); }
