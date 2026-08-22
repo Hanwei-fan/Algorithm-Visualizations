@@ -80,6 +80,7 @@
   #tree .edge.path { stroke: var(--magenta); stroke-width: 2.5; }        /* update 父边路径 */
   #tree .edge.acc { stroke: var(--green); stroke-width: 2.5; }           /* query 跳跃路径 */
   #tree .cedge { stroke: var(--border); stroke-width: 1; stroke-dasharray: 3 3; opacity: .7; }  /* c[i]→a[i] 拥有边 */
+  #tree rect.bg { fill: var(--bg); }   /* 不透明底，挡住穿过节点的线 */
   #tree rect.box { fill: var(--node-fill); stroke: var(--border); stroke-width: 1.5; transition: all .18s; }
   #tree g.cur rect.box { fill: var(--yellow); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.7)); }
   #tree g.path rect.box { fill: rgba(255,43,214,0.25); stroke: var(--magenta); }
@@ -244,7 +245,8 @@ function draw(k) {
     if (inPath(i)) cls = "path";
     if (s.cur === i) cls = "cur";
     const x = cX(i), y = cY(i), cov = [i - lowbit(i) + 1, i];
-    nodes += `<g class="${cls}"><rect class="box" x="${x - boxW / 2}" y="${y - boxH / 2}" width="${boxW}" height="${boxH}" rx="5"/>` +
+    nodes += `<g class="${cls}"><rect class="bg" x="${x - boxW / 2}" y="${y - boxH / 2}" width="${boxW}" height="${boxH}" rx="5"/>` +
+      `<rect class="box" x="${x - boxW / 2}" y="${y - boxH / 2}" width="${boxW}" height="${boxH}" rx="5"/>` +
       `<text class="v" x="${x}" y="${y + 5}">${s.c[i]}</text>` +
       `<text class="lbl" x="${x}" y="${y - boxH / 2 - 4}">c${i}</text>` +
       `<text class="cov" x="${x}" y="${y + boxH / 2 + 11}">[${cov[0]},${cov[1]}]</text></g>`;
@@ -255,7 +257,8 @@ function draw(k) {
     if (s.qRange && i >= s.qRange[0] && i <= s.qRange[1]) cls += " qrange";
     if (s.inRange && i >= s.inRange[0] && i <= s.inRange[1]) cls += " inrange";
     const x = cX(i);
-    nodes += `<g class="${cls}"><rect class="box" x="${x - boxW / 2}" y="${aY - boxH / 2}" width="${boxW}" height="${boxH}" rx="5"/>` +
+    nodes += `<g class="${cls}"><rect class="bg" x="${x - boxW / 2}" y="${aY - boxH / 2}" width="${boxW}" height="${boxH}" rx="5"/>` +
+      `<rect class="box" x="${x - boxW / 2}" y="${aY - boxH / 2}" width="${boxW}" height="${boxH}" rx="5"/>` +
       `<text class="v" x="${x}" y="${aY + 5}">${s.a[i]}</text>` +
       `<text class="lbl" x="${x}" y="${aY + boxH / 2 + 12}">a${i}</text></g>`;
   }
