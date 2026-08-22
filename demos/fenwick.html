@@ -215,7 +215,7 @@ function draw(k) {
   const svg = $("tree");
   const maxLvl = Math.floor(Math.log2(N));       // 最高层
   const colW = Math.max(52, Math.min(72, 720 / N));
-  const padX = 30, topY = 26, rowH = 58;
+  const padX = 30, topY = 46, rowH = 58;   // topY 留足空间，避免顶层节点的 cN 标签被裁掉
   const cX = i => padX + (i - 0.5) * colW;         // 第 i 列中心 x
   const cY = i => topY + (maxLvl - Math.log2(lowbit(i))) * rowH;  // level 越大越靠上
   const aY = topY + (maxLvl + 1) * rowH + 24;      // 原数组行 y
