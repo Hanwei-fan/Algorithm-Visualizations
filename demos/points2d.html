@@ -109,6 +109,17 @@
   g.cur .dsv { fill: #120e00; }
   g.acc .dsv { fill: var(--green); }
   .dslbl { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 9px; text-anchor: middle; }
+  /* ans[] 累计答案数组 */
+  .ansarr { display: flex; gap: 9px; flex-wrap: wrap; margin: 6px 0 4px; font-family: "SF Mono", Menlo, monospace; }
+  .anscell { min-width: 48px; border: 1px solid var(--border); border-radius: 6px; padding: 7px 9px 6px; text-align: center; background: var(--node-fill); position: relative; transition: all .18s; }
+  .anscell .idx { font-size: 9px; color: var(--muted); display: block; letter-spacing: .5px; }
+  .anscell .val { font-size: 16px; font-weight: 700; color: var(--text); }
+  .anscell.cur { background: var(--yellow); box-shadow: 0 0 12px rgba(255,212,0,.55); border-color: var(--yellow); }
+  .anscell.cur .val, .anscell.cur .idx { color: #120e00; }
+  .anscell.done .val { color: var(--green); }
+  .anscell .delta { position: absolute; top: -15px; left: 50%; transform: translateX(-50%); font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+  .anscell .delta.plus { color: var(--green); text-shadow: 0 0 6px rgba(0,255,156,.5); }
+  .anscell .delta.minus { color: var(--magenta); text-shadow: 0 0 6px rgba(255,43,214,.5); }
   /* 二维前缀和矩阵 */
   table.psmat { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 12px; margin: 0 auto; }
   table.psmat td, table.psmat th { border: 1px solid var(--border); width: 34px; height: 30px; text-align: center; }
@@ -172,6 +183,8 @@
   <section class="card">
     <div class="rowlabel" id="rightLabel">数据结构</div>
     <div id="rightView"></div>
+    <div class="rowlabel mt" id="ansLabel" style="display:none">累计答案 ans[]</div>
+    <div id="ansView"></div>
     <div class="plabel">算法</div>
     <div class="formula" id="formula"></div>
     <div class="vars" id="vars"></div>
@@ -282,13 +295,13 @@ function genScan(mode) {
       if (mode === "scanPref") {
         ans[e.qi] = cnt;
         const countedPts = []; PTS.forEach((p, pi) => { if (inserted.has(pi) && p[1] <= b) countedPts.push(pi); });
-        list.push(base({ sweepX: e.x, curQ: e.qi, prefRect: [a, b], prefSign: 1, countedPts, dsAcc: acc, dsPath: [], desc: `查询 (${a}, ${b})：结构里是 x≤${a} 的点，求 <b>y ≤ ${b}</b> 的个数，即 <b>S(${a},${b})</b> = <span class="hl">${cnt}</span>。`, vars: { a, b, "S(a,b)": cnt } }));
+        list.push(base({ sweepX: e.x, curQ: e.qi, prefRect: [a, b], prefSign: 1, countedPts, dsAcc: acc, dsPath: [], ansMark: { qi: e.qi, sign: 1, delta: cnt, set: true }, desc: `查询 (${a}, ${b})：结构里是 x≤${a} 的点，求 <b>y ≤ ${b}</b> 的个数，即 <b>S(${a},${b})</b> = <span class="hl">${cnt}</span>。写入 <b>ans[${e.qi}]</b>。`, vars: { a, b, "S(a,b)": cnt } }));
       } else {
         ans[e.qi] += e.sign * cnt;
         const [x1, y1, x2, y2] = QS[e.qi];
         const countedPts = []; if (!(a < 0 || b < 1)) PTS.forEach((p, pi) => { if (p[0] <= a && p[1] <= b) countedPts.push(pi); });
         const empty = (a < 0 || b < 1);
-        list.push(base({ sweepX: e.x < 0 ? -1 : e.x, curQ: e.qi, qRect: [x1, y1, x2, y2], prefRect: empty ? null : [a, b], prefSign: e.sign, countedPts, dsAcc: acc, dsPath: [],
+        list.push(base({ sweepX: e.x < 0 ? -1 : e.x, curQ: e.qi, qRect: [x1, y1, x2, y2], prefRect: empty ? null : [a, b], prefSign: e.sign, countedPts, dsAcc: acc, dsPath: [], ansMark: { qi: e.qi, sign: e.sign, delta: empty ? 0 : cnt },
           desc: `矩形 #${e.qi + 1} 的第 ${e.term + 1}/4 项 <b>${TERMSTR[e.term]}</b>：a=${a}, b=${b}${empty ? `（a&lt;0 或 b&lt;1，空区域 S=0）` : `，此刻 x≤${a}，query(${b})=`}<b>${empty ? 0 : cnt}</b>，按系数 <b>${e.sign > 0 ? "＋" : "−"}</b> 累加。当前累计 = <span class="hl">${ans[e.qi]}</span>。`,
           vars: { 项: TERMSTR[e.term], "S(a,b)": empty ? 0 : cnt, 本次: (e.sign > 0 ? "+" : "−") + (empty ? 0 : cnt), 累计: ans[e.qi] } }));
       }
@@ -409,10 +422,35 @@ function drawQTable(s) {
   $("qtableWrap").innerHTML = h;
 }
 
+// ans[] 累计答案数组（仅扫描线两种解法显示）
+function drawAnsArray(s) {
+  if (method === "prefix" || !QS.length) { $("ansView").innerHTML = ""; return; }
+  const m = s.ansMark;
+  let h = `<div class="ansarr">`;
+  QS.forEach((q, qi) => {
+    const v = s.ans ? s.ans[qi] : null;
+    const active = m && m.qi === qi;
+    let cls = "anscell";
+    if (active) cls += " cur";
+    if (s.done && v != null) cls += " done";
+    let delta = "";
+    if (active) {
+      const d = m.delta;
+      delta = m.set
+        ? `<span class="delta plus">←${d}</span>`
+        : `<span class="delta ${m.sign > 0 ? "plus" : "minus"}">${m.sign > 0 ? "+" : "−"}${d}</span>`;
+    }
+    h += `<div class="${cls}">${delta}<span class="idx">ans[${qi}]</span><span class="val">${v == null ? "—" : v}</span></div>`;
+  });
+  h += `</div>`;
+  $("ansView").innerHTML = h;
+}
+
 function draw(k) {
   const s = steps[k];
   if (method === "prefix") { drawPlaneMaybe(s); drawPSMat(s); }
   else { drawPlane(s); drawDS(s); }
+  drawAnsArray(s);
   drawQTable(s);
   const v = s.vars || {};
   $("vars").innerHTML = Object.entries(v).map(([kk, vv]) => `${kk} = <b>${vv}</b>`).join("　");
@@ -459,6 +497,7 @@ function applyMethod(m) {
   method = m;
   document.querySelectorAll("#methodTabs .tab").forEach(t => t.classList.toggle("active", t.dataset.m === m));
   $("dsTabs").style.display = (m === "prefix") ? "none" : "flex";
+  $("ansLabel").style.display = (m === "prefix") ? "none" : "block";
   $("rightLabel").textContent = m === "prefix" ? "二维前缀和表 S(a,b)" : (dsKind === "bit" ? "y 维数据结构：树状数组 c[]" : "y 维数据结构：线段树");
   $("planeLabel").textContent = m === "scanPref" ? "平面（黄线=扫描线，青=已插入，绿=计入 S 区域）" : (m === "scanRect" ? "平面（粉框=查询矩形，绿/粉填充=当前 S(a,b) 区域，符号随系数）" : "平面（点集 + 粉框=查询矩形）");
   // 输入提示与默认值
