@@ -110,6 +110,7 @@
   .corner.minus { fill: var(--magenta); }
   .corner.cur { stroke: var(--yellow); stroke-width: 2.5; filter: drop-shadow(0 0 6px rgba(255,212,0,.9)); }
   .corner.fresh { stroke: #fff; stroke-width: 2; }
+  .qtag { fill: var(--yellow); font-weight: 800; }
   .cornlbl { font-family: "SF Mono", Menlo, monospace; font-size: 10px; font-weight: 700; text-anchor: middle; }
   .cornlbl.plus { fill: var(--green); }
   .cornlbl.minus { fill: var(--magenta); }
@@ -306,10 +307,10 @@ function genScan(mode) {
   const quadsOf = (x1, y1, x2, y2, qi) => {
     const xm = x1 - 0.5, ym = y1 - 0.5;
     return [
-      { rect: [xm, ym, x2, y2],   sign: 1,  corner: [x2, y2],         term: 0, quad: "tr" }, // 右上=查询矩形本体
-      { rect: [0, ym, xm, y2],    sign: -1, corner: [x1 - 1, y2],     term: 1, quad: "tl" }, // 左上
-      { rect: [xm, 0, x2, ym],    sign: -1, corner: [x2, y1 - 1],     term: 2, quad: "br" }, // 右下
-      { rect: [0, 0, xm, ym],     sign: 1,  corner: [x1 - 1, y1 - 1], term: 3, quad: "bl" }, // 左下
+      { rect: [xm, ym, x2, y2],   sign: 1,  corner: [x2, y2],         term: 0, quad: "tr", qi }, // 右上=查询矩形本体
+      { rect: [0, ym, xm, y2],    sign: -1, corner: [x1 - 1, y2],     term: 1, quad: "tl", qi }, // 左上
+      { rect: [xm, 0, x2, ym],    sign: -1, corner: [x2, y1 - 1],     term: 2, quad: "br", qi }, // 右下
+      { rect: [0, 0, xm, ym],     sign: 1,  corner: [x1 - 1, y1 - 1], term: 3, quad: "bl", qi }, // 左下
     ];
   };
   if (mode === "scanRect") {
@@ -412,7 +413,7 @@ function drawPlane(s) {
       g += rectSvg(qd.rect, "quad " + qd.quad);
       const [a, b] = qd.corner;
       const lx = sx((qd.rect[0] + qd.rect[2]) / 2), ly = sy((qd.rect[1] + qd.rect[3]) / 2);
-      g += `<text class="quadlbl ${qd.sign > 0 ? "plus" : "minus"}" x="${lx}" y="${ly}">${qd.sign > 0 ? "+" : "−"}S(${a},${b})</text>`;
+      g += `<text class="quadlbl ${qd.sign > 0 ? "plus" : "minus"}" x="${lx}" y="${ly}"><tspan class="qtag">#${qd.qi + 1}</tspan> ${qd.sign > 0 ? "+" : "−"}S(${a},${b})</text>`;
     });
   } else {
     // prefix / scanPref：画出所有查询矩形（淡框），当前查询用高亮框
@@ -443,7 +444,7 @@ function drawPlane(s) {
       const isCur = s.corner && s.corner.qi === qi && s.corner.term === term;
       const isNew = s.newCorner && s.newCorner.qi === qi && s.newCorner.term === term;
       g += `<polygon class="corner ${sc}${isCur ? " cur" : ""}${isNew ? " fresh" : ""}" points="${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}"/>`;
-      g += `<text class="cornlbl ${sc}" x="${cx}" y="${cy + r + 12}">${sign > 0 ? "+" : "−"}S(${a},${b})</text>`;
+      g += `<text class="cornlbl ${sc}" x="${cx}" y="${cy + r + 12}"><tspan class="qtag">#${qi + 1}</tspan> ${sign > 0 ? "+" : "−"}S(${a},${b})</text>`;
     });
   }
   $("plane").innerHTML = g;
@@ -541,7 +542,7 @@ function drawAnsArray(s) {
         ? `<span class="delta plus">←${d}</span>`
         : `<span class="delta ${m.sign > 0 ? "plus" : "minus"}">${m.sign > 0 ? "+" : "−"}${d}</span>`;
     }
-    h += `<div class="${cls}">${delta}<span class="idx">ans[${qi}]</span><span class="val">${v == null ? "—" : v}</span></div>`;
+    h += `<div class="${cls}">${delta}<span class="idx">#${qi + 1} · ans[${qi}]</span><span class="val">${v == null ? "—" : v}</span></div>`;
   });
   h += `</div>`;
   $("ansView").innerHTML = h;
