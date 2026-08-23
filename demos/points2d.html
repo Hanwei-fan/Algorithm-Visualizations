@@ -82,7 +82,7 @@
   }
   .rowlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
   .rowlabel.mt { margin-top: 16px; }
-  svg.plane { width: 100%; height: auto; max-height: 42vh; display: block; margin: 0 auto; }
+  svg.plane { width: 100%; height: auto; max-height: calc(100vh - 470px); min-height: 300px; display: block; margin: 0 auto; }
   .axis { stroke: var(--border); stroke-width: 1.5; }
   .alabel { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 10px; }
   /* 待统计的点：一律青色系（空心→已插入实心→计入当前 S 高亮），与查询顶点区分开 */
