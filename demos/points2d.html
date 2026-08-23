@@ -203,7 +203,7 @@
 
 <div class="controls">
   <div class="field"><label>点集 (x,y; 分号分隔)</label><input id="ptInput" class="wide" type="text" value="1,3; 2,1; 3,4; 4,2; 5,5; 6,3"></div>
-  <div class="field" id="qField"><label id="qLabel">查询矩形 (x1,y1,x2,y2; 分号分隔)</label><input id="qInput" class="wide" type="text" value="1,1,3,4; 2,2,6,5"></div>
+  <div class="field" id="qField"><label id="qLabel">查询矩形 (x1,y1=左下角, x2,y2=右上角; 分号分隔)</label><input id="qInput" class="wide" type="text" value="1,1,3,4; 2,2,6,5"></div>
   <button class="btn cy" id="runBtn">开始</button>
   <button class="btn" id="playBtn" disabled>自动播放</button>
   <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
@@ -286,7 +286,7 @@ function genPrefix() {
     const futureRects = QS.map((_, j) => j).filter(j => j > qi);
     // (1) 切成 4 部分
     list.push(pbase({ psMark: {}, rectsShown: futureRects, quads,
-      desc: `矩形 #${qi + 1} [${x1},${x2}]×[${y1},${y2}]：按 x=${x1}−1、y=${y1}−1 切成 <b>4 部分</b>（右上本体+，左上/右下−，左下+），逐块到 S 表取值。` }));
+      desc: `矩形 #${qi + 1}（左下角 (${x1},${y1})、右上角 (${x2},${y2})）：按 x=${x1}−1、y=${y1}−1 切成 <b>4 部分</b>（右上本体+，左上/右下−，左下+），逐块到 S 表取值。` }));
     // (2) 逐块查表累加
     let acc = 0;
     quads.forEach((qd, ci) => {
@@ -348,13 +348,13 @@ function genScan(mode) {
   if (mode === "scanRect") {
     // (1) 初始：所有矩形显示
     const allRects = QS.map((_, qi) => qi);
-    list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], rectsShown: allRects, desc: `<b>阶段一：容斥分解。</b>平面上先显示全部 ${QS.length} 个待查询矩形。任意矩形 [x₁,x₂]×[y₁,y₂] 内点数 = <b>＋S(x₂,y₂) − S(x₁−1,y₂) − S(x₂,y₁−1) ＋ S(x₁−1,y₁−1)</b>，接下来逐个矩形按容斥切成 4 部分。`, vars: {} }));
+    list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], rectsShown: allRects, desc: `<b>阶段一：容斥分解。</b>平面上先显示全部 ${QS.length} 个待查询矩形（每个以<b>左下角 (x₁,y₁)、右上角 (x₂,y₂)</b>给出）。矩形内点数 = <b>＋S(x₂,y₂) − S(x₁−1,y₂) − S(x₂,y₁−1) ＋ S(x₁−1,y₁−1)</b>，接下来逐个矩形按容斥切成 4 部分。`, vars: {} }));
     QS.forEach(([x1, y1, x2, y2], qi) => {
       const quads = quadsOf(x1, y1, x2, y2, qi);
       const futureRects = QS.map((_, j) => j).filter(j => j > qi);  // 尚未处理的矩形继续显示
       // (2) 该矩形按容斥切成 4 部分，用不同阴影色标出
       list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], rectsShown: futureRects, quads,
-        desc: `矩形 #${qi + 1} [${x1},${x2}]×[${y1},${y2}]：把前缀区 (0,0)→(${x2},${y2}) 按 x=${x1}−1 与 y=${y1}−1 切成 <b>4 部分</b>（4 种阴影色）。右上=矩形本体(+)，左上/右下需减去，左下多减一次要加回。`, vars: {} }));
+        desc: `矩形 #${qi + 1}（左下角 (${x1},${y1})、右上角 (${x2},${y2})）：把前缀区 (0,0)→(${x2},${y2}) 按 x=${x1}−1 与 y=${y1}−1 切成 <b>4 部分</b>（4 种阴影色）。右上=矩形本体(+)，左上/右下需减去，左下多减一次要加回。`, vars: {} }));
       // (3) 四部分依次消失，各保留其角并标注 ±S
       quads.forEach((qd, ci) => {
         shownCorners.push([qd.corner[0], qd.corner[1], qd.sign, qi, qd.term]);
@@ -572,7 +572,7 @@ function drawDS(s) {
 
 function drawQTable(s) {
   if (!QS.length) { $("qtableWrap").innerHTML = ""; return; }
-  const head = method === "scanPref" ? "查询 (a,b)" : "查询矩形 (x1,y1,x2,y2)";
+  const head = method === "scanPref" ? "查询 (a,b)" : "查询矩形 (左下 x1,y1 → 右上 x2,y2)";
   let h = `<table class="qtable"><tr><th>${head}</th><th>答案</th></tr>`;
   QS.forEach((q, qi) => {
     const done = s.ans && s.ans[qi] != null;
@@ -672,7 +672,7 @@ function applyMethod(m) {
   $("planeLabel").textContent = m === "scanPref" ? "平面（黄线=扫描线，黄点=列内 y 游标，青=已插入，绿=计入 S 区域）" : (m === "scanRect" ? "平面（黄线=扫描线，黄点=列内 y 游标，◆=4 个角/绿加粉减，绿/粉填充=当前 S(a,b) 区域）" : "平面（点集 + 粉框=查询矩形）");
   // 输入提示与默认值
   if (m === "scanPref") { $("qLabel").textContent = "查询前缀 (X,Y; 分号分隔)"; $("qInput").value = "3,3; 5,2; 6,5"; }
-  else { $("qLabel").textContent = "查询矩形 (x1,y1,x2,y2; 分号分隔)"; $("qInput").value = "1,1,3,4; 2,2,6,5"; }
+  else { $("qLabel").textContent = "查询矩形 (x1,y1=左下角, x2,y2=右上角; 分号分隔)"; $("qInput").value = "1,1,3,4; 2,2,6,5"; }
   $("formula").innerHTML = FORMULA[m];
   $("note").innerHTML = NOTE[m];
   prepare();
@@ -699,20 +699,20 @@ $("randBtn").onclick = () => {
 $("cppBtn").onclick = () => {
   if (method === "prefix") return CppView.open("p2d_prefix");
   if (method === "scanPref") return CppView.open(dsKind === "bit" ? "p2d_bit" : "p2d_seg");
-  // scanRect：4 张卡片(树状数组/线段树 × 非离散化/离散化)，默认高亮当前所选数据结构的非离散化版
-  const active = dsKind === "bit" ? "p2d_rect_bit" : "p2d_rect_seg";
-  CppView.open(["p2d_rect_bit", "p2d_rect_bit_disc", "p2d_rect_seg", "p2d_rect_seg_disc"], active);
+  // scanRect：按当前所选数据结构，展示其 非离散化/离散化 两份实现
+  if (dsKind === "bit") CppView.open(["p2d_rect_bit", "p2d_rect_bit_disc"]);
+  else CppView.open(["p2d_rect_seg", "p2d_rect_seg_disc"]);
 };
 
 const FORMULA = {
-  prefix: `核心原语 <b>S(a,b)</b> = 满足 <b>x≤a 且 y≤b</b> 的点数。<br>递推：<b>S(i,j)=g[i][j]+S(i−1,j)+S(i,j−1)−S(i−1,j−1)</b><br>任意矩形 [x1,x2]×[y1,y2]（容斥）：<br><b>S(x₂,y₂) − S(x₁−1,y₂) − S(x₂,y₁−1) + S(x₁−1,y₁−1)</b><br>系数 <b>+1,−1,−1,+1</b>。整表预处理 O(MX·MY)，每次查询 4 次查表 O(1)，适合<b>小值域</b>。`,
+  prefix: `核心原语 <b>S(a,b)</b> = 满足 <b>x≤a 且 y≤b</b> 的点数。<br>递推：<b>S(i,j)=g[i][j]+S(i−1,j)+S(i,j−1)−S(i−1,j−1)</b><br>矩形<b>左下角 (x₁,y₁)、右上角 (x₂,y₂)</b>（容斥）：<br><b>S(x₂,y₂) − S(x₁−1,y₂) − S(x₂,y₁−1) + S(x₁−1,y₁−1)</b><br>系数 <b>+1,−1,−1,+1</b>。整表预处理 O(MX·MY)，每次查询 4 次查表 O(1)，适合<b>小值域</b>。`,
   scanPref: `同一原语 <b>S(a,b)</b>，改成离线求。事件按 x 升序(点先于查询)。<br>遇点 (x,y)：<b>update(y)</b> 计数 +1。<br>遇查询 (X,Y)：此刻 x≤X，<b>query(Y)</b> 求 y≤Y 前缀计数，即 <b>S(X,Y)</b>。<br>单次 O(log M)，答的正是 (0,0)→(X,Y) 前缀矩形。`,
-  scanRect: `任意矩形 = <b>4 次 S(a,b)</b> 容斥：<br><b>ans = S(x₂,y₂) − S(x₁−1,y₂) − S(x₂,y₁−1) + S(x₁−1,y₁−1)</b><br>把每个矩形拆成 4 个查询事件，落在 x=x₂ / x=x₁−1，带系数 <b>+1,−1,−1,+1</b>。<br>数据结构只需支持前缀查询 <b>query(b)</b>，单次 O(log M)。`,
+  scanRect: `矩形<b>左下角 (x₁,y₁)、右上角 (x₂,y₂)</b> = <b>4 次 S(a,b)</b> 容斥：<br><b>ans = S(x₂,y₂) − S(x₁−1,y₂) − S(x₂,y₁−1) + S(x₁−1,y₁−1)</b><br>把每个矩形拆成 4 个查询事件，落在 x=x₂ / x=x₁−1，带系数 <b>+1,−1,−1,+1</b>。<br>数据结构只需支持前缀查询 <b>query(b)</b>，单次 O(log M)。`,
 };
 const NOTE = {
-  prefix: `核心原语 <code>S(a,b)</code>=满足 x≤a,y≤b 的点数。先把点落到网格计数 g[x][y]，递推出整张 S 表（含 0 行 0 列作边界）。任意矩形查询把它拆成 <code>4 次 S(a,b)</code> 查表（系数 +1,−1,−1,+1）——大矩形减去左、下两条，再加回多减的左下角。仅适合<code>值域较小</code>（否则表太大）。`,
+  prefix: `核心原语 <code>S(a,b)</code>=满足 x≤a,y≤b 的点数。先把点落到网格计数 g[x][y]，递推出整张 S 表（含 0 行 0 列作边界）。矩形以<code>左下角 (x1,y1)</code>、<code>右上角 (x2,y2)</code>给出，查询把它拆成 <code>4 次 S(a,b)</code> 查表（系数 +1,−1,−1,+1）——大矩形减去左、下两条，再加回多减的左下角。仅适合<code>值域较小</code>（否则表太大）。`,
   scanPref: `离线求 <code>S(a,b)</code>：点和查询按 <code>x</code> 升序（同 x 点先于查询）。扫到点插入其 y，扫到查询 (X,Y) 时结构里正好是 x≤X 的点，求 <code>y≤Y</code> 前缀计数即 <code>S(X,Y)</code>。树状数组 / 线段树均 O(log n)。这里查询恰好是前缀矩形，一次 S 就够。`,
-  scanRect: `任意矩形拆成 <code>4 次前缀 S(a,b)</code>：<code>ans = S(x₂,y₂) − S(x₁−1,y₂) − S(x₂,y₁−1) + S(x₁−1,y₁−1)</code>。每次 S(a,b) 是一个查询事件（落在 x=a，带系数），扫描线扫到时结构里正好是 x≤a 的点，<code>query(b)</code> 即得。数据结构只需前缀查询，不必支持区间查询。`,
+  scanRect: `矩形以<code>左下角 (x1,y1)</code>、<code>右上角 (x2,y2)</code>给出，拆成 <code>4 次前缀 S(a,b)</code>：<code>ans = S(x₂,y₂) − S(x₁−1,y₂) − S(x₂,y₁−1) + S(x₁−1,y₁−1)</code>。每次 S(a,b) 是一个查询事件（落在 x=a，带系数），扫描线扫到时结构里正好是 x≤a 的点，<code>query(b)</code> 即得。数据结构只需前缀查询，不必支持区间查询。`,
 };
 $("formula").innerHTML = FORMULA.prefix;
 $("note").innerHTML = NOTE.prefix;
@@ -721,7 +721,7 @@ CppView.register({
   p2d_prefix: { title: "二维数点 · 二维前缀和(小值域) — C++", code:
 [
 "// 二维前缀和：g[x][y]=该格点数；sum 为二维前缀和。",
-"// 矩形 [x1,x2]x[y1,y2] 内点数 = 容斥(下式)。预处理 O(MX*MY)，查询 O(1)。",
+"// 矩形以左下角 (x1,y1)、右上角 (x2,y2) 给出，内点数 = 容斥(下式)。预处理 O(MX*MY)，查询 O(1)。",
 "#include <iostream>",
 "using namespace std;",
 "const int N = 1005;",
@@ -789,7 +789,7 @@ CppView.register({
 ].join("\n") },
   p2d_rect_bit: { tab: "树状数组 · 非离散化", title: "二维数点 · 任意矩形(树状数组, 值域直接开数组) — C++", code:
 [
-"// 核心原语 S(a,b) = 满足 x<=a 且 y<=b 的点数。任意矩形 [x1,x2]x[y1,y2] 内点数 = 容斥：",
+"// 核心原语 S(a,b) = 满足 x<=a 且 y<=b 的点数。矩形以左下角 (x1,y1)、右上角 (x2,y2) 给出，内点数 = 容斥：",
 "//   ans = S(x2,y2) - S(x1-1,y2) - S(x2,y1-1) + S(x1-1,y1-1)   系数 +1,-1,-1,+1",
 "// 把每个矩形拆成 4 个查询事件，离线按 x 升序扫描；扫到 x=a 时结构里正好是 x<=a 的点，",
 "// 前缀查询 query(b) 即得 S(a,b)。数据结构只需支持前缀查询，不必支持区间查询。",
