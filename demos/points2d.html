@@ -362,13 +362,13 @@ function genScan(mode) {
         // scanPref 无分解阶段：查询顶点在遇到时揭示
         if (!shownCorners.some(c => c[3] === e.qi && c[4] === 0)) shownCorners.push([a, b, 1, e.qi, 0]);
         const countedPts = []; PTS.forEach((p, pi) => { if (inserted.has(pi) && p[1] <= b) countedPts.push(pi); });
-        list.push(base({ sweepX: e.x, sweepY: b, curQ: e.qi, prefRect: [a, b], prefSign: 1, corner: { qi: e.qi, term: 0 }, countedPts, dsAcc: acc, dsPath: [], ansMark: { qi: e.qi, sign: 1, delta: cnt, set: true }, desc: `查询顶点 (${a}, ${b})：结构里是 x≤${a} 的点，求 <b>y ≤ ${b}</b> 的个数，即 <b>S(${a},${b})</b> = <span class="hl">${cnt}</span>。写入 <b>ans[${e.qi}]</b>。`, vars: { a, b, "S(a,b)": cnt } }));
+        list.push(base({ sweepX: e.x, sweepY: b, curQ: e.qi, prefRect: [a, b], prefSign: 1, corner: { qi: e.qi, term: 0 }, countedPts, dsAcc: acc, dsPath: [], ansMark: { qi: e.qi, sign: 1, delta: cnt, set: true }, desc: `查询顶点 (${a}, ${b})：结构里是 x≤${a} 的点，求 <b>y ≤ ${b}</b> 的个数，即 <b>S(${a},${b})</b> = <span class="hl">${cnt}</span>。写入 <b>ans[${e.qi + 1}]</b>。`, vars: { a, b, "S(a,b)": cnt } }));
       } else {
         ans[e.qi] += e.sign * cnt;
         const empty = (a < 0 || b < 1);
         const countedPts = []; if (!empty) PTS.forEach((p, pi) => { if (p[0] <= a && p[1] <= b) countedPts.push(pi); });
         list.push(base({ sweepX: e.x < 0 ? -1 : e.x, sweepY: b, curQ: e.qi, prefRect: empty ? null : [a, b], prefSign: e.sign, corner: { qi: e.qi, term: e.term }, countedPts, dsAcc: acc, dsPath: [], ansMark: { qi: e.qi, sign: e.sign, delta: empty ? 0 : cnt },
-          desc: `扫描线 x=${a}、当前列处理到 y=${b}：遇到矩形 #${e.qi + 1} 的角 <b>${TERMSTR[e.term]}</b>（第 ${e.term + 1}/4 项）。统计 (0,0)→(${a},${b}) 内待统计点数 ${empty ? `（a&lt;0 或 b&lt;1，空区域）= <b>0</b>` : `query(${b})=<b>${cnt}</b>`}，按 <b>${e.sign > 0 ? "＋" : "−"}</b> 更新 ans[${e.qi}]。当前累计 = <span class="hl">${ans[e.qi]}</span>。`,
+          desc: `扫描线 x=${a}、当前列处理到 y=${b}：遇到矩形 #${e.qi + 1} 的角 <b>${TERMSTR[e.term]}</b>（第 ${e.term + 1}/4 项）。统计 (0,0)→(${a},${b}) 内待统计点数 ${empty ? `（a&lt;0 或 b&lt;1，空区域）= <b>0</b>` : `query(${b})=<b>${cnt}</b>`}，按 <b>${e.sign > 0 ? "＋" : "−"}</b> 更新 ans[${e.qi + 1}]。当前累计 = <span class="hl">${ans[e.qi]}</span>。`,
           vars: { 项: TERMSTR[e.term], "S(a,b)": empty ? 0 : cnt, 本次: (e.sign > 0 ? "+" : "−") + (empty ? 0 : cnt), 累计: ans[e.qi] } }));
       }
     }
@@ -542,7 +542,7 @@ function drawAnsArray(s) {
         ? `<span class="delta plus">←${d}</span>`
         : `<span class="delta ${m.sign > 0 ? "plus" : "minus"}">${m.sign > 0 ? "+" : "−"}${d}</span>`;
     }
-    h += `<div class="${cls}">${delta}<span class="idx">#${qi + 1} · ans[${qi}]</span><span class="val">${v == null ? "—" : v}</span></div>`;
+    h += `<div class="${cls}">${delta}<span class="idx">ans[${qi + 1}]</span><span class="val">${v == null ? "—" : v}</span></div>`;
   });
   h += `</div>`;
   $("ansView").innerHTML = h;
