@@ -100,6 +100,7 @@
   .corner.plus { fill: var(--green); }
   .corner.minus { fill: var(--magenta); }
   .corner.cur { stroke: var(--yellow); stroke-width: 2.5; filter: drop-shadow(0 0 6px rgba(255,212,0,.9)); }
+  .corner.fresh { stroke: #fff; stroke-width: 2; }
   .cornlbl { font-family: "SF Mono", Menlo, monospace; font-size: 10px; font-weight: 700; text-anchor: middle; }
   .cornlbl.plus { fill: var(--green); }
   .cornlbl.minus { fill: var(--magenta); }
@@ -286,9 +287,27 @@ function genScan(mode) {
   let bit = new Array(M + 1).fill(0);
   let seg = new Array(4 * M).fill(0);
   const snapDS = () => dsKind === "bit" ? { bit: [...bit] } : { seg: [...seg] };
-  const base = (extra) => Object.assign({ mode, insertedPts: [...inserted], ans: [...ans] }, snapDS(), extra);
+  // 累积已在平面上显示的角（分解阶段逐步揭示，扫描阶段全程保留）
+  const shownCorners = [];
+  const base = (extra) => Object.assign({ mode, insertedPts: [...inserted], ans: [...ans], corners: shownCorners.map(c => [...c]) }, snapDS(), extra);
 
-  list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], desc: `扫描线<b>从左到右</b>推进；同一条竖线上的事件<b>按 y 升序（自下而上）</b>依次处理（同一点位上点先于查询）。<b>待统计的点</b> → 树状数组单点 +1；<b>矩形的角 (a,b)</b> → 此刻结构里正好是 x≤a 的点，<b>query(b)</b> 统计 (0,0)→(a,b) 内顶点数，即 <b>S(a,b)</b>，再按 +S/−S 更新 ans[]。${mode === "scanRect" ? "任意矩形拆成 <b>4 个角</b>：<br><b>ans = S(x₂,y₂) − S(x₁−1,y₂) − S(x₂,y₁−1) + S(x₁−1,y₁−1)</b>。" : "前缀矩形 (0,0)→(X,Y) 的答案就是一次 <b>S(X,Y)</b>。"}`, vars: {} }));
+  // ===== 阶段一：分解（仅 scanRect）——每个矩形容斥拆成 4 个角，标注 ±S，随后隐去矩形 =====
+  const TERMSTR = ["+S(x₂,y₂)", "−S(x₁−1,y₂)", "−S(x₂,y₁−1)", "+S(x₁−1,y₁−1)"];
+  if (mode === "scanRect") {
+    list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], desc: `<b>阶段一：容斥分解。</b>逐个把待查询矩形 [x₁,x₂]×[y₁,y₂] 拆成 4 个角：<br><b>ans = ＋S(x₂,y₂) − S(x₁−1,y₂) − S(x₂,y₁−1) ＋ S(x₁−1,y₁−1)</b>，<br>标注每个角是 +S 还是 −S，随后把矩形隐去，只保留 4 个角（菱形◆，与青色圆点区分）。`, vars: {} }));
+    QS.forEach(([x1, y1, x2, y2], qi) => {
+      const four = [[x2, y2, 1, qi, 0], [x1 - 1, y2, -1, qi, 1], [x2, y1 - 1, -1, qi, 2], [x1 - 1, y1 - 1, 1, qi, 3]];
+      four.forEach((c, ci) => {
+        shownCorners.push(c);
+        list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], showRect: qi, newCorner: { qi, term: c[4] },
+          desc: `矩形 #${qi + 1} [${x1},${x2}]×[${y1},${y2}] 拆出第 ${ci + 1}/4 个角 <b>${TERMSTR[c[4]]}</b> → 位置 (${c[0]}, ${c[1]})。`, vars: {} }));
+      });
+      list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], desc: `矩形 #${qi + 1} 分解完成：4 个角 <b>＋S(${x2},${y2}) − S(${x1 - 1},${y2}) − S(${x2},${y1 - 1}) ＋ S(${x1 - 1},${y1 - 1})</b>。矩形隐去，保留这 4 个角。`, vars: {} }));
+    });
+    list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], desc: `全部矩形分解完毕，平面上是所有矩形的角（共 ${shownCorners.length} 个）。<b>阶段二：扫描线</b>从左到右推进，同一竖线自下而上依次处理点与角。`, vars: {} }));
+  } else {
+    list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], desc: `扫描线<b>从左到右</b>推进；同一竖线<b>按 y 升序（自下而上）</b>依次处理。<b>待统计的点</b> → 树状数组单点 +1；<b>查询顶点 (X,Y)</b> → query(Y) 统计 (0,0)→(X,Y) 内点数，即 <b>S(X,Y)</b> 写入 ans[]。`, vars: {} }));
+  }
 
   // BIT/线段树 前缀查询 query(b)= 计数 y≤b（即 S(a,b)，a 由扫描线位置隐含）
   const bitAdd = y => { const path = []; for (let i = y; i <= M; i += lowbit(i)) { bit[i]++; path.push(i); } return path; };
@@ -298,7 +317,6 @@ function genScan(mode) {
   // 统一前缀原语：a<0 或 b<1 时 S(a,b)=0（空区域），不查结构
   const prefixS = (a, b, accArr) => (a < 0 || b < 1) ? 0 : (dsKind === "bit" ? bitQ(b, accArr) : segQ(1, b, accArr));
 
-  const TERMSTR = ["+S(x₂,y₂)", "−S(x₁−1,y₂)", "−S(x₂,y₁−1)", "+S(x₁−1,y₁−1)"];
   for (const e of ev) {
     if (e.type === 0) {
       const y = e.y;
@@ -312,17 +330,16 @@ function genScan(mode) {
       const cnt = prefixS(a, b, acc);
       if (mode === "scanPref") {
         ans[e.qi] = cnt;
+        // scanPref 无分解阶段：查询顶点在遇到时揭示
+        if (!shownCorners.some(c => c[3] === e.qi && c[4] === 0)) shownCorners.push([a, b, 1, e.qi, 0]);
         const countedPts = []; PTS.forEach((p, pi) => { if (inserted.has(pi) && p[1] <= b) countedPts.push(pi); });
-        list.push(base({ sweepX: e.x, sweepY: b, curQ: e.qi, prefRect: [a, b], prefSign: 1, corners: [[a, b, 1]], corner: [a, b], countedPts, dsAcc: acc, dsPath: [], ansMark: { qi: e.qi, sign: 1, delta: cnt, set: true }, desc: `查询顶点 (${a}, ${b})：结构里是 x≤${a} 的点，求 <b>y ≤ ${b}</b> 的个数，即 <b>S(${a},${b})</b> = <span class="hl">${cnt}</span>。写入 <b>ans[${e.qi}]</b>。`, vars: { a, b, "S(a,b)": cnt } }));
+        list.push(base({ sweepX: e.x, sweepY: b, curQ: e.qi, prefRect: [a, b], prefSign: 1, corner: { qi: e.qi, term: 0 }, countedPts, dsAcc: acc, dsPath: [], ansMark: { qi: e.qi, sign: 1, delta: cnt, set: true }, desc: `查询顶点 (${a}, ${b})：结构里是 x≤${a} 的点，求 <b>y ≤ ${b}</b> 的个数，即 <b>S(${a},${b})</b> = <span class="hl">${cnt}</span>。写入 <b>ans[${e.qi}]</b>。`, vars: { a, b, "S(a,b)": cnt } }));
       } else {
         ans[e.qi] += e.sign * cnt;
-        const [x1, y1, x2, y2] = QS[e.qi];
-        const countedPts = []; if (!(a < 0 || b < 1)) PTS.forEach((p, pi) => { if (p[0] <= a && p[1] <= b) countedPts.push(pi); });
         const empty = (a < 0 || b < 1);
-        // 四个查询顶点(角)：[a, b, sign]
-        const corners = [[x2, y2, 1], [x1 - 1, y2, -1], [x2, y1 - 1, -1], [x1 - 1, y1 - 1, 1]];
-        list.push(base({ sweepX: e.x < 0 ? -1 : e.x, sweepY: b, curQ: e.qi, qRect: [x1, y1, x2, y2], prefRect: empty ? null : [a, b], prefSign: e.sign, corners, corner: [a, b], countedPts, dsAcc: acc, dsPath: [], ansMark: { qi: e.qi, sign: e.sign, delta: empty ? 0 : cnt },
-          desc: `扫描线 x=${a}、当前列处理到 y=${b}：遇到矩形 #${e.qi + 1} 的角 <b>${TERMSTR[e.term]}</b>（第 ${e.term + 1}/4 项）。统计 (0,0)→(${a},${b}) 内顶点数 ${empty ? `（a&lt;0 或 b&lt;1，空区域）= <b>0</b>` : `query(${b})=<b>${cnt}</b>`}，按 <b>${e.sign > 0 ? "＋" : "−"}</b> 更新 ans[${e.qi}]。当前累计 = <span class="hl">${ans[e.qi]}</span>。`,
+        const countedPts = []; if (!empty) PTS.forEach((p, pi) => { if (p[0] <= a && p[1] <= b) countedPts.push(pi); });
+        list.push(base({ sweepX: e.x < 0 ? -1 : e.x, sweepY: b, curQ: e.qi, prefRect: empty ? null : [a, b], prefSign: e.sign, corner: { qi: e.qi, term: e.term }, countedPts, dsAcc: acc, dsPath: [], ansMark: { qi: e.qi, sign: e.sign, delta: empty ? 0 : cnt },
+          desc: `扫描线 x=${a}、当前列处理到 y=${b}：遇到矩形 #${e.qi + 1} 的角 <b>${TERMSTR[e.term]}</b>（第 ${e.term + 1}/4 项）。统计 (0,0)→(${a},${b}) 内待统计点数 ${empty ? `（a&lt;0 或 b&lt;1，空区域）= <b>0</b>` : `query(${b})=<b>${cnt}</b>`}，按 <b>${e.sign > 0 ? "＋" : "−"}</b> 更新 ans[${e.qi}]。当前累计 = <span class="hl">${ans[e.qi]}</span>。`,
           vars: { 项: TERMSTR[e.term], "S(a,b)": empty ? 0 : cnt, 本次: (e.sign > 0 ? "+" : "−") + (empty ? 0 : cnt), 累计: ans[e.qi] } }));
       }
     }
@@ -353,9 +370,14 @@ function drawPlane(s) {
     const [a, b] = s.prefRect;
     g += rectSvg([0, 0, a, b], "prefbox " + (s.prefSign > 0 ? "plus" : "minus"));
   }
-  // 始终画出所有查询矩形（淡框），当前查询用高亮框
-  QS.forEach((q, qi) => { if (qi !== s.curQ) g += rectSvg(toRect(q), "qbox dim"); });
-  if (s.curQ != null && QS[s.curQ]) g += rectSvg(toRect(QS[s.curQ]), "qbox");
+  if (method === "scanRect") {
+    // scanRect：仅「分解阶段」显示正在拆分的矩形；扫描阶段矩形隐去，只留四个角
+    if (s.showRect != null && QS[s.showRect]) g += rectSvg(QS[s.showRect], "qbox");
+  } else {
+    // prefix / scanPref：画出所有查询矩形（淡框），当前查询用高亮框
+    QS.forEach((q, qi) => { if (qi !== s.curQ) g += rectSvg(toRect(q), "qbox dim"); });
+    if (s.curQ != null && QS[s.curQ]) g += rectSvg(toRect(QS[s.curQ]), "qbox");
+  }
   if (s.sweepX >= 0 && s.sweepX <= mx) {
     g += `<line class="sweep" x1="${sx(s.sweepX)}" y1="12" x2="${sx(s.sweepX)}" y2="${W - pad}"/>`;
     // 列内 y 升序处理的游标：沿扫描线上下移动
@@ -372,13 +394,14 @@ function drawPlane(s) {
     g += `<circle class="${cls}" cx="${sx(p[0])}" cy="${sy(p[1])}" r="6"/>`;
     g += `<text class="ptxt" x="${sx(p[0])}" y="${sy(p[1]) - 9}">${p[0]},${p[1]}</text>`;
   });
-  // 四个查询顶点(角)：菱形，正项绿/负项粉，当前处理的角描黄边
+  // 查询顶点(角)：菱形，正项绿/负项粉；当前处理的角描黄边，刚拆出的角脉冲高亮
   if (s.corners) {
-    s.corners.forEach(([a, b, sign]) => {
+    s.corners.forEach(([a, b, sign, qi, term]) => {
       const cx = sx(a <= 0 ? 0 : a), cy = sy(b <= 0 ? 0 : b), r = 5.5;
       const sc = sign > 0 ? "plus" : "minus";
-      const isCur = s.corner && s.corner[0] === a && s.corner[1] === b;
-      g += `<polygon class="corner ${sc}${isCur ? " cur" : ""}" points="${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}"/>`;
+      const isCur = s.corner && s.corner.qi === qi && s.corner.term === term;
+      const isNew = s.newCorner && s.newCorner.qi === qi && s.newCorner.term === term;
+      g += `<polygon class="corner ${sc}${isCur ? " cur" : ""}${isNew ? " fresh" : ""}" points="${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}"/>`;
       g += `<text class="cornlbl ${sc}" x="${cx}" y="${cy + r + 12}">${sign > 0 ? "+" : "−"}S(${a},${b})</text>`;
     });
   }
