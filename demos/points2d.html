@@ -38,14 +38,17 @@
     font-family: "SF Mono", Menlo, monospace; transition: all .18s;
   }
   .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
-  .tabs { display: flex; gap: 10px; padding: 14px 30px 0; }
+  .tabs { display: flex; gap: 10px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .tabs.sub { padding-top: 8px; }
   .tab {
-    padding: 9px 20px; border: 1px solid var(--border); border-radius: 999px;
-    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 14px;
+    padding: 9px 18px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 13.5px;
     cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
   }
+  .tab.sub { padding: 6px 14px; font-size: 12.5px; background: rgba(160,107,255,0.06); color: #c9b3ff; }
   .tab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
   .tab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .tab.sub.active { background: #a06bff; color: #05060f; border-color: #a06bff; box-shadow: 0 0 10px rgba(160,107,255,.5); }
   .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
   .field { display: flex; flex-direction: column; gap: 5px; }
   .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
@@ -79,20 +82,17 @@
   }
   .rowlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
   .rowlabel.mt { margin-top: 16px; }
-  /* 平面 SVG */
   svg.plane { width: 100%; height: auto; display: block; }
   .axis { stroke: var(--border); stroke-width: 1.5; }
-  .gline { stroke: rgba(120,120,160,.12); stroke-width: 1; }
   .alabel { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 10px; }
   .pt { fill: var(--node-fill); stroke: var(--cyan); stroke-width: 1.5; transition: all .2s; }
   .pt.inserted { fill: rgba(0,240,255,0.35); stroke: var(--cyan); }
   .pt.counted { fill: var(--green); stroke: var(--green); filter: drop-shadow(0 0 5px rgba(0,255,156,.6)); }
   .pt.cur { fill: var(--yellow); stroke: var(--yellow); filter: drop-shadow(0 0 7px rgba(255,212,0,.8)); }
-  .qbox { fill: rgba(255,43,214,0.08); stroke: var(--magenta); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .qbox { fill: rgba(255,43,214,0.10); stroke: var(--magenta); stroke-width: 1.5; stroke-dasharray: 4 3; }
   .qdot { fill: var(--magenta); }
   .sweep { stroke: var(--yellow); stroke-width: 2; stroke-dasharray: 5 4; opacity: .85; }
   .ptxt { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 9px; text-anchor: middle; }
-  /* y 维数据结构 SVG（BIT 或线段树） */
   svg.ds { width: 100%; height: auto; display: block; }
   .dsedge { stroke: var(--border); stroke-width: 1.2; }
   .dsedge.path { stroke: var(--magenta); stroke-width: 2.4; }
@@ -105,7 +105,14 @@
   g.cur .dsv { fill: #120e00; }
   g.acc .dsv { fill: var(--green); }
   .dslbl { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 9px; text-anchor: middle; }
-  /* 右栏 */
+  /* 二维前缀和矩阵 */
+  table.psmat { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 12px; margin: 0 auto; }
+  table.psmat td, table.psmat th { border: 1px solid var(--border); width: 34px; height: 30px; text-align: center; }
+  table.psmat th { color: var(--cyan); background: rgba(0,240,255,0.05); font-size: 10px; }
+  table.psmat td.cell { background: var(--node-fill); transition: all .15s; }
+  table.psmat td.cur { background: var(--yellow); color: #120e00; box-shadow: 0 0 8px rgba(255,212,0,.6) inset; }
+  table.psmat td.plus { background: rgba(0,255,156,0.25); color: var(--green); }   /* 容斥 +项 */
+  table.psmat td.minus { background: rgba(255,43,214,0.22); color: #ff8ad0; }        /* 容斥 −项 */
   .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 12px 0 8px; }
   .formula {
     background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px;
@@ -127,18 +134,25 @@
 <body>
 <header>
   <h1>二维数点 · 二维偏序</h1>
-  <p>给一堆点和若干查询 (X,Y)，求有多少点满足 <code>x ≤ X 且 y ≤ Y</code>。离线按 x 排序扫描，用数据结构维护 y 维计数——一维降一维。</p>
+  <p id="subtitle">给一堆点和查询矩形，求矩形内点数。三种解法：二维前缀和 / 扫描线(前缀矩形) / 扫描线(任意矩形)。</p>
 </header>
 <a class="back" href="../index.html">← 返回门户</a>
 
-<div class="tabs">
-  <div class="tab active" data-ds="bit">树状数组实现</div>
-  <div class="tab" data-ds="seg">线段树实现</div>
+<div class="tabs" id="methodTabs">
+  <div class="tab active" data-m="prefix">① 二维前缀和</div>
+  <div class="tab" data-m="scanPref">② 扫描线 · 前缀矩形 (0,0)→(x,y)</div>
+  <div class="tab" data-m="scanRect">③ 扫描线 · 任意矩形</div>
 </div>
+<div class="tabs sub" id="dsTabs" style="display:none">
+  <span style="color:var(--muted);font-size:12px;font-family:monospace;align-self:center">数据结构：</span>
+  <div class="tab sub active" data-ds="bit">树状数组</div>
+  <div class="tab sub" data-ds="seg">线段树</div>
+</div>
+
 <div class="controls">
   <div class="field"><label>点集 (x,y; 分号分隔)</label><input id="ptInput" class="wide" type="text" value="1,3; 2,1; 3,4; 4,2; 5,5; 6,3"></div>
-  <div class="field"><label>查询 (X,Y; 分号分隔)</label><input id="qInput" class="wide" type="text" value="3,3; 5,2; 6,5"></div>
-  <button class="btn cy" id="runBtn">开始扫描</button>
+  <div class="field" id="qField"><label id="qLabel">查询矩形 (x1,y1,x2,y2; 分号分隔)</label><input id="qInput" class="wide" type="text" value="1,1,3,4; 2,2,6,5"></div>
+  <button class="btn cy" id="runBtn">开始</button>
   <button class="btn" id="playBtn" disabled>自动播放</button>
   <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
   <button class="btn secondary" id="randBtn">随机</button>
@@ -148,12 +162,12 @@
 
 <main>
   <section class="card">
-    <div class="rowlabel">平面（黄线=扫描线，青点=已插入，绿点=被本次查询计入，粉框=查询矩形 [0,X]×[0,Y]）</div>
+    <div class="rowlabel" id="planeLabel">平面</div>
     <svg id="plane" class="plane" viewBox="0 0 420 420" preserveAspectRatio="xMidYMid meet"></svg>
   </section>
   <section class="card">
-    <div class="rowlabel" id="dsLabel">y 维数据结构：树状数组 c[]</div>
-    <svg id="ds" class="ds" viewBox="0 0 460 260" preserveAspectRatio="xMidYMin meet"></svg>
+    <div class="rowlabel" id="rightLabel">数据结构</div>
+    <div id="rightView"></div>
     <div class="plabel">算法</div>
     <div class="formula" id="formula"></div>
     <div class="vars" id="vars"></div>
@@ -161,103 +175,138 @@
     <div class="status" id="status"></div>
   </section>
 </main>
-<div class="note" id="note">二维偏序离线套路：把「点」和「查询」按 <code>x</code> 升序处理（同 x 时点排在查询前）。扫描到一个点就把它的 <code>y</code> 插入数据结构（计数 +1）；扫描到查询 (X,Y) 时，此刻结构里正好是所有 x≤X 的点，求其中 <code>y ≤ Y</code> 的个数即答案（前缀计数）。树状数组 / 线段树都能 O(log n) 完成单点加 + 前缀查询。</div>
+<div class="note" id="note"></div>
 
 <script src="../assets/cppview.js"></script>
 <script>
 const $ = id => document.getElementById(id);
+let method = "prefix";    // prefix / scanPref / scanRect
 let dsKind = "bit";
 let steps = [], idx = 0, timer = null, running = false;
-let PTS = [], QS = [], MY = 1;   // 点、查询、y 值域上界
+let PTS = [], QS = [], MX = 1, MY = 1;   // QS 元素：prefix=[X,Y]；scanRect=[x1,y1,x2,y2]
 function setStatus(t) { $("status").innerHTML = t; }
 function lowbit(x) { return x & (-x); }
 
-// ======== 分步生成 ========
-// step: { sweepX, cur:{kind,x,y|Y,qi}, ptState:{ptIndex->'inserted'|'counted'|'cur'},
-//         ds:{...当前数据结构状态}, dsPath:[..节点], dsAcc:[..], ans:[..], desc, vars }
-function genSteps() {
+// ===================== 分步生成 =====================
+// 通用 step 字段：desc, vars, ansIdx(当前查询下标), sweepX,
+//   plane 高亮：insertedPts[], countedPts[], curPt, qRect:[x1,y1,x2,y2], qRectSub(容斥子矩形数组)
+//   ds 状态：bit[] / seg[]，dsPath[], dsAcc[]
+//   前缀和：ps(矩阵), psMark(单元格高亮 {r,c,cls})
+
+// —— 解法① 二维前缀和 ——
+function genPrefix() {
   const list = [];
-  const M = MY;
-  // 事件：点(type0) + 查询(type1)，按 x 升序，同 x 点先于查询
-  const ev = [];
-  PTS.forEach((p, pi) => ev.push({ x: p[0], y: p[1], type: 0, pi }));
-  QS.forEach((q, qi) => ev.push({ x: q[0], Y: q[1], type: 1, qi }));
-  ev.sort((a, b) => a.x - b.x || a.type - b.type);
-
-  const ans = new Array(QS.length).fill(null);
-  const inserted = new Set();   // 已插入的点下标
-  // 数据结构
-  let bit = new Array(M + 1).fill(0);
-  let seg = new Array(4 * M).fill(0);
-  const snapDS = () => dsKind === "bit" ? { bit: [...bit] } : { seg: [...seg] };
-  const base = (extra) => Object.assign({ inserted: [...inserted], ans: [...ans] }, snapDS(), extra);
-
-  list.push(base({ sweepX: -1, cur: null, dsPath: [], dsAcc: [], desc: `按 x 升序处理点和查询（同 x 时点在前）。扫描线从左向右移动。`, vars: {} }));
-
-  for (const e of ev) {
-    if (e.type === 0) {
-      // 插入点 e.pi 的 y
-      const y = e.y, path = [];
-      list.push(base({ sweepX: e.x, cur: { kind: "pt", x: e.x, y, pi: e.pi }, curPt: e.pi, dsPath: [], dsAcc: [],
-        desc: `扫描线到 x=${e.x}：遇到点 (${e.x}, ${y})。把它的 y=${y} 插入数据结构（计数 +1）。`, vars: { x: e.x, y } }));
-      if (dsKind === "bit") {
-        for (let i = y; i <= M; i += lowbit(i)) { bit[i]++; path.push(i); }
-      } else {
-        const upd = (node, lo, hi) => { seg[node]++; if (lo === hi) return; const mid = (lo + hi) >> 1; if (y <= mid) upd(node * 2, lo, mid); else upd(node * 2 + 1, mid + 1, hi); };
-        // 记录路径节点(用 node 编号)
-        (function rec(node, lo, hi) { path.push(node); if (lo === hi) return; const mid = (lo + hi) >> 1; if (y <= mid) rec(node * 2, lo, mid); else rec(node * 2 + 1, mid + 1, hi); })(1, 1, M);
-        upd(1, 1, M);
-      }
-      inserted.add(e.pi);
-      list.push(base({ sweepX: e.x, cur: { kind: "pt", x: e.x, y, pi: e.pi }, curPt: e.pi, dsPath: [...path], dsAcc: [],
-        desc: `插入 y=${y} 完成（${dsKind === "bit" ? "沿 i += lowbit(i) 向上跳，路径上的 c[] 各 +1" : "从根到叶递归，路径上每个区间计数 +1"}）。`, vars: { y } }));
-    } else {
-      // 查询 (e.x, e.Y)：求 y <= Y 计数
-      const Y = e.Y, acc = [];
-      let cnt = 0;
-      if (dsKind === "bit") {
-        for (let i = Y; i > 0; i -= lowbit(i)) { cnt += bit[i]; acc.push(i); }
-      } else {
-        (function rec(node, lo, hi) { if (hi <= Y) { acc.push(node); cnt += seg[node]; return; } const mid = (lo + hi) >> 1; if (1 <= mid) rec(node * 2, lo, mid); if (Y > mid) rec(node * 2 + 1, mid + 1, hi); })(1, 1, M);
-      }
-      ans[e.qi] = cnt;
-      // 被计入的点：x<=e.x 且 y<=Y 的已插入点
-      const countedPts = [];
-      PTS.forEach((p, pi) => { if (inserted.has(pi) && p[1] <= Y) countedPts.push(pi); });
-      list.push(base({ sweepX: e.x, cur: { kind: "q", x: e.x, Y, qi: e.qi }, qRange: [1, Y], countedPts, dsAcc: acc, dsPath: [],
-        desc: `扫描线到 x=${e.x}：查询 (${e.x}, ${Y})。此刻结构里是所有 x≤${e.x} 的点，求其中 <b>y ≤ ${Y}</b> 的个数。<br>${dsKind === "bit" ? "沿 i −= lowbit(i) 向下跳累加" : "递归收集 [1,Y] 内的区间计数"} = <span class="hl">${cnt}</span>。`, vars: { X: e.x, Y, ans: cnt } }));
-    }
+  // 网格计数 g[x][y]（1..MX × 1..MY）
+  const g = Array.from({ length: MX + 1 }, () => new Array(MY + 1).fill(0));
+  PTS.forEach(([x, y]) => { g[x][y]++; });
+  const ps = Array.from({ length: MX + 1 }, () => new Array(MY + 1).fill(0));
+  const clonePS = () => ps.map(r => [...r]);
+  list.push({ mode: "prefix", ps: clonePS(), psMark: {}, ans: QS.map(() => null),
+    desc: `二维前缀和：先在网格里数每格点数 g[x][y]，再递推 <b>sum[i][j]=g[i][j]+sum[i-1][j]+sum[i][j-1]−sum[i-1][j-1]</b>。`, vars: {} });
+  // 逐格递推
+  for (let i = 1; i <= MX; i++) for (let j = 1; j <= MY; j++) {
+    ps[i][j] = g[i][j] + ps[i - 1][j] + ps[i][j - 1] - ps[i - 1][j - 1];
+    list.push({ mode: "prefix", ps: clonePS(), psMark: { cur: [i, j] }, ans: QS.map(() => null),
+      desc: `sum[${i}][${j}] = g[${i}][${j}](${g[i][j]}) + sum[${i - 1}][${j}] + sum[${i}][${j - 1}] − sum[${i - 1}][${j - 1}] = <b>${ps[i][j]}</b>。`, vars: { i, j } });
   }
-  list.push(base({ sweepX: 999, cur: null, dsPath: [], dsAcc: [], done: true, desc: `<span class="hl">全部处理完毕！</span>各查询答案见右表。`, vars: {} }));
+  // 逐个查询：容斥
+  const ans = QS.map(() => 0);
+  QS.forEach(([x1, y1, x2, y2], qi) => {
+    const val = ps[x2][y2] - ps[x1 - 1][y2] - ps[x2][y1 - 1] + ps[x1 - 1][y1 - 1];
+    ans[qi] = val;
+    list.push({ mode: "prefix", ps: clonePS(), ans: [...ans], curQ: qi,
+      qRect: [x1, y1, x2, y2],
+      psMark: { plus: [[x2, y2], [x1 - 1, y1 - 1]], minus: [[x1 - 1, y2], [x2, y1 - 1]] },
+      desc: `查询矩形 [${x1},${x2}]×[${y1},${y2}]：<br><b>sum[${x2}][${y2}] − sum[${x1 - 1}][${y2}] − sum[${x2}][${y1 - 1}] + sum[${x1 - 1}][${y1 - 1}]</b><br>= ${ps[x2][y2]} − ${ps[x1 - 1][y2]} − ${ps[x2][y1 - 1]} + ${ps[x1 - 1][y1 - 1]} = <span class="hl">${val}</span>。`,
+      vars: { 答案: val } });
+  });
+  list.push({ mode: "prefix", ps: clonePS(), ans: [...ans], psMark: {}, done: true, desc: `<span class="hl">完成！</span>各查询答案见下表。二维前缀和 O(MX·MY) 预处理、每次查询 O(1)，适合小值域。`, vars: {} });
   return list;
 }
 
-// ======== 渲染：平面 ========
+// —— 解法②③ 共用：扫描线 + BIT/线段树 ——
+// mode: scanPref(前缀查询 y≤Y) / scanRect(区间查询 y∈[y1,y2]，每查询拆两事件容斥)
+function genScan(mode) {
+  const list = [];
+  const M = MY;
+  const ev = [];
+  PTS.forEach((p, pi) => ev.push({ x: p[0], type: 0, y: p[1], pi }));
+  if (mode === "scanPref") {
+    QS.forEach(([X, Y], qi) => ev.push({ x: X, type: 1, Y, qi, sign: 1 }));
+  } else {
+    QS.forEach(([x1, y1, x2, y2], qi) => {
+      ev.push({ x: x2, type: 1, y1, y2, qi, sign: 1 });        // +query([y1,y2])
+      ev.push({ x: x1 - 1, type: 1, y1, y2, qi, sign: -1 });   // -query([y1,y2])
+    });
+  }
+  ev.sort((a, b) => a.x - b.x || a.type - b.type);
+  const ans = new Array(QS.length).fill(mode === "scanRect" ? 0 : null);
+  const inserted = new Set();
+  let bit = new Array(M + 1).fill(0);
+  let seg = new Array(4 * M).fill(0);
+  const snapDS = () => dsKind === "bit" ? { bit: [...bit] } : { seg: [...seg] };
+  const base = (extra) => Object.assign({ mode, insertedPts: [...inserted], ans: [...ans] }, snapDS(), extra);
+
+  list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], desc: `按 x 升序处理点与查询（同 x 点先于查询）。扫描线从左向右。${mode === "scanRect" ? "每个查询矩形拆成两个事件：x=x2 处 +query([y1,y2])、x=x1−1 处 −query([y1,y2])，容斥得矩形内点数。" : ""}`, vars: {} }));
+
+  // BIT/线段树 前缀和 query(i)= y<=i 计数；区间 rq(l,r)=query(r)-query(l-1)
+  const bitAdd = y => { const path = []; for (let i = y; i <= M; i += lowbit(i)) { bit[i]++; path.push(i); } return path; };
+  const bitQ = (Y, accArr) => { let s = 0; for (let i = Y; i > 0; i -= lowbit(i)) { s += bit[i]; accArr.push(i); } return s; };
+  const segAdd = y => { const path = []; (function rec(node, lo, hi) { path.push(node); if (lo === hi) return; const mid = (lo + hi) >> 1; if (y <= mid) rec(node * 2, lo, mid); else rec(node * 2 + 1, mid + 1, hi); })(1, 1, M); (function upd(node, lo, hi) { seg[node]++; if (lo === hi) return; const mid = (lo + hi) >> 1; if (y <= mid) upd(node * 2, lo, mid); else upd(node * 2 + 1, mid + 1, hi); })(1, 1, M); return path; };
+  const segQ = (ql, qr, accArr) => { let s = 0; (function rec(node, lo, hi) { if (qr < ql || ql > hi || qr < lo) return; if (ql <= lo && hi <= qr) { accArr.push(node); s += seg[node]; return; } const mid = (lo + hi) >> 1; rec(node * 2, lo, mid); rec(node * 2 + 1, mid + 1, hi); })(1, 1, M); return s; };
+
+  for (const e of ev) {
+    if (e.type === 0) {
+      const y = e.y;
+      list.push(base({ sweepX: e.x, curPt: e.pi, dsPath: [], dsAcc: [], desc: `扫描到点 (${e.x}, ${y})：把 y=${y} 插入数据结构（计数 +1）。`, vars: { x: e.x, y } }));
+      const path = dsKind === "bit" ? bitAdd(y) : segAdd(y);
+      inserted.add(e.pi);
+      list.push(base({ sweepX: e.x, curPt: e.pi, dsPath: path, dsAcc: [], desc: `插入 y=${y} 完成（${dsKind === "bit" ? "沿 i+=lowbit 向上跳更新" : "根到叶路径各区间 +1"}）。`, vars: { y } }));
+    } else {
+      const acc = [];
+      let cnt;
+      if (mode === "scanPref") {
+        cnt = dsKind === "bit" ? bitQ(e.Y, acc) : segQ(1, e.Y, acc);
+        ans[e.qi] = cnt;
+        const countedPts = []; PTS.forEach((p, pi) => { if (inserted.has(pi) && p[1] <= e.Y) countedPts.push(pi); });
+        list.push(base({ sweepX: e.x, curQ: e.qi, qRect: [1, 1, e.x, e.Y], countedPts, dsAcc: acc, dsPath: [], desc: `查询 (${e.x}, ${e.Y})：结构里是 x≤${e.x} 的点，求 <b>y ≤ ${e.Y}</b> 的个数 = <span class="hl">${cnt}</span>。`, vars: { X: e.x, Y: e.Y, ans: cnt } }));
+      } else {
+        cnt = dsKind === "bit" ? (bitQ(e.y2, acc) - bitQ(e.y1 - 1, [])) : segQ(e.y1, e.y2, acc);
+        ans[e.qi] += e.sign * cnt;
+        const [x1, y1, x2, y2] = QS[e.qi];
+        const countedPts = []; PTS.forEach((p, pi) => { if (inserted.has(pi) && p[1] >= e.y1 && p[1] <= e.y2) countedPts.push(pi); });
+        list.push(base({ sweepX: e.x, curQ: e.qi, qRect: e.sign > 0 ? [x1, y1, x2, y2] : null, countedPts, dsAcc: acc, dsPath: [],
+          desc: `查询矩形 #${e.qi + 1} 的事件：x=${e.x}（${e.sign > 0 ? "右边界 x2" : "左边界 x1−1"}），求 y∈[${e.y1},${e.y2}] 的点数 = ${cnt}，<b>${e.sign > 0 ? "加上" : "减去"}</b>它。当前累计答案 = <span class="hl">${ans[e.qi]}</span>。`,
+          vars: { x: e.x, "y区间": `[${e.y1},${e.y2}]`, 本次: (e.sign > 0 ? "+" : "−") + cnt } }));
+      }
+    }
+  }
+  list.push(base({ sweepX: 999, dsPath: [], dsAcc: [], done: true, desc: `<span class="hl">全部处理完毕！</span>各查询答案见下表。`, vars: {} }));
+  return list;
+}
+
+// ===================== 渲染 =====================
 function drawPlane(s) {
   const W = 420, pad = 34;
-  const maxX = Math.max(...PTS.map(p => p[0]), ...QS.map(q => q[0]), 1);
-  const maxYv = MY;
-  const sx = x => pad + (x / (maxX + 1)) * (W - 2 * pad);
-  const sy = y => (W - pad) - (y / (maxYv + 1)) * (W - 2 * pad);   // y 轴向上
+  const mx = Math.max(MX, 1), my = Math.max(MY, 1);
+  const sx = x => pad + (x / (mx + 1)) * (W - 2 * pad);
+  const sy = y => (W - pad) - (y / (my + 1)) * (W - 2 * pad);
   let g = "";
-  // 坐标轴
   g += `<line class="axis" x1="${pad}" y1="${W - pad}" x2="${W - 12}" y2="${W - pad}"/>`;
   g += `<line class="axis" x1="${pad}" y1="${W - pad}" x2="${pad}" y2="12"/>`;
-  g += `<text class="alabel" x="${W - 16}" y="${W - pad + 14}">x</text>`;
-  g += `<text class="alabel" x="${pad - 16}" y="18">y</text>`;
-  // 查询矩形 [0,X]×[0,Y]（仅当前查询）
-  if (s.cur && s.cur.kind === "q") {
-    const X = s.cur.x, Y = s.cur.Y;
-    g += `<rect class="qbox" x="${pad}" y="${sy(Y)}" width="${sx(X) - pad}" height="${(W - pad) - sy(Y)}"/>`;
-    g += `<circle class="qdot" cx="${sx(X)}" cy="${sy(Y)}" r="4"/>`;
-    g += `<text class="ptxt" x="${sx(X)}" y="${sy(Y) - 7}" fill="#ff2bd6">(${X},${Y})</text>`;
+  g += `<text class="alabel" x="${W - 16}" y="${W - pad + 14}">x</text><text class="alabel" x="${pad - 16}" y="18">y</text>`;
+  // 查询矩形（任意矩形 [x1,x2]×[y1,y2]）
+  if (s.qRect) {
+    const [x1, y1, x2, y2] = s.qRect;
+    const rx = sx(Math.max(x1, 0)), rw = sx(x2) - sx(Math.max(x1, 0)) || 0;
+    // 用左下(x1,y1)右上(x2,y2)
+    const X1 = sx(x1 <= 0 ? 0 : x1), X2 = sx(x2), Y1 = sy(y1), Y2 = sy(y2);
+    g += `<rect class="qbox" x="${Math.min(X1, X2)}" y="${Math.min(Y1, Y2)}" width="${Math.abs(X2 - X1)}" height="${Math.abs(Y1 - Y2)}"/>`;
   }
-  // 扫描线
-  if (s.sweepX >= 0 && s.sweepX <= maxX) g += `<line class="sweep" x1="${sx(s.sweepX)}" y1="12" x2="${sx(s.sweepX)}" y2="${W - pad}"/>`;
-  // 点
+  if (s.sweepX >= 0 && s.sweepX <= mx) g += `<line class="sweep" x1="${sx(s.sweepX)}" y1="12" x2="${sx(s.sweepX)}" y2="${W - pad}"/>`;
   PTS.forEach((p, pi) => {
     let cls = "pt";
-    if (s.inserted && s.inserted.includes(pi)) cls += " inserted";
+    if (s.insertedPts && s.insertedPts.includes(pi)) cls += " inserted";
     if (s.countedPts && s.countedPts.includes(pi)) cls += " counted";
     if (s.curPt === pi) cls += " cur";
     g += `<circle class="${cls}" cx="${sx(p[0])}" cy="${sy(p[1])}" r="6"/>`;
@@ -266,14 +315,35 @@ function drawPlane(s) {
   $("plane").innerHTML = g;
 }
 
-// ======== 渲染：数据结构（BIT 数组 / 线段树）========
+// 前缀和矩阵（含 0 行 0 列）
+function drawPSMat(s) {
+  const ps = s.ps;
+  let h = `<table class="psmat"><tr><th>sum</th>`;
+  for (let j = 0; j <= MY; j++) h += `<th>${j}</th>`;
+  h += `</tr>`;
+  for (let i = 0; i <= MX; i++) {
+    h += `<tr><th>${i}</th>`;
+    for (let j = 0; j <= MY; j++) {
+      let cls = "cell";
+      const m = s.psMark || {};
+      if (m.cur && m.cur[0] === i && m.cur[1] === j) cls += " cur";
+      if (m.plus && m.plus.some(([a, b]) => a === i && b === j)) cls += " plus";
+      if (m.minus && m.minus.some(([a, b]) => a === i && b === j)) cls += " minus";
+      h += `<td class="${cls}">${ps[i][j]}</td>`;
+    }
+    h += `</tr>`;
+  }
+  h += `</table>`;
+  $("rightView").innerHTML = h;
+}
+
+// 数据结构（BIT 数组 / 线段树），复用 fenwick/线段树风格
 function drawDS(s) {
-  const svg = $("ds"), M = MY;
+  const M = MY;
   if (dsKind === "bit") {
     const bit = s.bit || [];
-    const colW = Math.max(40, Math.min(60, 440 / M)), pad = 14, boxH = 40, y = 40;
-    const W = pad * 2 + M * colW, H = y + boxH + 30;
-    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    const colW = Math.max(38, Math.min(56, 440 / M)), pad = 14, boxH = 38, y = 38;
+    const W = pad * 2 + M * colW, H = y + boxH + 28;
     let g = "";
     for (let i = 1; i <= M; i++) {
       const x = pad + (i - 0.5) * colW;
@@ -281,64 +351,39 @@ function drawDS(s) {
       if (s.dsAcc && s.dsAcc.includes(i)) cls = "acc";
       if (s.dsPath && s.dsPath.includes(i)) cls = "path";
       const cov = [i - lowbit(i) + 1, i];
-      g += `<g class="${cls}"><rect class="dsbg" x="${x - colW / 2 + 4}" y="${y}" width="${colW - 8}" height="${boxH}" rx="5"/>` +
-        `<rect class="dsbox" x="${x - colW / 2 + 4}" y="${y}" width="${colW - 8}" height="${boxH}" rx="5"/>` +
-        `<text class="dsv" x="${x}" y="${y + boxH / 2 + 4}">${bit[i]}</text>` +
-        `<text class="dslbl" x="${x}" y="${y - 6}">c${i}</text>` +
-        `<text class="dslbl" x="${x}" y="${y + boxH + 12}">y=[${cov[0]},${cov[1]}]</text></g>`;
+      g += `<g class="${cls}"><rect class="dsbg" x="${x - colW / 2 + 4}" y="${y}" width="${colW - 8}" height="${boxH}" rx="5"/><rect class="dsbox" x="${x - colW / 2 + 4}" y="${y}" width="${colW - 8}" height="${boxH}" rx="5"/><text class="dsv" x="${x}" y="${y + boxH / 2 + 4}">${bit[i]}</text><text class="dslbl" x="${x}" y="${y - 6}">c${i}</text><text class="dslbl" x="${x}" y="${y + boxH + 12}">[${cov[0]},${cov[1]}]</text></g>`;
     }
-    svg.innerHTML = g;
+    $("rightView").innerHTML = `<svg class="ds" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMin meet">${g}</svg>`;
   } else {
-    // 线段树：按层布局
     const seg = s.seg || [];
     const depth = Math.ceil(Math.log2(M)) + 1;
-    const leaves = 1 << (depth - 1);
-    const W = Math.max(460, leaves * 46), pad = 20, rowH = 52;
-    const H = pad * 2 + depth * rowH;
-    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
-    // 收集节点 [node, lo, hi, level]
-    const nodes = [];
-    (function rec(node, lo, hi, lvl) { nodes.push({ node, lo, hi, lvl }); if (lo === hi) return; const mid = (lo + hi) >> 1; rec(node * 2, lo, mid, lvl + 1); rec(node * 2 + 1, mid + 1, hi, lvl + 1); })(1, 1, M, 0);
-    const xOf = {}, yOf = {};
-    // 叶子按顺序排 x，内部节点取子节点中点
-    let leafX = 0;
-    (function assign(node, lo, hi, lvl) {
-      yOf[node] = pad + lvl * rowH + 16;
-      if (lo === hi) { xOf[node] = pad + (leafX + 0.5) * ((W - 2 * pad) / M); leafX++; return; }
-      const mid = (lo + hi) >> 1; assign(node * 2, lo, mid, lvl + 1); assign(node * 2 + 1, mid + 1, hi, lvl + 1);
-      xOf[node] = (xOf[node * 2] + xOf[node * 2 + 1]) / 2;
-    })(1, 1, M, 0);
-    let edges = "", boxes = "";
-    const bw = 40, bh = 30;
-    for (const nd of nodes) {
-      if (nd.lo !== nd.hi) {
-        for (const ch of [nd.node * 2, nd.node * 2 + 1]) {
-          const hot = (s.dsPath && s.dsPath.includes(nd.node) && s.dsPath.includes(ch));
-          edges += `<line class="dsedge${hot ? " path" : ""}" x1="${xOf[nd.node]}" y1="${yOf[nd.node] + bh / 2}" x2="${xOf[ch]}" y2="${yOf[ch] - bh / 2}"/>`;
-        }
-      }
+    const W = Math.max(460, (1 << (depth - 1)) * 46), pad = 20, rowH = 50, H = pad * 2 + depth * rowH;
+    const nodes = [], xOf = {}, yOf = {}; let leafX = 0;
+    (function assign(node, lo, hi, lvl) { yOf[node] = pad + lvl * rowH + 14; nodes.push({ node, lo, hi }); if (lo === hi) { xOf[node] = pad + (leafX + 0.5) * ((W - 2 * pad) / M); leafX++; return; } const mid = (lo + hi) >> 1; assign(node * 2, lo, mid, lvl + 1); assign(node * 2 + 1, mid + 1, hi, lvl + 1); xOf[node] = (xOf[node * 2] + xOf[node * 2 + 1]) / 2; })(1, 1, M, 0);
+    let edges = "", boxes = ""; const bw = 40, bh = 28;
+    for (const nd of nodes) if (nd.lo !== nd.hi) for (const ch of [nd.node * 2, nd.node * 2 + 1]) {
+      const hot = s.dsPath && s.dsPath.includes(nd.node) && s.dsPath.includes(ch);
+      edges += `<line class="dsedge${hot ? " path" : ""}" x1="${xOf[nd.node]}" y1="${yOf[nd.node] + bh / 2}" x2="${xOf[ch]}" y2="${yOf[ch] - bh / 2}"/>`;
     }
     for (const nd of nodes) {
       let cls = "";
       if (s.dsAcc && s.dsAcc.includes(nd.node)) cls = "acc";
       if (s.dsPath && s.dsPath.includes(nd.node)) cls = "path";
       const x = xOf[nd.node], yy = yOf[nd.node];
-      boxes += `<g class="${cls}"><rect class="dsbg" x="${x - bw / 2}" y="${yy - bh / 2}" width="${bw}" height="${bh}" rx="4"/>` +
-        `<rect class="dsbox" x="${x - bw / 2}" y="${yy - bh / 2}" width="${bw}" height="${bh}" rx="4"/>` +
-        `<text class="dsv" x="${x}" y="${yy + 4}">${seg[nd.node] || 0}</text>` +
-        `<text class="dslbl" x="${x}" y="${yy - bh / 2 - 3}">[${nd.lo},${nd.hi}]</text></g>`;
+      boxes += `<g class="${cls}"><rect class="dsbg" x="${x - bw / 2}" y="${yy - bh / 2}" width="${bw}" height="${bh}" rx="4"/><rect class="dsbox" x="${x - bw / 2}" y="${yy - bh / 2}" width="${bw}" height="${bh}" rx="4"/><text class="dsv" x="${x}" y="${yy + 4}">${seg[nd.node] || 0}</text><text class="dslbl" x="${x}" y="${yy - bh / 2 - 3}">[${nd.lo},${nd.hi}]</text></g>`;
     }
-    svg.innerHTML = edges + boxes;
+    $("rightView").innerHTML = `<svg class="ds" viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMin meet">${edges + boxes}</svg>`;
   }
 }
 
-// ======== 渲染：查询答案表 ========
 function drawQTable(s) {
   if (!QS.length) { $("qtableWrap").innerHTML = ""; return; }
-  let h = `<table class="qtable"><tr><th>查询 (X,Y)</th><th>答案</th></tr>`;
+  const head = method === "scanPref" ? "查询 (X,Y)" : "查询矩形 (x1,y1,x2,y2)";
+  let h = `<table class="qtable"><tr><th>${head}</th><th>答案</th></tr>`;
   QS.forEach((q, qi) => {
     const done = s.ans && s.ans[qi] != null;
-    h += `<tr class="${done ? "done" : ""}"><td>(${q[0]}, ${q[1]})</td><td>${done ? s.ans[qi] : "—"}</td></tr>`;
+    const label = method === "scanPref" ? `(${q[0]}, ${q[1]})` : `(${q[0]},${q[1]})–(${q[2]},${q[3]})`;
+    h += `<tr class="${done && (method !== "scanRect" || s.done) ? "done" : ""}"><td>${label}</td><td>${done ? s.ans[qi] : "—"}</td></tr>`;
   });
   h += `</table>`;
   $("qtableWrap").innerHTML = h;
@@ -346,13 +391,17 @@ function drawQTable(s) {
 
 function draw(k) {
   const s = steps[k];
-  drawPlane(s); drawDS(s); drawQTable(s);
+  if (method === "prefix") { drawPlaneMaybe(s); drawPSMat(s); }
+  else { drawPlane(s); drawDS(s); }
+  drawQTable(s);
   const v = s.vars || {};
   $("vars").innerHTML = Object.entries(v).map(([kk, vv]) => `${kk} = <b>${vv}</b>`).join("　");
   setStatus(s.desc);
 }
+// 前缀和模式也画平面（散点 + 查询矩形）
+function drawPlaneMaybe(s) { drawPlane(s); }
 
-// ======== 引擎 ========
+// ===================== 引擎 =====================
 function load(list) {
   steps = list; idx = 0; running = true;
   $("stepBtn").disabled = false; $("playBtn").disabled = false;
@@ -364,127 +413,205 @@ function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; 
 function playAll() { stopTimer(); const spd = 980 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(idx); } else endRun(); }, spd); }
 function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
 
-function parsePairs(str) {
+function parsePts(str) {
   return (str || "").split(/[;；]/).map(s => s.trim()).filter(Boolean).map(s => {
     const p = s.split(/[,，\s]+/).map(x => parseInt(x, 10));
-    return (p.length >= 2 && !isNaN(p[0]) && !isNaN(p[1])) ? [p[0], p[1]] : null;
+    return (p.length >= 2 && p.every(v => !isNaN(v))) ? p : null;
   }).filter(Boolean);
 }
 function prepare() {
   stopTimer(); running = false;
-  PTS = parsePairs($("ptInput").value).slice(0, 12);
-  QS = parsePairs($("qInput").value).slice(0, 8);
+  PTS = parsePts($("ptInput").value).map(p => [p[0], p[1]]).slice(0, 12);
+  const raw = parsePts($("qInput").value);
+  if (method === "scanPref") QS = raw.map(q => [q[0], q[1]]).slice(0, 8);
+  else QS = raw.filter(q => q.length >= 4).map(q => {
+    let [x1, y1, x2, y2] = q; if (x1 > x2)[x1, x2] = [x2, x1]; if (y1 > y2)[y1, y2] = [y2, y1]; return [x1, y1, x2, y2];
+  }).slice(0, 6);
   if (!PTS.length) { setStatus("请输入点集。"); return; }
-  MY = Math.max(...PTS.map(p => p[1]), ...QS.map(q => q[1]), 1);
-  $("dsLabel").textContent = dsKind === "bit" ? "y 维数据结构：树状数组 c[]（下标=y 值，1..M）" : "y 维数据结构：线段树（区间计数，叶子=y 值）";
-  load(genSteps());
+  MX = Math.max(...PTS.map(p => p[0]), 1);
+  MY = Math.max(...PTS.map(p => p[1]), 1);
+  if (method === "scanPref") { MX = Math.max(MX, ...QS.map(q => q[0])); MY = Math.max(MY, ...QS.map(q => q[1])); }
+  else if (method === "prefix" || method === "scanRect") { QS.forEach(q => { MX = Math.max(MX, q[2]); MY = Math.max(MY, q[3]); }); }
+  load(method === "prefix" ? genPrefix() : genScan(method));
 }
+
+function applyMethod(m) {
+  method = m;
+  document.querySelectorAll("#methodTabs .tab").forEach(t => t.classList.toggle("active", t.dataset.m === m));
+  $("dsTabs").style.display = (m === "prefix") ? "none" : "flex";
+  $("rightLabel").textContent = m === "prefix" ? "二维前缀和矩阵 sum[i][j]" : (dsKind === "bit" ? "y 维数据结构：树状数组 c[]" : "y 维数据结构：线段树");
+  $("planeLabel").textContent = m === "scanPref" ? "平面（黄线=扫描线，青=已插入，绿=计入，粉框=前缀矩形）" : "平面（点集 + 粉框=查询矩形）";
+  // 输入提示与默认值
+  if (m === "scanPref") { $("qLabel").textContent = "查询前缀 (X,Y; 分号分隔)"; $("qInput").value = "3,3; 5,2; 6,5"; }
+  else { $("qLabel").textContent = "查询矩形 (x1,y1,x2,y2; 分号分隔)"; $("qInput").value = "1,1,3,4; 2,2,6,5"; }
+  $("formula").innerHTML = FORMULA[m];
+  $("note").innerHTML = NOTE[m];
+  prepare();
+}
+
+document.querySelectorAll("#methodTabs .tab").forEach(t => t.onclick = () => applyMethod(t.dataset.m));
+document.querySelectorAll("#dsTabs .tab").forEach(t => t.onclick = () => {
+  dsKind = t.dataset.ds;
+  document.querySelectorAll("#dsTabs .tab").forEach(x => x.classList.toggle("active", x.dataset.ds === dsKind));
+  $("rightLabel").textContent = dsKind === "bit" ? "y 维数据结构：树状数组 c[]" : "y 维数据结构：线段树";
+  prepare();
+});
 $("runBtn").onclick = prepare;
 $("playBtn").onclick = () => { if (idx >= steps.length - 1) prepare(); playAll(); };
 $("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
 $("randBtn").onclick = () => {
-  const n = 5 + Math.floor(Math.random() * 4), m = 6;
-  const xs = [...Array(n)].map((_, i) => i + 1);
-  PTS = xs.map(x => `${x},${1 + Math.floor(Math.random() * m)}`);
-  const q = 3;
-  QS = [...Array(q)].map(() => `${1 + Math.floor(Math.random() * n)},${1 + Math.floor(Math.random() * m)}`);
+  const n = 6 + Math.floor(Math.random() * 3), mx = 6, my = 6;
+  PTS = [...Array(n)].map(() => `${1 + Math.floor(Math.random() * mx)},${1 + Math.floor(Math.random() * my)}`);
   $("ptInput").value = PTS.join("; ");
-  $("qInput").value = QS.join("; ");
+  if (method === "scanPref") $("qInput").value = [...Array(3)].map(() => `${1 + Math.floor(Math.random() * mx)},${1 + Math.floor(Math.random() * my)}`).join("; ");
+  else $("qInput").value = [...Array(2)].map(() => { let a = 1 + Math.floor(Math.random() * mx), b = 1 + Math.floor(Math.random() * mx), c = 1 + Math.floor(Math.random() * my), d = 1 + Math.floor(Math.random() * my); if (a > b)[a, b] = [b, a]; if (c > d)[c, d] = [d, c]; return `${a},${c},${b},${d}`; }).join("; ");
   prepare();
 };
-document.querySelectorAll(".tab").forEach(t => t.onclick = () => {
-  dsKind = t.dataset.ds;
-  document.querySelectorAll(".tab").forEach(x => x.classList.toggle("active", x.dataset.ds === dsKind));
-  $("formula").innerHTML = FORMULA[dsKind];
-  prepare();
-});
-$("cppBtn").onclick = () => CppView.open(dsKind === "bit" ? "p2d_bit" : "p2d_seg");
+$("cppBtn").onclick = () => CppView.open(method === "prefix" ? "p2d_prefix" : (method === "scanPref" ? (dsKind === "bit" ? "p2d_bit" : "p2d_seg") : (dsKind === "bit" ? "p2d_rect_bit" : "p2d_rect_seg")));
 
 const FORMULA = {
-  bit: `离线扫描：事件按 x 升序(点先于查询)。<br>遇点 (x,y)：<b>update(y)</b> 沿 y += lowbit(y) 向上跳，c[] +1。<br>遇查询 (X,Y)：<b>query(Y)</b> 沿 y −= lowbit(y) 向下跳，累加 c[] 得 y≤Y 的点数。<br>单次 O(log M)。`,
-  seg: `离线扫描：事件按 x 升序(点先于查询)。<br>遇点 (x,y)：线段树<b>单点 +1</b>(叶子 y 递归到根路径计数+1)。<br>遇查询 (X,Y)：<b>区间查询 [1,Y]</b> 求和 = y≤Y 的点数。<br>单次 O(log M)。`,
+  prefix: `二维前缀和：<br><b>sum[i][j]=g[i][j]+sum[i-1][j]+sum[i][j-1]−sum[i-1][j-1]</b><br>矩形 [x1,x2]×[y1,y2] 内点数（容斥）：<br><b>sum[x2][y2]−sum[x1-1][y2]−sum[x2][y1-1]+sum[x1-1][y1-1]</b><br>预处理 O(MX·MY)，查询 O(1)。适合<b>小值域</b>。`,
+  scanPref: `离线扫描：事件按 x 升序(点先于查询)。<br>遇点 (x,y)：<b>update(y)</b> 计数 +1。<br>遇查询 (X,Y)：<b>query(Y)</b> 求 y≤Y 的前缀计数。<br>单次 O(log M)，处理 (0,0)→(X,Y) 前缀矩形。`,
+  scanRect: `离线扫描 + 容斥求任意矩形。<br>每个矩形 [x1,x2]×[y1,y2] 拆两事件：<br>x=x2 处 <b>+query([y1,y2])</b>，x=x1−1 处 <b>−query([y1,y2])</b>。<br>数据结构支持区间查询 y∈[y1,y2]，单次 O(log M)。`,
 };
-$("formula").innerHTML = FORMULA.bit;
+const NOTE = {
+  prefix: `二维前缀和：先把点落到网格计数 g[x][y]，递推出 sum[][]（含 0 行 0 列作边界）。任意矩形查询用<code>容斥</code> O(1) 得到——大矩形减去左、下两条，再加回多减的左下角。仅适合<code>值域较小</code>（否则矩阵太大）。`,
+  scanPref: `二维偏序离线：点和查询按 <code>x</code> 升序（同 x 点先于查询）。扫到点插入其 y，扫到查询 (X,Y) 时结构里正好是 x≤X 的点，求 <code>y≤Y</code> 前缀计数。树状数组 / 线段树均 O(log n)。`,
+  scanRect: `任意矩形 = 前缀矩形的<code>容斥</code>：矩形 [x1,x2]×[y1,y2] 内点数 = (x≤x2 中 y∈[y1,y2]) − (x≤x1−1 中 y∈[y1,y2])。把每个查询拆成 x=x2(+) 与 x=x1−1(−) 两个事件，扫描时对 y 区间查询即可。`,
+};
+$("formula").innerHTML = FORMULA.prefix;
+$("note").innerHTML = NOTE.prefix;
 
 CppView.register({
-  p2d_bit: { title: "二维数点 · 树状数组(离线扫描) — C++", code:
+  p2d_prefix: { title: "二维数点 · 二维前缀和(小值域) — C++", code:
 [
-"// 二维数点：n 个点、q 个查询，每个查询 (X,Y) 求 x<=X 且 y<=Y 的点数。",
-"// 离线扫描：点和查询按 x 升序(同 x 点在前)，树状数组维护 y 维计数。",
+"// 二维前缀和：g[x][y]=该格点数；sum 为二维前缀和。",
+"// 矩形 [x1,x2]x[y1,y2] 内点数 = 容斥(下式)。预处理 O(MX*MY)，查询 O(1)。",
 "#include <iostream>",
-"#include <algorithm>",
-"#include <vector>",
 "using namespace std;",
-"",
-"const int MAXM = 100005;",
-"int c[MAXM], M;              // 树状数组，M = y 值域上界",
-"int lowbit(int x){ return x & (-x); }",
-"void update(int i){ for(; i<=M; i+=lowbit(i)) c[i]++; }      // 单点 +1",
-"int query(int i){ int s=0; for(; i>0; i-=lowbit(i)) s+=c[i]; return s; } // 前缀和",
-"",
-"struct Ev { int x, type, y, qi; };   // type0=点, type1=查询",
+"const int N = 1005;",
+"int g[N][N], sum[N][N];",
 "int main(){",
-"    int n, q; cin >> n >> q >> M;",
-"    vector<Ev> ev;",
-"    for(int i=0;i<n;i++){ int x,y; cin>>x>>y; ev.push_back({x,0,y,0}); }",
-"    vector<int> ans(q);",
-"    for(int i=0;i<q;i++){ int X,Y; cin>>X>>Y; ev.push_back({X,1,Y,i}); }",
-"    sort(ev.begin(), ev.end(), [](const Ev&a, const Ev&b){",
-"        return a.x!=b.x ? a.x<b.x : a.type<b.type;   // 同 x 点(0)先于查询(1)",
-"    });",
-"    for(auto&e: ev){",
-"        if(e.type==0) update(e.y);        // 点：插入 y",
-"        else ans[e.qi] = query(e.y);      // 查询：y<=Y 的计数",
+"    int MX, MY, n; cin >> MX >> MY >> n;",
+"    for(int k=0;k<n;k++){ int x,y; cin>>x>>y; g[x][y]++; }",
+"    for(int i=1;i<=MX;i++)",
+"        for(int j=1;j<=MY;j++)",
+"            sum[i][j]=g[i][j]+sum[i-1][j]+sum[i][j-1]-sum[i-1][j-1];",
+"    int q; cin >> q;",
+"    while(q--){",
+"        int x1,y1,x2,y2; cin>>x1>>y1>>x2>>y2;",
+"        cout << sum[x2][y2]-sum[x1-1][y2]-sum[x2][y1-1]+sum[x1-1][y1-1] << endl;",
 "    }",
-"    for(int i=0;i<q;i++) cout << ans[i] << endl;",
 "    return 0;",
 "}",
 ].join("\n") },
-  p2d_seg: { title: "二维数点 · 线段树(离线扫描) — C++", code:
+  p2d_bit: { title: "二维数点 · 前缀矩形(树状数组) — C++", code:
 [
-"// 二维数点：离线按 x 排序扫描，线段树维护 y 维计数(单点+1、区间[1,Y]求和)。",
+"// 离线扫描 + 树状数组，求 (0,0)->(X,Y) 前缀矩形内点数(x<=X 且 y<=Y)。",
 "#include <iostream>",
 "#include <algorithm>",
 "#include <vector>",
 "using namespace std;",
-"",
-"const int MAXM = 100005;",
-"int t[MAXM*4], M;",
-"void update(int node,int lo,int hi,int pos){",
-"    t[node]++;",
-"    if(lo==hi) return;",
-"    int mid=(lo+hi)/2;",
-"    if(pos<=mid) update(node*2,lo,mid,pos);",
-"    else update(node*2+1,mid+1,hi,pos);",
-"}",
-"int query(int node,int lo,int hi,int ql,int qr){   // 求 [ql,qr] 计数",
-"    if(qr<ql || ql>hi || qr<lo) return 0;",
-"    if(ql<=lo && hi<=qr) return t[node];",
-"    int mid=(lo+hi)/2;",
-"    return query(node*2,lo,mid,ql,qr) + query(node*2+1,mid+1,hi,ql,qr);",
-"}",
-"",
-"struct Ev { int x, type, y, qi; };",
+"const int MAXM=100005; int c[MAXM], M;",
+"int lowbit(int x){return x&(-x);}",
+"void update(int i){ for(;i<=M;i+=lowbit(i)) c[i]++; }",
+"int query(int i){ int s=0; for(;i>0;i-=lowbit(i)) s+=c[i]; return s; }",
+"struct Ev{int x,type,y,qi;};",
 "int main(){",
-"    int n, q; cin >> n >> q >> M;",
-"    vector<Ev> ev;",
-"    for(int i=0;i<n;i++){ int x,y; cin>>x>>y; ev.push_back({x,0,y,0}); }",
+"    int n,q; cin>>n>>q>>M; vector<Ev> ev;",
+"    for(int i=0;i<n;i++){int x,y;cin>>x>>y;ev.push_back({x,0,y,0});}",
 "    vector<int> ans(q);",
-"    for(int i=0;i<q;i++){ int X,Y; cin>>X>>Y; ev.push_back({X,1,Y,i}); }",
-"    sort(ev.begin(), ev.end(), [](const Ev&a, const Ev&b){",
-"        return a.x!=b.x ? a.x<b.x : a.type<b.type;",
-"    });",
-"    for(auto&e: ev){",
-"        if(e.type==0) update(1,1,M,e.y);",
-"        else ans[e.qi] = query(1,1,M,1,e.y);",
+"    for(int i=0;i<q;i++){int X,Y;cin>>X>>Y;ev.push_back({X,1,Y,i});}",
+"    sort(ev.begin(),ev.end(),[](const Ev&a,const Ev&b){return a.x!=b.x?a.x<b.x:a.type<b.type;});",
+"    for(auto&e:ev){ if(e.type==0) update(e.y); else ans[e.qi]=query(e.y); }",
+"    for(int i=0;i<q;i++) cout<<ans[i]<<endl;",
+"    return 0;",
+"}",
+].join("\n") },
+  p2d_seg: { title: "二维数点 · 前缀矩形(线段树) — C++", code:
+[
+"// 离线扫描 + 线段树(单点+1、区间[1,Y]求和)，求前缀矩形点数。",
+"#include <iostream>",
+"#include <algorithm>",
+"#include <vector>",
+"using namespace std;",
+"const int MAXM=100005; int t[MAXM*4], M;",
+"void upd(int nd,int lo,int hi,int p){ t[nd]++; if(lo==hi)return; int m=(lo+hi)/2; p<=m?upd(nd*2,lo,m,p):upd(nd*2+1,m+1,hi,p); }",
+"int qry(int nd,int lo,int hi,int l,int r){ if(r<l||l>hi||r<lo)return 0; if(l<=lo&&hi<=r)return t[nd]; int m=(lo+hi)/2; return qry(nd*2,lo,m,l,r)+qry(nd*2+1,m+1,hi,l,r); }",
+"struct Ev{int x,type,y,qi;};",
+"int main(){",
+"    int n,q; cin>>n>>q>>M; vector<Ev> ev;",
+"    for(int i=0;i<n;i++){int x,y;cin>>x>>y;ev.push_back({x,0,y,0});}",
+"    vector<int> ans(q);",
+"    for(int i=0;i<q;i++){int X,Y;cin>>X>>Y;ev.push_back({X,1,Y,i});}",
+"    sort(ev.begin(),ev.end(),[](const Ev&a,const Ev&b){return a.x!=b.x?a.x<b.x:a.type<b.type;});",
+"    for(auto&e:ev){ if(e.type==0) upd(1,1,M,e.y); else ans[e.qi]=qry(1,1,M,1,e.y); }",
+"    for(int i=0;i<q;i++) cout<<ans[i]<<endl;",
+"    return 0;",
+"}",
+].join("\n") },
+  p2d_rect_bit: { title: "二维数点 · 任意矩形(树状数组+容斥) — C++", code:
+[
+"// 任意矩形 [x1,x2]x[y1,y2] = 前缀矩形容斥。每查询拆两事件:",
+"//   x=x2 处 +query([y1,y2]), x=x1-1 处 -query([y1,y2])。树状数组维护区间和。",
+"#include <iostream>",
+"#include <algorithm>",
+"#include <vector>",
+"using namespace std;",
+"const int MAXM=100005; int c[MAXM], M;",
+"int lowbit(int x){return x&(-x);}",
+"void update(int i){ for(;i<=M;i+=lowbit(i)) c[i]++; }",
+"int query(int i){ int s=0; for(;i>0;i-=lowbit(i)) s+=c[i]; return s; }",
+"int rangeQ(int l,int r){ return query(r)-query(l-1); }",
+"struct Ev{int x,type,y1,y2,qi,sign;};",
+"int main(){",
+"    int n,q; cin>>n>>q>>M; vector<Ev> ev;",
+"    for(int i=0;i<n;i++){int x,y;cin>>x>>y;ev.push_back({x,0,y,0,0,0});}",
+"    vector<int> ans(q,0);",
+"    for(int i=0;i<q;i++){ int x1,y1,x2,y2; cin>>x1>>y1>>x2>>y2;",
+"        ev.push_back({x2,1,y1,y2,i,1});",
+"        ev.push_back({x1-1,1,y1,y2,i,-1});",
 "    }",
-"    for(int i=0;i<q;i++) cout << ans[i] << endl;",
+"    sort(ev.begin(),ev.end(),[](const Ev&a,const Ev&b){return a.x!=b.x?a.x<b.x:a.type<b.type;});",
+"    for(auto&e:ev){",
+"        if(e.type==0) update(e.y1);",
+"        else if(e.x>=1) ans[e.qi]+=e.sign*rangeQ(e.y1,e.y2);",
+"    }",
+"    for(int i=0;i<q;i++) cout<<ans[i]<<endl;",
+"    return 0;",
+"}",
+].join("\n") },
+  p2d_rect_seg: { title: "二维数点 · 任意矩形(线段树+容斥) — C++", code:
+[
+"// 任意矩形容斥，线段树支持区间 [y1,y2] 求和。每查询拆 x=x2(+)、x=x1-1(-) 两事件。",
+"#include <iostream>",
+"#include <algorithm>",
+"#include <vector>",
+"using namespace std;",
+"const int MAXM=100005; int t[MAXM*4], M;",
+"void upd(int nd,int lo,int hi,int p){ t[nd]++; if(lo==hi)return; int m=(lo+hi)/2; p<=m?upd(nd*2,lo,m,p):upd(nd*2+1,m+1,hi,p); }",
+"int qry(int nd,int lo,int hi,int l,int r){ if(r<l||l>hi||r<lo)return 0; if(l<=lo&&hi<=r)return t[nd]; int m=(lo+hi)/2; return qry(nd*2,lo,m,l,r)+qry(nd*2+1,m+1,hi,l,r); }",
+"struct Ev{int x,type,y1,y2,qi,sign;};",
+"int main(){",
+"    int n,q; cin>>n>>q>>M; vector<Ev> ev;",
+"    for(int i=0;i<n;i++){int x,y;cin>>x>>y;ev.push_back({x,0,y,0,0,0});}",
+"    vector<int> ans(q,0);",
+"    for(int i=0;i<q;i++){ int x1,y1,x2,y2; cin>>x1>>y1>>x2>>y2;",
+"        ev.push_back({x2,1,y1,y2,i,1});",
+"        ev.push_back({x1-1,1,y1,y2,i,-1});",
+"    }",
+"    sort(ev.begin(),ev.end(),[](const Ev&a,const Ev&b){return a.x!=b.x?a.x<b.x:a.type<b.type;});",
+"    for(auto&e:ev){",
+"        if(e.type==0) upd(1,1,M,e.y1);",
+"        else if(e.x>=1) ans[e.qi]+=e.sign*qry(1,1,M,e.y1,e.y2);",
+"    }",
+"    for(int i=0;i<q;i++) cout<<ans[i]<<endl;",
 "    return 0;",
 "}",
 ].join("\n") },
 });
 
-prepare();
+applyMethod("prefix");
 </script>
 <script src="../assets/theme.js"></script>
 </body>
