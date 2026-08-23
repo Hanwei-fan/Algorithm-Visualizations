@@ -192,7 +192,7 @@
 
 <div class="tabs" id="methodTabs">
   <div class="tab active" data-m="prefix">① 二维前缀和：预处理 S(a,b) 表</div>
-  <div class="tab" data-m="scanPref">② 扫描线 · 单次 S(X,Y)</div>
+  <div class="tab" data-m="scanPref">② 扫描线 · 单次 S(a,b)</div>
   <div class="tab" data-m="scanRect">③ 扫描线 · 4 次 S(a,b) 容斥</div>
 </div>
 <div class="tabs sub" id="dsTabs" style="display:none">
@@ -248,6 +248,18 @@ function lowbit(x) { return x & (-x); }
 //   ds 状态：bit[] / seg[]，dsPath[], dsAcc[]
 //   前缀和：ps(矩阵), psMark(单元格高亮 {r,c,cls})
 
+// 容斥四部分：前缀区 (0,0)→(x2,y2) 按分界 x1−0.5 / y1−0.5 划成 4 块，每块对应一个角
+const TERMSTR = ["+S(x₂,y₂)", "−S(x₁−1,y₂)", "−S(x₂,y₁−1)", "+S(x₁−1,y₁−1)"];
+function quadsOf(x1, y1, x2, y2, qi) {
+  const xm = x1 - 0.5, ym = y1 - 0.5;
+  return [
+    { rect: [xm, ym, x2, y2], sign: 1, corner: [x2, y2], term: 0, quad: "tr", qi },     // 右上=查询矩形本体
+    { rect: [0, ym, xm, y2], sign: -1, corner: [x1 - 1, y2], term: 1, quad: "tl", qi },  // 左上
+    { rect: [xm, 0, x2, ym], sign: -1, corner: [x2, y1 - 1], term: 2, quad: "br", qi },  // 右下
+    { rect: [0, 0, xm, ym], sign: 1, corner: [x1 - 1, y1 - 1], term: 3, quad: "bl", qi },// 左下
+  ];
+}
+
 // —— 解法① 二维前缀和 ——
 function genPrefix() {
   const list = [];
@@ -264,18 +276,38 @@ function genPrefix() {
     list.push({ mode: "prefix", ps: clonePS(), psMark: { cur: [i, j] }, ans: QS.map(() => null),
       desc: `S(${i},${j}) = g[${i}][${j}](${g[i][j]}) + S(${i - 1},${j}) + S(${i},${j - 1}) − S(${i - 1},${j - 1}) = <b>${ps[i][j]}</b>。`, vars: { i, j } });
   }
-  // 逐个查询：一次矩形 = 4 次 S(a,b) 查表，系数 +1,−1,−1,+1
-  const ans = QS.map(() => 0);
+  // ==== 查询阶段：效仿扫描线的容斥分解——逐个矩形切 4 部分、查表累加、算完矩形消失 ====
+  const ans = QS.map(() => null);
+  const shownCorners = [];   // 已在平面上显示的角（当前处理矩形的角，处理完清空）
+  const pbase = (extra) => Object.assign({ mode: "prefix", ps: clonePS(), ans: [...ans], corners: shownCorners.map(c => [...c]) }, extra);
+  list.push(pbase({ psMark: {}, rectsShown: QS.map((_, qi) => qi), desc: `S 表预处理完成。<b>查询阶段：</b>逐个矩形按容斥切成 4 部分，从 S 表取值 <b>＋S(x₂,y₂) − S(x₁−1,y₂) − S(x₂,y₁−1) ＋ S(x₁−1,y₁−1)</b> 累加进 ans[]，算完该矩形即消失，再算下一个。` }));
   QS.forEach(([x1, y1, x2, y2], qi) => {
-    const val = ps[x2][y2] - ps[x1 - 1][y2] - ps[x2][y1 - 1] + ps[x1 - 1][y1 - 1];
-    ans[qi] = val;
-    list.push({ mode: "prefix", ps: clonePS(), ans: [...ans], curQ: qi,
-      qRect: [x1, y1, x2, y2],
-      psMark: { plus: [[x2, y2], [x1 - 1, y1 - 1]], minus: [[x1 - 1, y2], [x2, y1 - 1]] },
-      desc: `矩形 [${x1},${x2}]×[${y1},${y2}] 拆成 4 次 S(a,b) 查表（表中 <span style="color:var(--green)">绿=＋</span>、<span style="color:#ff8ad0">粉=−</span>）：<br><b>＋S(${x2},${y2}) − S(${x1 - 1},${y2}) − S(${x2},${y1 - 1}) ＋ S(${x1 - 1},${y1 - 1})</b><br>= ${ps[x2][y2]} − ${ps[x1 - 1][y2]} − ${ps[x2][y1 - 1]} + ${ps[x1 - 1][y1 - 1]} = <span class="hl">${val}</span>。`,
-      vars: { 答案: val } });
+    const quads = quadsOf(x1, y1, x2, y2, qi);
+    const futureRects = QS.map((_, j) => j).filter(j => j > qi);
+    // (1) 切成 4 部分
+    list.push(pbase({ psMark: {}, rectsShown: futureRects, quads,
+      desc: `矩形 #${qi + 1} [${x1},${x2}]×[${y1},${y2}]：按 x=${x1}−1、y=${y1}−1 切成 <b>4 部分</b>（右上本体+，左上/右下−，左下+），逐块到 S 表取值。` }));
+    // (2) 逐块查表累加
+    let acc = 0;
+    quads.forEach((qd, ci) => {
+      const [a, b] = qd.corner, val = ps[a][b], delta = qd.sign * val;
+      acc += delta;
+      ans[qi] = acc;
+      shownCorners.push([a, b, qd.sign, qi, qd.term]);
+      const remain = quads.slice(ci + 1);
+      list.push(pbase({ rectsShown: futureRects, quads: remain, corner: { qi, term: qd.term },
+        psMark: { [qd.sign > 0 ? "plus" : "minus"]: [[a, b]] },
+        ansMark: { qi, sign: qd.sign, delta: val },
+        desc: `第 ${ci + 1}/4 部分 <b>${TERMSTR[qd.term]}</b>：查 S 表 S(${a},${b})=<b>${val}</b>，按 <b>${qd.sign > 0 ? "＋" : "−"}</b> 累加。ans[${qi + 1}] 当前 = <span class="hl">${acc}</span>。` }));
+    });
+    // (3) 该矩形算完，角清空、矩形消失
+    shownCorners.length = 0;
+    list.push(pbase({ psMark: {}, rectsShown: futureRects,
+      desc: `矩形 #${qi + 1} 计算完成，ans[${qi + 1}] = <span class="hl">${ans[qi]}</span>。矩形消失，继续下一个。` }));
   });
-  list.push({ mode: "prefix", ps: clonePS(), ans: [...ans], psMark: {}, done: true, desc: `<span class="hl">完成！</span>各查询答案见下表。整张 S 表 O(MX·MY) 预处理，每次矩形查询只需 4 次查表 O(1)，适合小值域。`, vars: {} });
+  // (4) 全部算完，重新显示所有矩形，方便对照 ans[]
+  list.push(pbase({ psMark: {}, done: true, verifyRects: QS.map((_, qi) => qi),
+    desc: `<span class="hl">全部完成！</span>重新显示所有查询矩形，可对照下表/ans[] 核对。整张 S 表 O(MX·MY) 预处理，每次矩形查询 4 次查表 O(1)，适合小值域。` }));
   return list;
 }
 
@@ -313,17 +345,6 @@ function genScan(mode) {
   const base = (extra) => Object.assign({ mode, insertedPts: [...inserted], ans: [...ans], corners: shownCorners.map(c => [...c]), freq: [...freq] }, snapDS(), extra);
 
   // ===== 阶段一：分解（仅 scanRect）——矩形按容斥切成 4 部分(不同阴影)，逐块消失留下带标注的角 =====
-  const TERMSTR = ["+S(x₂,y₂)", "−S(x₁−1,y₂)", "−S(x₂,y₁−1)", "+S(x₁−1,y₁−1)"];
-  // 前缀区 (0,0)→(x2,y2) 按分界 x1−0.5 / y1−0.5 划成 4 块，每块对应一个角
-  const quadsOf = (x1, y1, x2, y2, qi) => {
-    const xm = x1 - 0.5, ym = y1 - 0.5;
-    return [
-      { rect: [xm, ym, x2, y2],   sign: 1,  corner: [x2, y2],         term: 0, quad: "tr", qi }, // 右上=查询矩形本体
-      { rect: [0, ym, xm, y2],    sign: -1, corner: [x1 - 1, y2],     term: 1, quad: "tl", qi }, // 左上
-      { rect: [xm, 0, x2, ym],    sign: -1, corner: [x2, y1 - 1],     term: 2, quad: "br", qi }, // 右下
-      { rect: [0, 0, xm, ym],     sign: 1,  corner: [x1 - 1, y1 - 1], term: 3, quad: "bl", qi }, // 左下
-    ];
-  };
   if (mode === "scanRect") {
     // (1) 初始：所有矩形显示
     const allRects = QS.map((_, qi) => qi);
@@ -346,7 +367,7 @@ function genScan(mode) {
     });
     list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], desc: `全部矩形分解完毕，平面上是所有矩形的角（共 ${shownCorners.length} 个，菱形◆与青色圆点区分）。<b>阶段二：扫描线</b>从左到右推进，同一竖线自下而上依次处理点与角。`, vars: {} }));
   } else {
-    list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], desc: `扫描线<b>从左到右</b>推进；同一竖线<b>按 y 升序（自下而上）</b>依次处理。<b>待统计的点</b> → 树状数组单点 +1；<b>查询顶点 (X,Y)</b> → query(Y) 统计 (0,0)→(X,Y) 内点数，即 <b>S(X,Y)</b> 写入 ans[]。`, vars: {} }));
+    list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], desc: `本题查询矩形<b>左下角固定为 (1,1)</b>，容斥 4 项里 −S(0,b)、−S(a,0)、+S(0,0) 都为 0，只剩 <b>+S(a,b)</b> 一项。扫描线<b>从左到右</b>推进；同一竖线<b>按 y 升序（自下而上）</b>依次处理。<b>待统计的点</b> → 树状数组单点 +1；<b>查询顶点 (a,b)</b> → query(b) 统计 (0,0)→(a,b) 内点数，即 <b>S(a,b)</b> 写入 ans[]。`, vars: {} }));
   }
 
   // BIT/线段树 前缀查询 query(b)= 计数 y≤b（即 S(a,b)，a 由扫描线位置隐含）
@@ -419,12 +440,12 @@ function drawPlane(s) {
     const [a, b] = s.prefRect;
     g += rectSvg([0, 0, a, b], "prefbox " + (s.prefSign > 0 ? "plus" : "minus"));
   }
-  if (method === "scanRect") {
-    // 阶段三：对照验证——所有查询矩形用实心粉框重新显示
+  if (method === "scanRect" || method === "prefix") {
+    // 对照验证阶段：所有查询矩形用实心粉框重新显示
     if (s.verifyRects) s.verifyRects.forEach(qi => { if (QS[qi]) g += rectSvg(QS[qi], "qbox"); });
-    // 分解阶段：未处理的矩形淡框显示
+    // 未处理的矩形淡框显示
     if (s.rectsShown) s.rectsShown.forEach(qi => { if (QS[qi]) g += rectSvg(QS[qi], "qbox dim"); });
-    // 分解阶段：当前矩形前缀区切成 4 块，不同阴影色，块中央标 ±S
+    // 当前矩形前缀区切成 4 块，不同阴影色，块中央标 ±S
     if (s.quads) s.quads.forEach(qd => {
       g += rectSvg(qd.rect, "quad " + qd.quad);
       const [a, b] = qd.corner;
@@ -432,7 +453,7 @@ function drawPlane(s) {
       g += `<text class="quadlbl ${qd.sign > 0 ? "plus" : "minus"}" x="${lx}" y="${ly}"><tspan class="qtag">#${qd.qi + 1}</tspan> ${qd.sign > 0 ? "+" : "−"}S(${a},${b})</text>`;
     });
   } else {
-    // prefix / scanPref：画出所有查询矩形（淡框），当前查询用高亮框
+    // scanPref：画出所有查询矩形（淡框），当前查询用高亮框
     QS.forEach((q, qi) => { if (qi !== s.curQ) g += rectSvg(toRect(q), "qbox dim"); });
     if (s.curQ != null && QS[s.curQ]) g += rectSvg(toRect(QS[s.curQ]), "qbox");
   }
@@ -546,7 +567,7 @@ function drawDS(s) {
 
 function drawQTable(s) {
   if (!QS.length) { $("qtableWrap").innerHTML = ""; return; }
-  const head = method === "scanPref" ? "查询 (X,Y)" : "查询矩形 (x1,y1,x2,y2)";
+  const head = method === "scanPref" ? "查询 (a,b)" : "查询矩形 (x1,y1,x2,y2)";
   let h = `<table class="qtable"><tr><th>${head}</th><th>答案</th></tr>`;
   QS.forEach((q, qi) => {
     const done = s.ans && s.ans[qi] != null;
@@ -559,7 +580,7 @@ function drawQTable(s) {
 
 // ans[] 累计答案数组（仅扫描线两种解法显示）
 function drawAnsArray(s) {
-  if (method === "prefix" || !QS.length) { $("ansView").innerHTML = ""; return; }
+  if (!QS.length) { $("ansView").innerHTML = ""; return; }
   const m = s.ansMark;
   let h = `<div class="ansarr">`;
   QS.forEach((q, qi) => {
@@ -632,7 +653,7 @@ function applyMethod(m) {
   method = m;
   document.querySelectorAll("#methodTabs .tab").forEach(t => t.classList.toggle("active", t.dataset.m === m));
   $("dsTabs").style.display = (m === "prefix") ? "none" : "flex";
-  $("ansLabel").style.display = (m === "prefix") ? "none" : "block";
+  $("ansLabel").style.display = "block";
   // 图例：仅扫描线解法显示，区分两类点
   if (m === "prefix") { $("legend").style.display = "none"; }
   else {
@@ -640,7 +661,7 @@ function applyMethod(m) {
     const ptItem = `<span class="item"><span class="swatch pt"></span>待统计的点（树状数组 +1）</span>`;
     $("legend").innerHTML = m === "scanRect"
       ? ptItem + `<span class="item"><span class="swatch plus"></span>◆ 查询顶点 +S(x₂,y₂)、+S(x₁−1,y₁−1)</span><span class="item"><span class="swatch minus"></span>◆ 查询顶点 −S(x₁−1,y₂)、−S(x₂,y₁−1)</span>`
-      : ptItem + `<span class="item"><span class="swatch plus"></span>◆ 查询顶点 S(X,Y)</span>`;
+      : ptItem + `<span class="item"><span class="swatch plus"></span>◆ 查询顶点 +S(a,b)（左下角固定 (1,1)，仅此一项）</span>`;
   }
   $("rightLabel").textContent = m === "prefix" ? "二维前缀和表 S(a,b)" : (dsKind === "bit" ? "y 维数据结构：树状数组 c[]" : "y 维数据结构：线段树");
   $("planeLabel").textContent = m === "scanPref" ? "平面（黄线=扫描线，黄点=列内 y 游标，青=已插入，绿=计入 S 区域）" : (m === "scanRect" ? "平面（黄线=扫描线，黄点=列内 y 游标，◆=4 个角/绿加粉减，绿/粉填充=当前 S(a,b) 区域）" : "平面（点集 + 粉框=查询矩形）");
