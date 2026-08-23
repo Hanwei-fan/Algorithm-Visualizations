@@ -85,9 +85,10 @@
   svg.plane { width: 100%; height: auto; display: block; }
   .axis { stroke: var(--border); stroke-width: 1.5; }
   .alabel { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 10px; }
+  /* 待统计的点：一律青色系（空心→已插入实心→计入当前 S 高亮），与查询顶点区分开 */
   .pt { fill: var(--node-fill); stroke: var(--cyan); stroke-width: 1.5; transition: all .2s; }
   .pt.inserted { fill: rgba(0,240,255,0.35); stroke: var(--cyan); }
-  .pt.counted { fill: var(--green); stroke: var(--green); filter: drop-shadow(0 0 5px rgba(0,255,156,.6)); }
+  .pt.counted { fill: var(--cyan); stroke: var(--cyan); filter: drop-shadow(0 0 6px rgba(0,240,255,.85)); }
   .pt.cur { fill: var(--yellow); stroke: var(--yellow); filter: drop-shadow(0 0 7px rgba(255,212,0,.8)); }
   .qbox { fill: rgba(255,43,214,0.10); stroke: var(--magenta); stroke-width: 1.5; stroke-dasharray: 4 3; }
   .qbox.dim { fill: rgba(255,43,214,0.03); stroke: rgba(255,43,214,0.4); stroke-width: 1; }
@@ -105,6 +106,13 @@
   .sweep { stroke: var(--yellow); stroke-width: 2; stroke-dasharray: 5 4; opacity: .85; }
   .sweepcur { fill: var(--yellow); stroke: #120e00; stroke-width: 1; filter: drop-shadow(0 0 6px rgba(255,212,0,.9)); }
   .ptxt { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 9px; text-anchor: middle; }
+  /* 平面图例：区分「待统计的点」与「查询顶点」两类 */
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; margin: 4px 0 10px; font-family: "SF Mono", Menlo, monospace; font-size: 11.5px; color: var(--muted); }
+  .legend .item { display: flex; align-items: center; gap: 6px; }
+  .legend .swatch { width: 13px; height: 13px; flex: 0 0 auto; }
+  .legend .swatch.pt { border-radius: 50%; background: rgba(0,240,255,0.35); border: 1.5px solid var(--cyan); }
+  .legend .swatch.plus { background: var(--green); transform: rotate(45deg); }
+  .legend .swatch.minus { background: var(--magenta); transform: rotate(45deg); }
   svg.ds { width: 100%; height: auto; display: block; }
   .dsedge { stroke: var(--border); stroke-width: 1.2; }
   .dsedge.path { stroke: var(--magenta); stroke-width: 2.4; }
@@ -186,6 +194,7 @@
 <main>
   <section class="card">
     <div class="rowlabel" id="planeLabel">平面</div>
+    <div class="legend" id="legend" style="display:none"></div>
     <svg id="plane" class="plane" viewBox="0 0 420 420" preserveAspectRatio="xMidYMid meet"></svg>
   </section>
   <section class="card">
@@ -304,7 +313,7 @@ function genScan(mode) {
       if (mode === "scanPref") {
         ans[e.qi] = cnt;
         const countedPts = []; PTS.forEach((p, pi) => { if (inserted.has(pi) && p[1] <= b) countedPts.push(pi); });
-        list.push(base({ sweepX: e.x, sweepY: b, curQ: e.qi, prefRect: [a, b], prefSign: 1, countedPts, dsAcc: acc, dsPath: [], ansMark: { qi: e.qi, sign: 1, delta: cnt, set: true }, desc: `查询 (${a}, ${b})：结构里是 x≤${a} 的点，求 <b>y ≤ ${b}</b> 的个数，即 <b>S(${a},${b})</b> = <span class="hl">${cnt}</span>。写入 <b>ans[${e.qi}]</b>。`, vars: { a, b, "S(a,b)": cnt } }));
+        list.push(base({ sweepX: e.x, sweepY: b, curQ: e.qi, prefRect: [a, b], prefSign: 1, corners: [[a, b, 1]], corner: [a, b], countedPts, dsAcc: acc, dsPath: [], ansMark: { qi: e.qi, sign: 1, delta: cnt, set: true }, desc: `查询顶点 (${a}, ${b})：结构里是 x≤${a} 的点，求 <b>y ≤ ${b}</b> 的个数，即 <b>S(${a},${b})</b> = <span class="hl">${cnt}</span>。写入 <b>ans[${e.qi}]</b>。`, vars: { a, b, "S(a,b)": cnt } }));
       } else {
         ans[e.qi] += e.sign * cnt;
         const [x1, y1, x2, y2] = QS[e.qi];
@@ -526,6 +535,15 @@ function applyMethod(m) {
   document.querySelectorAll("#methodTabs .tab").forEach(t => t.classList.toggle("active", t.dataset.m === m));
   $("dsTabs").style.display = (m === "prefix") ? "none" : "flex";
   $("ansLabel").style.display = (m === "prefix") ? "none" : "block";
+  // 图例：仅扫描线解法显示，区分两类点
+  if (m === "prefix") { $("legend").style.display = "none"; }
+  else {
+    $("legend").style.display = "flex";
+    const ptItem = `<span class="item"><span class="swatch pt"></span>待统计的点（树状数组 +1）</span>`;
+    $("legend").innerHTML = m === "scanRect"
+      ? ptItem + `<span class="item"><span class="swatch plus"></span>◆ 查询顶点 +S(x₂,y₂)、+S(x₁−1,y₁−1)</span><span class="item"><span class="swatch minus"></span>◆ 查询顶点 −S(x₁−1,y₂)、−S(x₂,y₁−1)</span>`
+      : ptItem + `<span class="item"><span class="swatch plus"></span>◆ 查询顶点 S(X,Y)</span>`;
+  }
   $("rightLabel").textContent = m === "prefix" ? "二维前缀和表 S(a,b)" : (dsKind === "bit" ? "y 维数据结构：树状数组 c[]" : "y 维数据结构：线段树");
   $("planeLabel").textContent = m === "scanPref" ? "平面（黄线=扫描线，黄点=列内 y 游标，青=已插入，绿=计入 S 区域）" : (m === "scanRect" ? "平面（黄线=扫描线，黄点=列内 y 游标，◆=4 个角/绿加粉减，绿/粉填充=当前 S(a,b) 区域）" : "平面（点集 + 粉框=查询矩形）");
   // 输入提示与默认值
