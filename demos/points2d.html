@@ -114,6 +114,15 @@
   .cornlbl { font-family: "SF Mono", Menlo, monospace; font-size: 10px; font-weight: 700; text-anchor: middle; }
   .cornlbl.plus { fill: var(--green); }
   .cornlbl.minus { fill: var(--magenta); }
+  /* y 轴左侧频次数组 */
+  .freqcell { fill: var(--node-fill); stroke: var(--border); stroke-width: 1; transition: all .15s; }
+  .freqcell.inrange { fill: rgba(0,255,156,0.22); stroke: var(--green); }
+  .freqcell.hit { fill: var(--yellow); stroke: var(--yellow); }
+  .freqval { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; text-anchor: middle; }
+  .freqval.on { fill: var(--text); }
+  .freqval.dark { fill: #120e00; }
+  .freqidx { fill: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-size: 9px; text-anchor: end; }
+  .freqhdr { fill: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-size: 10px; text-anchor: middle; letter-spacing: .5px; }
   .sweep { stroke: var(--yellow); stroke-width: 2; stroke-dasharray: 5 4; opacity: .85; }
   .sweepcur { fill: var(--yellow); stroke: #120e00; stroke-width: 1; filter: drop-shadow(0 0 6px rgba(255,212,0,.9)); }
   .ptxt { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 9px; text-anchor: middle; }
@@ -296,10 +305,11 @@ function genScan(mode) {
   const inserted = new Set();
   let bit = new Array(M + 1).fill(0);
   let seg = new Array(4 * M).fill(0);
+  const freq = new Array(M + 1).fill(0);   // y 轴各高度顶点数量（自下而上）
   const snapDS = () => dsKind === "bit" ? { bit: [...bit] } : { seg: [...seg] };
   // 累积已在平面上显示的角（分解阶段逐步揭示，扫描阶段全程保留）
   const shownCorners = [];
-  const base = (extra) => Object.assign({ mode, insertedPts: [...inserted], ans: [...ans], corners: shownCorners.map(c => [...c]) }, snapDS(), extra);
+  const base = (extra) => Object.assign({ mode, insertedPts: [...inserted], ans: [...ans], corners: shownCorners.map(c => [...c]), freq: [...freq] }, snapDS(), extra);
 
   // ===== 阶段一：分解（仅 scanRect）——矩形按容斥切成 4 部分(不同阴影)，逐块消失留下带标注的角 =====
   const TERMSTR = ["+S(x₂,y₂)", "−S(x₁−1,y₂)", "−S(x₂,y₁−1)", "+S(x₁−1,y₁−1)"];
@@ -349,10 +359,11 @@ function genScan(mode) {
   for (const e of ev) {
     if (e.type === 0) {
       const y = e.y;
-      list.push(base({ sweepX: e.x, sweepY: y, curPt: e.pi, dsPath: [], dsAcc: [], desc: `扫描到点 (${e.x}, ${y})（当前列自下而上处理到 y=${y}）：这是待统计的点，把 y=${y} 插入树状数组（计数 +1）。`, vars: { x: e.x, y } }));
+      list.push(base({ sweepX: e.x, sweepY: y, curPt: e.pi, dsPath: [], dsAcc: [], freqMark: y, desc: `扫描到点 (${e.x}, ${y})（当前列自下而上处理到 y=${y}）：这是待统计的点，在 y 轴高度 ${y} 处 <b>+1</b>，并把 y=${y} 插入树状数组。`, vars: { x: e.x, y } }));
+      freq[y]++;
       const path = dsKind === "bit" ? bitAdd(y) : segAdd(y);
       inserted.add(e.pi);
-      list.push(base({ sweepX: e.x, sweepY: y, curPt: e.pi, dsPath: path, dsAcc: [], desc: `插入 y=${y} 完成（${dsKind === "bit" ? "沿 i+=lowbit 向上跳更新" : "根到叶路径各区间 +1"}）。`, vars: { y } }));
+      list.push(base({ sweepX: e.x, sweepY: y, curPt: e.pi, dsPath: path, dsAcc: [], freqMark: y, desc: `插入 y=${y} 完成：y 轴高度 ${y} 的计数变为 <b>${freq[y]}</b>（${dsKind === "bit" ? "树状数组沿 i+=lowbit 向上跳更新" : "线段树根到叶路径各区间 +1"}）。`, vars: { y } }));
     } else {
       const acc = [];
       const a = e.x, b = e.b;
@@ -362,13 +373,13 @@ function genScan(mode) {
         // scanPref 无分解阶段：查询顶点在遇到时揭示
         if (!shownCorners.some(c => c[3] === e.qi && c[4] === 0)) shownCorners.push([a, b, 1, e.qi, 0]);
         const countedPts = []; PTS.forEach((p, pi) => { if (inserted.has(pi) && p[1] <= b) countedPts.push(pi); });
-        list.push(base({ sweepX: e.x, sweepY: b, curQ: e.qi, prefRect: [a, b], prefSign: 1, corner: { qi: e.qi, term: 0 }, countedPts, dsAcc: acc, dsPath: [], ansMark: { qi: e.qi, sign: 1, delta: cnt, set: true }, desc: `查询顶点 (${a}, ${b})：结构里是 x≤${a} 的点，求 <b>y ≤ ${b}</b> 的个数，即 <b>S(${a},${b})</b> = <span class="hl">${cnt}</span>。写入 <b>ans[${e.qi + 1}]</b>。`, vars: { a, b, "S(a,b)": cnt } }));
+        list.push(base({ sweepX: e.x, sweepY: b, curQ: e.qi, prefRect: [a, b], prefSign: 1, corner: { qi: e.qi, term: 0 }, countedPts, dsAcc: acc, dsPath: [], freqRange: b, ansMark: { qi: e.qi, sign: 1, delta: cnt, set: true }, desc: `查询顶点 (${a}, ${b})：结构里是 x≤${a} 的点，求 <b>y ≤ ${b}</b> 的个数 = y 轴数组 <b>0～${b} 的区间和</b>，即 <b>S(${a},${b})</b> = <span class="hl">${cnt}</span>。写入 <b>ans[${e.qi + 1}]</b>。`, vars: { a, b, "S(a,b)": cnt } }));
       } else {
         ans[e.qi] += e.sign * cnt;
         const empty = (a < 0 || b < 1);
         const countedPts = []; if (!empty) PTS.forEach((p, pi) => { if (p[0] <= a && p[1] <= b) countedPts.push(pi); });
-        list.push(base({ sweepX: e.x < 0 ? -1 : e.x, sweepY: b, curQ: e.qi, prefRect: empty ? null : [a, b], prefSign: e.sign, corner: { qi: e.qi, term: e.term }, countedPts, dsAcc: acc, dsPath: [], ansMark: { qi: e.qi, sign: e.sign, delta: empty ? 0 : cnt },
-          desc: `扫描线 x=${a}、当前列处理到 y=${b}：遇到矩形 #${e.qi + 1} 的角 <b>${TERMSTR[e.term]}</b>（第 ${e.term + 1}/4 项）。统计 (0,0)→(${a},${b}) 内待统计点数 ${empty ? `（a&lt;0 或 b&lt;1，空区域）= <b>0</b>` : `query(${b})=<b>${cnt}</b>`}，按 <b>${e.sign > 0 ? "＋" : "−"}</b> 更新 ans[${e.qi + 1}]。当前累计 = <span class="hl">${ans[e.qi]}</span>。`,
+        list.push(base({ sweepX: e.x < 0 ? -1 : e.x, sweepY: b, curQ: e.qi, prefRect: empty ? null : [a, b], prefSign: e.sign, corner: { qi: e.qi, term: e.term }, countedPts, dsAcc: acc, dsPath: [], freqRange: empty ? 0 : b, ansMark: { qi: e.qi, sign: e.sign, delta: empty ? 0 : cnt },
+          desc: `扫描线 x=${a}、当前列处理到 y=${b}：遇到矩形 #${e.qi + 1} 的角 <b>${TERMSTR[e.term]}</b>（第 ${e.term + 1}/4 项）。统计 (0,0)→(${a},${b}) 内待统计点数 ${empty ? `（a&lt;0 或 b&lt;1，空区域）= <b>0</b>` : `= y 轴数组 <b>0～${b} 区间和</b> query(${b})=<b>${cnt}</b>`}，按 <b>${e.sign > 0 ? "＋" : "−"}</b> 更新 ans[${e.qi + 1}]。当前累计 = <span class="hl">${ans[e.qi]}</span>。`,
           vars: { 项: TERMSTR[e.term], "S(a,b)": empty ? 0 : cnt, 本次: (e.sign > 0 ? "+" : "−") + (empty ? 0 : cnt), 累计: ans[e.qi] } }));
       }
     }
@@ -388,6 +399,10 @@ function drawPlane(s) {
   const sx = x => pad + (x / (mx + 1)) * (W - 2 * pad);
   const sy = y => (W - pad) - (y / (my + 1)) * (W - 2 * pad);
   let g = "";
+  // 扫描线两种解法：y 轴左侧留出频次数组的空间，扩展 viewBox
+  const showFreq = (method !== "prefix" && s.freq);
+  const leftPad = showFreq ? 78 : 0;
+  $("plane").setAttribute("viewBox", `${-leftPad} 0 ${W + leftPad} ${W}`);
   g += `<line class="axis" x1="${pad}" y1="${W - pad}" x2="${W - 12}" y2="${W - pad}"/>`;
   g += `<line class="axis" x1="${pad}" y1="${W - pad}" x2="${pad}" y2="12"/>`;
   g += `<text class="alabel" x="${W - 16}" y="${W - pad + 14}">x</text><text class="alabel" x="${pad - 16}" y="18">y</text>`;
@@ -446,6 +461,22 @@ function drawPlane(s) {
       g += `<polygon class="corner ${sc}${isCur ? " cur" : ""}${isNew ? " fresh" : ""}" points="${cx},${cy - r} ${cx + r},${cy} ${cx},${cy + r} ${cx - r},${cy}"/>`;
       g += `<text class="cornlbl ${sc}" x="${cx}" y="${cy + r + 12}"><tspan class="qtag">#${qi + 1}</tspan> ${sign > 0 ? "+" : "−"}S(${a},${b})</text>`;
     });
+  }
+  // y 轴左侧的频次数组（竖版，自下而上编号）：单点修改高亮改动格，query 高亮 1..b 区间
+  if (showFreq) {
+    const cw = 30, cxL = -leftPad + 10;   // 单元格宽、左起点
+    const cellH = Math.min(30, (W - 2 * pad) / (my + 1) - 4);
+    g += `<text class="freqhdr" x="${cxL + cw / 2}" y="14">cnt[y]</text>`;
+    for (let y = 1; y <= my; y++) {
+      const cy = sy(y), top = cy - cellH / 2;
+      let cls = "freqcell";
+      if (s.freqRange && y <= s.freqRange) cls += " inrange";
+      if (s.freqMark === y) cls += " hit";
+      const valCls = cls.includes("hit") ? "dark" : (cls.includes("inrange") ? "on" : "");
+      g += `<rect class="${cls}" x="${cxL}" y="${top}" width="${cw}" height="${cellH}" rx="3"/>`;
+      g += `<text class="freqval ${valCls}" x="${cxL + cw / 2}" y="${cy + 4}">${s.freq[y] || 0}</text>`;
+      g += `<text class="freqidx" x="${cxL - 6}" y="${cy + 3}">${y}</text>`;
+    }
   }
   $("plane").innerHTML = g;
 }
