@@ -90,6 +90,7 @@
   .pt.counted { fill: var(--green); stroke: var(--green); filter: drop-shadow(0 0 5px rgba(0,255,156,.6)); }
   .pt.cur { fill: var(--yellow); stroke: var(--yellow); filter: drop-shadow(0 0 7px rgba(255,212,0,.8)); }
   .qbox { fill: rgba(255,43,214,0.10); stroke: var(--magenta); stroke-width: 1.5; stroke-dasharray: 4 3; }
+  .qbox.dim { fill: rgba(255,43,214,0.03); stroke: rgba(255,43,214,0.4); stroke-width: 1; }
   .qdot { fill: var(--magenta); }
   .sweep { stroke: var(--yellow); stroke-width: 2; stroke-dasharray: 5 4; opacity: .85; }
   .ptxt { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 9px; text-anchor: middle; }
@@ -295,14 +296,16 @@ function drawPlane(s) {
   g += `<line class="axis" x1="${pad}" y1="${W - pad}" x2="${W - 12}" y2="${W - pad}"/>`;
   g += `<line class="axis" x1="${pad}" y1="${W - pad}" x2="${pad}" y2="12"/>`;
   g += `<text class="alabel" x="${W - 16}" y="${W - pad + 14}">x</text><text class="alabel" x="${pad - 16}" y="18">y</text>`;
-  // 查询矩形（任意矩形 [x1,x2]×[y1,y2]）
-  if (s.qRect) {
-    const [x1, y1, x2, y2] = s.qRect;
-    const rx = sx(Math.max(x1, 0)), rw = sx(x2) - sx(Math.max(x1, 0)) || 0;
-    // 用左下(x1,y1)右上(x2,y2)
-    const X1 = sx(x1 <= 0 ? 0 : x1), X2 = sx(x2), Y1 = sy(y1), Y2 = sy(y2);
-    g += `<rect class="qbox" x="${Math.min(X1, X2)}" y="${Math.min(Y1, Y2)}" width="${Math.abs(X2 - X1)}" height="${Math.abs(Y1 - Y2)}"/>`;
-  }
+  // 把某个查询映射成矩形 [x1,y1,x2,y2]（前缀模式 [X,Y] → [1,1,X,Y]）
+  const toRect = q => method === "scanPref" ? [1, 1, q[0], q[1]] : [q[0], q[1], q[2], q[3]];
+  const rectSvg = (r, cls) => {
+    const [x1, y1, x2, y2] = r;
+    const X1 = sx(x1 <= 0 ? 0 : x1), X2 = sx(x2), Y1 = sy(y1 <= 0 ? 0 : y1), Y2 = sy(y2);
+    return `<rect class="${cls}" x="${Math.min(X1, X2)}" y="${Math.min(Y1, Y2)}" width="${Math.abs(X2 - X1)}" height="${Math.abs(Y1 - Y2)}"/>`;
+  };
+  // 始终画出所有查询矩形（淡框），当前查询用高亮框
+  QS.forEach((q, qi) => { if (qi !== s.curQ) g += rectSvg(toRect(q), "qbox dim"); });
+  if (s.curQ != null && QS[s.curQ]) g += rectSvg(toRect(QS[s.curQ]), "qbox");
   if (s.sweepX >= 0 && s.sweepX <= mx) g += `<line class="sweep" x1="${sx(s.sweepX)}" y1="12" x2="${sx(s.sweepX)}" y2="${W - pad}"/>`;
   PTS.forEach((p, pi) => {
     let cls = "pt";
