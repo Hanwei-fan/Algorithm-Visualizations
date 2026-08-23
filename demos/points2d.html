@@ -372,7 +372,11 @@ function genScan(mode) {
       }
     }
   }
-  list.push(base({ sweepX: 999, dsPath: [], dsAcc: [], done: true, desc: `<span class="hl">全部处理完毕！</span>各查询答案见下表。${mode === "scanRect" ? "每个矩形都由 4 次前缀 S(a,b) 容斥而来。" : ""}`, vars: {} }));
+  list.push(base({ sweepX: 999, dsPath: [], dsAcc: [], done: true, desc: `<span class="hl">扫描完毕！</span>各查询答案见下表。${mode === "scanRect" ? "每个矩形都由 4 次前缀 S(a,b) 容斥而来。" : ""}`, vars: {} }));
+  // ===== 阶段三：把所有查询矩形重新显示，便于对照答案是否正确 =====
+  const allRects = QS.map((_, qi) => qi);
+  list.push(base({ sweepX: -1, dsPath: [], dsAcc: [], done: true, verifyRects: allRects, corners: [],
+    desc: `<b>阶段三：对照验证。</b>重新显示全部 ${QS.length} 个查询矩形（粉框），隐去分解的角。可直接数每个矩形内的青色点，核对下表 ans[] 是否与容斥算出的结果一致。`, vars: {} }));
   return list;
 }
 
@@ -399,6 +403,8 @@ function drawPlane(s) {
     g += rectSvg([0, 0, a, b], "prefbox " + (s.prefSign > 0 ? "plus" : "minus"));
   }
   if (method === "scanRect") {
+    // 阶段三：对照验证——所有查询矩形用实心粉框重新显示
+    if (s.verifyRects) s.verifyRects.forEach(qi => { if (QS[qi]) g += rectSvg(QS[qi], "qbox"); });
     // 分解阶段：未处理的矩形淡框显示
     if (s.rectsShown) s.rectsShown.forEach(qi => { if (QS[qi]) g += rectSvg(QS[qi], "qbox dim"); });
     // 分解阶段：当前矩形前缀区切成 4 块，不同阴影色，块中央标 ±S
