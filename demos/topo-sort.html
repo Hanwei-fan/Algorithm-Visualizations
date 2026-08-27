@@ -93,10 +93,10 @@
   .gnode circle { fill: var(--node-fill, #16213e); stroke: var(--border); stroke-width: 2; transition: all .2s; }
   .gnode text.lbl { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 16px; font-weight: 700; }
   .gnode text.ind { font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; fill: var(--yellow); }
-  .gnode.ready circle { fill: rgba(255,212,0,0.16); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.5)); }
+  .gnode.ready circle { fill: color-mix(in srgb, var(--yellow) 28%, var(--node-fill)); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.5)); }
   .gnode.active circle { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 12px rgba(255,43,214,.8)); }
   .gnode.active text.lbl { fill: #fff; }
-  .gnode.done circle { fill: rgba(0,255,156,0.18); stroke: var(--green); }
+  .gnode.done circle { fill: color-mix(in srgb, var(--green) 30%, var(--node-fill)); stroke: var(--green); }
   .gnode { transition: opacity .3s; }
   .gnode.removed { opacity: 0; pointer-events: none; }
   .gnode.clickable { cursor: pointer; }
