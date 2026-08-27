@@ -317,13 +317,37 @@ function personXY(side, idx, count) {
   const y = 82 + row * 62;
   return { x, y };
 }
-function drawScene() {
+function boatCenterX(side) { return (side === "A" ? RIVER_X + 10 : W - BANK_W - 62) + 30; }
+// 一张人物卡片（居中于 x,y）
+function personCard(p, x, y, extraCls, clickable) {
+  let cls = "person" + (extraCls ? " " + extraCls : "");
+  if (clickable) cls += " clickable"; else cls += " locked";
+  const data = clickable ? ` data-pid="${p.id}"` : "";
+  const cardW = 62, cardH = 46, cx = x - cardW / 2, cy = y - cardH / 2;
+  const hx = cx + 15;
+  const fig = `<circle class="fig" cx="${hx}" cy="${cy + 15}" r="6"/>`
+    + `<path class="fig" d="M ${hx - 9} ${cy + cardH - 6} Q ${hx} ${cy + 20} ${hx + 9} ${cy + cardH - 6} Z"/>`;
+  return `<g class="${cls}"${data}>`
+    + `<rect class="pcard" x="${cx}" y="${cy}" width="${cardW}" height="${cardH}" rx="10"/>`
+    + fig
+    + `<text class="t" x="${cx + 42}" y="${cy + 22}">${p.t}</text>`
+    + `<text class="nm" x="${cx + 42}" y="${cy + 37}">P${p.id + 1}</text></g>`;
+}
+// 船体（相对中心 bcx,bcy 绘制）
+function boatSvg(bcx, bcy) {
+  return `<path class="boat" d="M ${bcx - 30} ${bcy} L ${bcx + 30} ${bcy} L ${bcx + 22} ${bcy + 18} L ${bcx - 22} ${bcy + 18} Z"/>`
+    + `<line class="mast" x1="${bcx}" y1="${bcy}" x2="${bcx}" y2="${bcy - 26}"/>`
+    + `<path class="sail" d="M ${bcx + 1} ${bcy - 25} L ${bcx + 18} ${bcy - 6} L ${bcx + 1} ${bcy - 6} Z"/>`;
+}
+// ferry: 过河动画中 {movers:[ids], from} —— 乘客画在船上、船画在 from 岸，随 .ferry 组一起平移
+function drawScene(ferry) {
   const svg = $("scene");
-  const onA = people.filter(p => p.side === "A");
-  const onB = people.filter(p => p.side === "B");
-  const boatX = boat === "A" ? RIVER_X + 10 : W - BANK_W - 62;
+  const transit = ferry ? new Set(ferry.movers) : new Set();
+  const boatSide = ferry ? ferry.from : boat;
+  const onA = people.filter(p => p.side === "A" && !transit.has(p.id));
+  const onB = people.filter(p => p.side === "B" && !transit.has(p.id));
+  const bcy = H / 2;
   let s = "";
-  // 河与两岸
   s += `<rect class="river" x="${RIVER_X}" y="0" width="${RIVER_W}" height="${H}"/>`;
   s += `<rect class="bank" x="0" y="0" width="${BANK_W}" height="${H}"/>`;
   s += `<rect class="bank" x="${W - BANK_W}" y="0" width="${BANK_W}" height="${H}"/>`;
@@ -331,41 +355,54 @@ function drawScene() {
   s += `<text class="banklabel" x="${W - BANK_W / 2}" y="30">B 岸 (终点)</text>`;
   s += `<text class="rivertext" x="${W / 2}" y="${H / 2 - 6}">～～ 河 ～～</text>`;
   s += `<text class="rivertext" x="${W / 2}" y="${H / 2 + 12}">船限 2 人 · 耗时取较慢者</text>`;
-  // 船（船身梯形 + 桅杆帆）
-  const bcx = boatX + 30, bcy = H / 2;
-  s += `<g class="boatg">`;
-  s += `<path class="boat" d="M ${bcx - 30} ${bcy} L ${bcx + 30} ${bcy} L ${bcx + 22} ${bcy + 18} L ${bcx - 22} ${bcy + 18} Z"/>`;
-  s += `<line class="mast" x1="${bcx}" y1="${bcy}" x2="${bcx}" y2="${bcy - 26}"/>`;
-  s += `<path class="sail" d="M ${bcx + 1} ${bcy - 25} L ${bcx + 18} ${bcy - 6} L ${bcx + 1} ${bcy - 6} Z"/>`;
-  s += `<text class="boatlabel" x="${bcx}" y="${bcy + 34}">船 (限2)</text></g>`;
-  // 人物：卡片式头像（人形剪影 + 大号时间 + 编号）
-  const clickableSide = (mode === "manual" && !solved) ? boat : null;
-  const drawPerson = (p, idx, cnt) => {
-    const { x, y } = personXY(p.side, idx, cnt);
-    let cls = "person";
-    if (selected.includes(p.id)) cls += " sel";
-    else if (p.side === "B") cls += " crossed";
-    const clickable = clickableSide === p.side;
-    if (clickable) cls += " clickable"; else cls += " locked";
-    const data = clickable ? ` data-pid="${p.id}"` : "";
-    const cardW = 62, cardH = 46, cx = x - cardW / 2, cy = y - cardH / 2;
-    // 人形剪影：头 + 肩，放在卡片左侧
-    const hx = cx + 15, hy = cy + 15;
-    const fig = `<circle class="fig" cx="${hx}" cy="${hy}" r="6"/>`
-      + `<path class="fig" d="M ${hx - 9} ${cy + cardH - 6} Q ${hx} ${cy + 20} ${hx + 9} ${cy + cardH - 6} Z"/>`;
-    return `<g class="${cls}"${data}>`
-      + `<rect class="pcard" x="${cx}" y="${cy}" width="${cardW}" height="${cardH}" rx="10"/>`
-      + fig
-      + `<text class="t" x="${cx + 42}" y="${cy + 22}">${p.t}</text>`
-      + `<text class="nm" x="${cx + 42}" y="${cy + 37}">P${p.id + 1}</text></g>`;
-  };
-  onA.forEach((p, i) => s += drawPerson(p, i, onA.length));
-  onB.forEach((p, i) => s += drawPerson(p, i, onB.length));
+  // 岸上人物
+  const clickableSide = (mode === "manual" && !solved && !ferry) ? boat : null;
+  onA.forEach((p, i) => {
+    const { x, y } = personXY(p.side, i, onA.length);
+    const ex = selected.includes(p.id) ? "sel" : (p.side === "B" ? "crossed" : "");
+    s += personCard(p, x, y, ex, clickableSide === "A");
+  });
+  onB.forEach((p, i) => {
+    const { x, y } = personXY(p.side, i, onB.length);
+    const ex = selected.includes(p.id) ? "sel" : "crossed";
+    s += personCard(p, x, y, ex, clickableSide === "B");
+  });
+  // 船 + （过河时）船上乘客，包在 .ferry 组里以便整体平移
+  const bcx = boatCenterX(boatSide);
+  s += `<g class="ferry">`;
+  s += boatSvg(bcx, bcy);
+  s += `<text class="boatlabel" x="${bcx}" y="${bcy + 34}">船 (限2)</text>`;
+  if (ferry) {
+    const riders = ferry.movers.map(id => people.find(p => p.id === id));
+    const ys = riders.length === 2 ? [bcy - 92, bcy - 40] : [bcy - 66];
+    riders.forEach((p, i) => { s += personCard(p, bcx, ys[i], "boarding", false); });
+  }
+  s += `</g>`;
   svg.innerHTML = s;
   if (clickableSide) {
     svg.querySelectorAll("[data-pid]").forEach(g =>
       g.addEventListener("click", () => togglePick(parseInt(g.dataset.pid, 10))));
   }
+}
+// 过河动画：船载乘客从 from 平移到 to，结束调用 done()
+const FERRY_MS = 850;
+let animating = false;
+function animateFerry(movers, from, to, done) {
+  animating = true;
+  drawScene({ movers, from });
+  const ferryEl = $("scene").querySelector(".ferry");
+  if (!ferryEl) { animating = false; done(); return; }
+  const delta = boatCenterX(to) - boatCenterX(from);
+  let finished = false;
+  const finish = () => { if (finished) return; finished = true; animating = false; done(); };
+  ferryEl.addEventListener("transitionend", finish, { once: true });
+  // 用 setTimeout 触发（比 rAF 更稳，页面不在前台时 rAF 会被节流）
+  setTimeout(() => {
+    ferryEl.style.transition = `transform ${FERRY_MS}ms cubic-bezier(.45,.05,.3,1)`;
+    ferryEl.style.transform = `translateX(${delta}px)`;
+  }, 20);
+  // 兜底：即使 transitionend 未触发也保证状态提交
+  setTimeout(finish, FERRY_MS + 220);
 }
 function drawStats() {
   const crossed = people.filter(p => p.side === "B").length;
@@ -386,7 +423,7 @@ function render() { drawScene(); drawStats(); drawLog(); }
 
 // ======== 手动挑战交互 ========
 function togglePick(id) {
-  if (mode !== "manual" || solved) return;
+  if (mode !== "manual" || solved || animating) return;
   const p = people.find(x => x.id === id);
   if (!p || p.side !== boat) return;         // 只能选船所在岸的人
   const at = selected.indexOf(id);
@@ -402,19 +439,22 @@ function togglePick(id) {
     : "点击本岸的人上船（最多 2 人）。");
 }
 function doRow() {
-  if (mode !== "manual" || solved) return;
+  if (mode !== "manual" || solved || animating) return;
   if (selected.length === 0) { setStatus("先选至少 1 个人再开船。"); return; }
   const from = boat, to = boat === "A" ? "B" : "A";
   const movers = [...selected];
   const cost = Math.max(...movers.map(id => people.find(p => p.id === id).t));
-  movers.forEach(id => { people.find(p => p.id === id).side = to; });
-  elapsed += cost;
-  boat = to;
   selected = [];
-  history.push({ movers, from, to, cost });
-  if (people.every(p => p.side === "B")) { solved = true; render(); checkResult(); return; }
-  render();
-  setStatus(`${dirLabel(from, to)}，耗时 ${cost}。船现在在 ${to} 岸。${to === "A" ? "选人继续送过去。" : "需要有人把船划回 A 岸。"}`);
+  setStatus(`开船中 ⛵ …… ${nameList(movers)} 正在 ${dirLabel(from, to)}`);
+  animateFerry(movers, from, to, () => {
+    movers.forEach(id => { people.find(p => p.id === id).side = to; });
+    elapsed += cost;
+    boat = to;
+    history.push({ movers, from, to, cost });
+    if (people.every(p => p.side === "B")) { solved = true; render(); checkResult(); return; }
+    render();
+    setStatus(`${dirLabel(from, to)}，耗时 ${cost}。船现在在 ${to} 岸。${to === "A" ? "选人继续送过去。" : "需要有人把船划回 A 岸。"}`);
+  });
 }
 function checkResult() {
   const banner = $("winBanner");
@@ -427,7 +467,7 @@ function checkResult() {
   }
 }
 function manualUndo() {
-  if (mode !== "manual" || !history.length || solved) return;
+  if (mode !== "manual" || !history.length || solved || animating) return;
   const last = history.pop();
   last.movers.forEach(id => { people.find(p => p.id === id).side = last.from; });
   elapsed -= last.cost;
@@ -438,6 +478,7 @@ function manualUndo() {
   setStatus("撤销了上一趟。");
 }
 function manualReset() {
+  stopPlay(); animating = false;
   people.forEach(p => p.side = "A");
   boat = "A"; elapsed = 0; selected = []; history = []; solved = false;
   $("winBanner").innerHTML = "";
@@ -452,7 +493,7 @@ function manualHint() {
 // ======== 最优解演示（单步 / 自动播放） ========
 let playIdx = 0, playTimer = null;
 function playReset() {
-  stopPlay();
+  stopPlay(); animating = false;
   people.forEach(p => p.side = "A");
   boat = "A"; elapsed = 0; selected = []; history = []; solved = false;
   playIdx = 0;
@@ -460,30 +501,38 @@ function playReset() {
   render();
   setStatus(`最优解共 ${optimalSeq.length} 趟，总耗时 ${optimalTime}。点「▶ 自动播放」或「单步 ▶」逐趟演示。`);
 }
-function playStep() {
-  if (playIdx >= optimalSeq.length) return false;
+// 播放一趟（带动画）；done(true/false) 回调表示是否还有后续
+function playStep(done) {
+  done = done || (() => {});
+  if (playIdx >= optimalSeq.length || animating) { done(false); return; }
   const mv = optimalSeq[playIdx];
   const from = boat, to = mv.dir === "A2B" ? "B" : "A";
-  mv.ids.forEach(id => { people.find(p => p.id === id).side = to; });
-  elapsed += mv.cost;
-  boat = to;
-  history.push({ movers: mv.ids, from, to, cost: mv.cost });
-  playIdx++;
-  render();
-  setStatus(`第 ${playIdx} 趟（${mv.note}）：${dirLabel(from, to)}，${nameList(mv.ids)}，耗时 ${mv.cost}。累计 ${elapsed}。`);
-  if (playIdx >= optimalSeq.length) {
-    solved = true;
-    $("winBanner").innerHTML = `<div class="win-banner">✅ 最优解完成！全员过河，总耗时 <b>${elapsed}</b> = 最短时间。</div>`;
-  }
-  return true;
+  setStatus(`第 ${playIdx + 1} 趟（${mv.note}）：${nameList(mv.ids)} 正在 ${dirLabel(from, to)} ……`);
+  animateFerry(mv.ids, from, to, () => {
+    mv.ids.forEach(id => { people.find(p => p.id === id).side = to; });
+    elapsed += mv.cost;
+    boat = to;
+    history.push({ movers: mv.ids, from, to, cost: mv.cost });
+    playIdx++;
+    render();
+    setStatus(`第 ${playIdx} 趟（${mv.note}）：${dirLabel(from, to)}，${nameList(mv.ids)}，耗时 ${mv.cost}。累计 ${elapsed}。`);
+    if (playIdx >= optimalSeq.length) {
+      solved = true;
+      $("winBanner").innerHTML = `<div class="win-banner">✅ 最优解完成！全员过河，总耗时 <b>${elapsed}</b> = 最短时间。</div>`;
+    }
+    done(true);
+  });
 }
 function playAll() {
   stopPlay();
   if (playIdx >= optimalSeq.length) playReset();
-  const spd = 1800 - parseInt($("speedInput").value, 10);
-  playTimer = setInterval(() => { if (!playStep()) stopPlay(); }, spd);
+  const spd = Math.max(200, 1800 - parseInt($("speedInput").value, 10));
+  const loop = () => {
+    playStep(more => { if (more && playIdx < optimalSeq.length) playTimer = setTimeout(loop, spd); else playTimer = null; });
+  };
+  loop();
 }
-function stopPlay() { if (playTimer) { clearInterval(playTimer); playTimer = null; } }
+function stopPlay() { if (playTimer) { clearTimeout(playTimer); playTimer = null; } }
 
 // ======== 应用输入 / 初始化 ========
 function applyTimes() {
