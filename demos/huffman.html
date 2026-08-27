@@ -89,7 +89,7 @@
   .hedge { stroke: #4a4478; stroke-width: 1.5; }
   .hbit { fill: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; }
   .tnode circle { fill: var(--node-fill, #16213e); stroke: var(--border); stroke-width: 1.5; }
-  .tnode.leaf circle { fill: rgba(0,255,156,0.15); stroke: var(--green); }
+  .tnode.leaf circle { fill: var(--node-fill, #16213e); stroke: var(--green); stroke-width: 2; }
   .tnode.hl circle { stroke: var(--yellow); filter: drop-shadow(0 0 6px rgba(255,212,0,.5)); }
   .tnode text.f { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 11px; font-weight: 700; text-anchor: middle; }
   .tnode text.c { fill: var(--green); font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700; text-anchor: middle; }
@@ -127,8 +127,8 @@
   /* 可点击的树节点 */
   .tnode.clickable { cursor: pointer; }
   .tnode.clickable circle { stroke: var(--cyan); }
-  .tnode.clickable:hover circle { fill: rgba(0,240,255,0.2); filter: drop-shadow(0 0 8px rgba(0,240,255,.6)); }
-  .tnode.sel circle { stroke: var(--yellow); stroke-width: 3; fill: rgba(255,212,0,0.25); filter: drop-shadow(0 0 10px rgba(255,212,0,.7)); }
+  .tnode.clickable:hover circle { fill: var(--node-fill, #16213e); stroke-width: 2.5; filter: drop-shadow(0 0 8px rgba(0,240,255,.6)); }
+  .tnode.sel circle { stroke: var(--yellow); stroke-width: 3; fill: var(--node-fill, #16213e); filter: drop-shadow(0 0 10px rgba(255,212,0,.7)); }
   .tnode.merged circle { animation: pop .4s ease; }
   /* 手动模式提示/记录 */
   .win-banner {
@@ -300,10 +300,10 @@ function drawForest(roots, pick = [], newId = null, opts = {}) {
   roots.forEach((r, i) => { if (i > 0) leafX += 0.6; lay(r, 0, null, i); });
 
   const nLeaf = leafX;
-  const W = 640, padX = 30, padY = 26;
+  const W = 640, H = 340, padX = 36, padY = 42;   // padY 留出叶子字母(在圆上方 22px)的空间
   const span = Math.max(nLeaf - 1, 1);
   const dx = (W - 2 * padX) / span;
-  const dy = Math.min(60, (300 - padY) / Math.max(maxDepth, 1));
+  const dy = Math.min(60, (H - padY - 24) / Math.max(maxDepth, 1));
   const X = u => nLeaf <= 1 ? W / 2 : padX + u._x * dx;
   const Y = u => padY + u._d * dy;
   let edges = "", nodes = "";
