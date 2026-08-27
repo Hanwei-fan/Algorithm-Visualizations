@@ -446,28 +446,56 @@ function genSubProg(a, b, neg) {
 // ======== 编程·乘法（res[i+j] 累加，再统一进位） ========
 function genMulProg(a, b) {
   const A = toArr(a), B = toArr(b), n = A.length, m = B.length, W = n + m;
-  const list = [], res = new Array(W).fill(0);
-  const rowsHead = (ci, cj, hotK, hotCls) => {
+  const list = [];
+  // 各层部分积：layers[j][k] = a[k-j]·b[j]（k-j∈[0,n-1] 才有值，否则 null）
+  const layers = [];
+  for (let j = 0; j < m; j++) { const row = new Array(W).fill(null); for (let i = 0; i < n; i++) row[i + j] = A[i] * B[j]; layers.push(row); }
+  // 通用行构建：shownLayers=已揭示的层数；acc=累加行(或null)；opts 高亮
+  const build = (shownLayers, acc, opts, desc, extra) => {
+    opts = opts || {};
     const rows = [rowIdx(W)];
-    rows.push(rowArrL("a[]", A, W, ci, "digit"));
-    rows.push(rowArrL("b[]", B, W, cj, "digit"));
+    rows.push(rowArrL("a[]", A, W, opts.ai != null ? opts.ai : -1, "digit"));
+    rows.push(rowArrL("b[]", B, W, opts.bj != null ? opts.bj : -1, "digit"));
     rows.push(LINE);
-    const posCls = {}; for (let k = 0; k < W; k++) if (hotK === k) posCls[k] = hotCls || "resnew";
-    // res 可能 >9（未进位），用字符串显示
-    const resRow = { tag: "res[]", cells: res.map((v, k) => ({ ch: "" + v, cls: "cell digit" + (posCls[k] ? " " + posCls[k] : "") })) };
-    rows.push(resRow);
-    return rows;
-  };
-  list.push({ rows: rowsHead(-1, -1, -1), desc: `编程实现：a、b 逆序存数组。第①阶段：双重循环把 <code>a[i]·b[j]</code> 累加到 <code>res[i+j]</code>（此时 res 各位可能 &gt;9，先不进位）。`, done: false });
-  for (let j = 0; j < m; j++) {
-    for (let i = 0; i < n; i++) {
-      const add = A[i] * B[j]; res[i + j] += add;
-      list.push({ rows: rowsHead(i, j, i + j), desc: `i=${i}, j=${j}：<code>res[${i + j}] += a[${i}]·b[${j}] = ${A[i]}·${B[j]} = <span class="hl">${add}</span></code> → res[${i + j}] = <span class="hl">${res[i + j]}</span>。`, done: false });
+    for (let j = 0; j < shownLayers; j++) {
+      const cells = layers[j].map((v, k) => {
+        if (v == null) return null;
+        let cls = "cell digit"; const isNewLayer = (opts.newLayer === j);
+        if (opts.accCol === k) cls += " cur"; else if (isNewLayer) cls += " resnew"; else cls += " res";
+        return { ch: "" + v, cls };
+      });
+      rows.push({ tag: "层" + j + "(×" + B[j] + ")", cells });
     }
+    if (acc) {
+      rows.push(SUBLINE);
+      const cells = acc.map((v, k) => {
+        if (v == null) return null;
+        let cls = "cell digit"; if (opts.accCol === k) cls += " resnew"; else if (opts.carryK != null) { cls += (k <= opts.carryK ? " res" : ""); } else cls += " res";
+        return { ch: "" + v, cls };
+      });
+      rows.push({ tag: "累加", cells });
+    }
+    list.push(Object.assign({ rows, desc, done: false }, extra || {}));
+  };
+  // 阶段①：逐层列出部分积
+  build(0, null, {}, `编程乘法（分层）：a、b 逆序存数组。<b>第①步</b>——b 的每一位 <code>b[j]</code> 乘整个 a，得到一"层"部分积放在下标 <code>i+j</code>（原始乘积可能 &gt;9，先不进位）。`);
+  for (let j = 0; j < m; j++) {
+    const prodList = [];
+    for (let i = 0; i < n; i++) prodList.push(`a[${i}]·b[${j}]=${A[i]}·${B[j]}=${A[i] * B[j]}`);
+    build(j + 1, null, { bj: j, newLayer: j }, `层 ${j}（× b[${j}]=${B[j]}）：${prodList.join("，")}，分别放到下标 ${j}…${j + n - 1}。`);
   }
-  // 第②阶段：统一进位
-  let carry = 0;
-  list.push({ rows: rowsHead(-1, -1, -1), desc: `第②阶段：从低位起<b>统一进位</b> —— <code>res[k+1] += res[k]/10; res[k] %= 10</code>。`, done: false, carryVal: 0 });
+  // 阶段②：逐列累加各层 → acc（仍可 >9）
+  const acc = new Array(W).fill(0);
+  build(m, acc.slice(), {}, `<b>第②步</b>——把各层<b>逐列相加</b>到累加行 <code>acc</code>：<code>acc[k] = Σ 层j[k]</code>（此时 acc 各位仍可能 &gt;9）。`);
+  for (let k = 0; k < W; k++) {
+    let sum = 0; const parts = [];
+    for (let j = 0; j < m; j++) if (layers[j][k] != null) { sum += layers[j][k]; parts.push("" + layers[j][k]); }
+    acc[k] = sum;
+    build(m, acc.slice(), { accCol: k }, `下标 ${k}：把各层此列相加 <code>acc[${k}] = ${parts.length ? parts.join(" + ") : "0"} = <span class="hl">${sum}</span></code>。`);
+  }
+  // 阶段③：统一进位
+  const res = acc.slice(); let carry = 0;
+  build(m, res.slice(), { carryK: -1 }, `<b>第③步</b>——从低位起<b>统一进位</b>：<code>res[k] = acc[k] % 10</code>，进位累加到高位。`, { carryVal: 0 });
   for (let k = 0; k < W; k++) {
     const before = res[k] + carry; res[k] = before % 10; carry = Math.floor(before / 10);
     const rows = [rowIdx(W)];
@@ -476,9 +504,9 @@ function genMulProg(a, b) {
     rows.push(LINE);
     const resRow = { tag: "res[]", cells: res.map((v, kk) => ({ ch: "" + v, cls: "cell digit" + (kk === k ? " resnew" : (kk < k ? " res" : "")) })) };
     rows.push(resRow);
-    list.push({ rows, desc: `k=${k}：<code>res[${k}] = ${before}%10 = <span class="hl">${res[k]}</span></code>，进位 <code>${before}/10 = <span class="hl">${carry}</span></code> 加到 res[${k + 1 < W ? k + 1 : "—"}]。`, done: false, carryVal: carry });
+    list.push({ rows, desc: `下标 ${k}：<code>res[${k}] = ${before} % 10 = <span class="hl">${res[k]}</span></code>，进位 <code>${before} / 10 = <span class="hl">${carry}</span></code>${carry ? " 带到下一位" : ""}。`, done: false, carryVal: carry });
   }
-  const resStr = norm(res.map(d => d).slice().reverse().join(""));
+  const resStr = norm(res.slice().reverse().join(""));
   const rows = [rowIdx(W), rowArrL("a[]", A, W, -1, "digit"), rowArrL("b[]", B, W, -1, "digit"), LINE,
     { tag: "res[]", cells: res.map(v => ({ ch: "" + v, cls: "cell digit res" })) }];
   list.push({ rows, desc: `进位完成。res[] 逆序读出（去前导 0）得 a×b = <span class="hl">${resStr}</span>。`, done: true });
