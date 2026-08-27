@@ -121,9 +121,11 @@
   }
   .tab:hover { color: var(--cyan); }
   .tab.active { color: var(--cyan); background: var(--panel); border-color: var(--cyan); text-shadow: 0 0 6px rgba(0,240,255,.5); }
-  .manual-only { display: none; }
-  body.manual .manual-only { display: flex; }
-  body.manual .auto-only { display: none !important; }
+  .manual-only, .custom-only { display: none; }
+  body.manual .manual-only, body.custom .manual-only { display: flex; }
+  body.manual .auto-only, body.custom .auto-only { display: none !important; }
+  body.custom .custom-only { display: flex; }
+  body.custom .auto-manual-only { display: none !important; }
   /* 可点击的树节点 */
   .tnode.clickable { cursor: pointer; }
   .tnode.clickable circle { stroke: var(--cyan); }
@@ -153,10 +155,12 @@
 <div class="tabs">
   <div class="tab active" data-mode="auto">自动演示</div>
   <div class="tab" data-mode="manual">手动挑战</div>
+  <div class="tab" data-mode="custom">自定义挑战</div>
 </div>
 
 <div class="controls">
-  <div class="field"><label>输入文本（统计字符频率）</label><input id="txtInput" type="text" value="ABRACADABRA"></div>
+  <div class="field auto-manual-only"><label>输入文本（统计字符频率）</label><input id="txtInput" type="text" value="ABRACADABRA"></div>
+  <div class="field custom-only" style="min-width:320px"><label>关键字与频率（如 <code>A:5 B:2 C:1</code>，逗号或空格分隔）</label><input id="freqInput" type="text" value="A:5 B:2 C:1 D:1 E:1"></div>
   <div class="speed auto-only"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1100" value="600" step="50"></div>
   <button class="btn cy auto-only" id="startBtn">开始建树</button>
   <button class="btn auto-only" id="playBtn" disabled>自动播放</button>
@@ -394,6 +398,55 @@ let mSolved = false;
 let mNodeSeq = 0;
 
 function label(nd) { return nd.ch !== null ? `'${nd.ch === " " ? "␣" : nd.ch}'` : `[${nd.freq}]`; }
+function isChallenge() { return mode === "manual" || mode === "custom"; }
+
+// 解析「关键字:频率」输入：支持 A:5 B:2 / A 5, B 2 / A：5、B：2 等分隔
+// 返回 {order:[key...], freq:{key->n}} 或 {error:"..."}
+function parseFreqInput(raw) {
+  const norm = (raw || "").replace(/[，、；;,]/g, " ").replace(/：/g, ":").trim();
+  if (!norm) return { error: "请输入关键字和频率。" };
+  const tokens = norm.split(/\s+/);
+  const freq = {}, order = [];
+  let pendKey = null;
+  const addPair = (k, nStr) => {
+    const n = Number(nStr);
+    if (!k) return "关键字不能为空。";
+    if (!Number.isInteger(n) || n <= 0) return `关键字 “${k}” 的频率必须是正整数（收到 “${nStr}”）。`;
+    if (!(k in freq)) order.push(k);
+    freq[k] = (freq[k] || 0) + n;   // 同名累加，宽容处理
+    return null;
+  };
+  for (const tk of tokens) {
+    const m = tk.match(/^(.+?):(\d+)$/);   // 形如 A:5
+    if (m) {
+      if (pendKey !== null) return { error: `关键字 “${pendKey}” 缺少频率。` };
+      const err = addPair(m[1], m[2]); if (err) return { error: err };
+      continue;
+    }
+    if (pendKey === null) { pendKey = tk; }          // 记下待配频率的关键字
+    else { const err = addPair(pendKey, tk); if (err) return { error: err }; pendKey = null; }
+  }
+  if (pendKey !== null) return { error: `关键字 “${pendKey}” 缺少频率。` };
+  if (order.length === 0) return { error: "没有解析到任何关键字。" };
+  return { order, freq };
+}
+
+function customStart() {
+  const parsed = parseFreqInput($("freqInput").value);
+  if (parsed.error) { setStatus("⚠ " + parsed.error); $("winBanner").innerHTML = ""; forest = []; renderManual("⚠ " + parsed.error); return; }
+  mFreq = parsed.freq;
+  const keys = parsed.order;
+  mNodeSeq = 0;
+  // 初始森林：每个关键字一棵单节点树（ch 存整个关键字字符串）
+  forest = keys.map(k => ({ id: mNodeSeq++, ch: k, freq: mFreq[k], l: null, r: null }));
+  forest.sort((a, b) => a.freq - b.freq || String(a.ch).localeCompare(String(b.ch)));
+  optWPL = optimalWPL(keys.map(k => mFreq[k]));
+  selId = null; mHistory = []; mSolved = false;
+  $("winBanner").innerHTML = "";
+  $("formula").innerHTML = `目标：把 ${keys.length} 个关键字合并成一棵 <b>Huffman 树</b>。<br>点两棵树的根合并（频率相加）。<b>贪心策略</b>是每次挑当前频率最小的两棵。<br>共需合并 ${keys.length - 1} 次，完成后系统检查你的树是否最优。`;
+  if (keys.length === 1) { mSolved = true; renderManual(`只有一个关键字 ${label(forest[0])}，它本身就是整棵树（编码 "0"）。`, forest[0].id); checkTree(); return; }
+  renderManual(`森林已就绪，共 ${keys.length} 棵单节点树。点击任意两棵树的根开始合并。`);
+}
 
 // 贪心最优 WPL：反复取两个最小频率相加累计
 function optimalWPL(freqs) {
@@ -436,7 +489,7 @@ function manualStart() {
 
 // 点击森林中的某个根
 function onRootClick(id) {
-  if (mode !== "manual" || mSolved) return;
+  if (!isChallenge() || mSolved) return;
   if (selId === null) {
     selId = id;
     renderManual(`已选中 ${label(forest.find(r => r.id === id))}，再点另一棵树的根完成合并（或再次点它取消）。`);
@@ -467,7 +520,7 @@ function doMerge(idA, idB) {
 }
 
 function manualUndo() {
-  if (mode !== "manual" || mHistory.length === 0 || mSolved) return;
+  if (!isChallenge() || mHistory.length === 0 || mSolved) return;
   // 撤销：找到最后合并的 parent，拆回两棵子树
   const last = mHistory.pop();
   const pi = forest.findIndex(r => r.id === last.pid);
@@ -490,7 +543,7 @@ function checkTree() {
 }
 
 function manualHint() {
-  if (mode !== "manual" || mSolved) return;
+  if (!isChallenge() || mSolved) return;
   if (forest.length < 2) { setStatus("森林里不足两棵树。"); return; }
   const sorted = [...forest].sort((a, b) => a.freq - b.freq || a.id - b.id);
   const [x, y] = sorted;
@@ -515,18 +568,22 @@ function switchMode(m) {
   stopTimer(); running = false;
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === m));
   document.body.classList.toggle("manual", m === "manual");
+  document.body.classList.toggle("custom", m === "custom");
+  $("winBanner").innerHTML = "";
   if (m === "manual") manualStart();
-  else { $("winBanner").innerHTML = ""; prepare(); }
+  else if (m === "custom") customStart();
+  else prepare();
 }
 
 $("startBtn").onclick = () => prepare();
 $("playBtn").onclick = () => { if (idx >= steps.length - 1) prepare(); playAll(); };
 $("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
-$("manualStartBtn").onclick = () => manualStart();
+$("manualStartBtn").onclick = () => mode === "custom" ? customStart() : manualStart();
 $("undoBtn").onclick = () => manualUndo();
 $("hintBtn").onclick = () => manualHint();
 $("cppBtn").onclick = () => CppView.open("huffman");
 $("txtInput").addEventListener("keydown", e => { if (e.key === "Enter") { mode === "manual" ? manualStart() : prepare(); } });
+$("freqInput").addEventListener("keydown", e => { if (e.key === "Enter") customStart(); });
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchMode(t.dataset.mode));
 
 CppView.register({
