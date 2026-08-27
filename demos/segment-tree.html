@@ -95,17 +95,17 @@
   /* 线段树 SVG */
   svg { width: 100%; height: auto; display: block; }
   .edge { stroke: #4a4478; stroke-width: 1.5; }
-  .tnode rect { fill: rgba(0,240,255,0.06); stroke: var(--border); stroke-width: 1.5; transition: all .2s; }
+  .tnode rect { fill: color-mix(in srgb, var(--cyan) 8%, var(--node-fill)); stroke: var(--border); stroke-width: 1.5; transition: all .2s; }
   .tnode text.sum { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700; }
   .tnode text.rng { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 9px; }
   .tnode text.lazy { fill: var(--yellow); font-family: "SF Mono", Menlo, monospace; font-size: 9px; font-weight: 700; }
-  .tnode.visit rect { fill: rgba(255,212,0,0.2); stroke: var(--yellow); filter: drop-shadow(0 0 6px rgba(255,212,0,.5)); }
-  .tnode.full rect { fill: rgba(0,255,156,0.22); stroke: var(--green); filter: drop-shadow(0 0 8px rgba(0,255,156,.6)); }
+  .tnode.visit rect { fill: color-mix(in srgb, var(--yellow) 30%, var(--node-fill)); stroke: var(--yellow); filter: drop-shadow(0 0 6px rgba(255,212,0,.5)); }
+  .tnode.full rect { fill: color-mix(in srgb, var(--green) 34%, var(--node-fill)); stroke: var(--green); filter: drop-shadow(0 0 8px rgba(0,255,156,.6)); }
   .tnode.update rect { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 10px rgba(255,43,214,.7)); }
   .tnode.update text.sum { fill: #fff; }
   .tnode.haslazy rect { stroke: var(--yellow); stroke-dasharray: 4 2; }
   /* 建树时刚创建的新节点：青色描边 + 弹出动画 */
-  .tnode.newnode rect { fill: rgba(0,240,255,0.18); stroke: var(--cyan); filter: drop-shadow(0 0 8px rgba(0,240,255,.6)); }
+  .tnode.newnode rect { fill: color-mix(in srgb, var(--cyan) 30%, var(--node-fill)); stroke: var(--cyan); filter: drop-shadow(0 0 8px rgba(0,240,255,.6)); }
   .tnode.newnode { animation: nodepop .35s ease; transform-box: fill-box; transform-origin: center; }
   @keyframes nodepop { 0% { opacity: 0; transform: scale(.3); } 100% { opacity: 1; transform: scale(1); } }
   .edge.newedge { stroke: var(--cyan); stroke-width: 2; filter: drop-shadow(0 0 4px rgba(0,240,255,.5)); }

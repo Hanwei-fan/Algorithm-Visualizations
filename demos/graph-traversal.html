@@ -98,12 +98,11 @@
   .edge.up { stroke: #ff7a45; stroke-width: 3.5; filter: drop-shadow(0 0 6px rgba(255,122,69,.7)); }
   .gnode circle { fill: var(--node-fill, #16213e); stroke: var(--border); stroke-width: 2; transition: all .2s; }
   .gnode text { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 16px; font-weight: 700; }
-  .gnode.frontier circle { fill: rgba(255,212,0,0.18); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.5)); }
+  .gnode.frontier circle { fill: color-mix(in srgb, var(--yellow) 30%, var(--node-fill)); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.5)); }
   .gnode.active circle { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 12px rgba(255,43,214,.8)); }
   .gnode.active text { fill: #fff; }
-  .gnode.back circle { fill: rgba(255,122,69,0.22); stroke: #ff7a45; filter: drop-shadow(0 0 12px rgba(255,122,69,.8)); }
-  .gnode.back text { fill: #fff; }
-  .gnode.done circle { fill: rgba(0,255,156,0.18); stroke: var(--green); }
+  .gnode.back circle { fill: color-mix(in srgb, #ff7a45 34%, var(--node-fill)); stroke: #ff7a45; filter: drop-shadow(0 0 12px rgba(255,122,69,.8)); }
+  .gnode.done circle { fill: color-mix(in srgb, var(--green) 30%, var(--node-fill)); stroke: var(--green); }
   /* 递归调用栈：竖向堆叠，栈顶在上 */
   .callstack { display: flex; flex-direction: column-reverse; gap: 6px; min-height: 44px; }
   .callstack .frame {

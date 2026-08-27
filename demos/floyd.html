@@ -77,9 +77,9 @@
   .gedge.arrow { marker-end: url(#ah); }
   .gelabel { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 11px; }
   .gnode circle { fill: var(--node-fill, #16213e); stroke: var(--cyan); stroke-width: 2; }
-  .gnode.src circle { fill: rgba(255,212,0,0.25); stroke: var(--yellow); filter: drop-shadow(0 0 6px rgba(255,212,0,.6)); }
-  .gnode.dst circle { fill: rgba(255,43,214,0.25); stroke: var(--magenta); filter: drop-shadow(0 0 6px rgba(255,43,214,.6)); }
-  .gnode.via circle { fill: rgba(0,255,156,0.25); stroke: var(--green); filter: drop-shadow(0 0 8px rgba(0,255,156,.7)); }
+  .gnode.src circle { fill: color-mix(in srgb, var(--yellow) 34%, var(--node-fill)); stroke: var(--yellow); filter: drop-shadow(0 0 6px rgba(255,212,0,.6)); }
+  .gnode.dst circle { fill: color-mix(in srgb, var(--magenta) 34%, var(--node-fill)); stroke: var(--magenta); filter: drop-shadow(0 0 6px rgba(255,43,214,.6)); }
+  .gnode.via circle { fill: color-mix(in srgb, var(--green) 34%, var(--node-fill)); stroke: var(--green); filter: drop-shadow(0 0 8px rgba(0,255,156,.7)); }
   .gnode text { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; text-anchor: middle; }
   /* 距离矩阵 */
   table.mat { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 14px; }

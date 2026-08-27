@@ -88,7 +88,7 @@
   .gnode circle { fill: var(--node-fill, #16213e); stroke: var(--border); stroke-width: 2; transition: all .2s; }
   .gnode text.lbl { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; }
   .gnode text.set { font-family: "SF Mono", Menlo, monospace; font-size: 11px; font-weight: 700; fill: #a06bff; }
-  .gnode.intree circle { fill: rgba(0,255,156,0.18); stroke: var(--green); }
+  .gnode.intree circle { fill: color-mix(in srgb, var(--green) 30%, var(--node-fill)); stroke: var(--green); }
   .gnode.cur circle { fill: var(--magenta); stroke: var(--magenta); filter: drop-shadow(0 0 12px rgba(255,43,214,.8)); }
   .gnode.cur text.lbl { fill: #fff; }
   /* 右栏 */
