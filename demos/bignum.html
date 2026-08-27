@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>高精度计算演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+    --node-fill: #16213e;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 8px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .tab {
+    padding: 9px 18px; border: 1px solid var(--border); border-bottom: none;
+    border-radius: 8px 8px 0 0; cursor: pointer; color: var(--muted);
+    font-size: 14px; letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace;
+    background: rgba(18,15,38,0.4); transition: all .18s;
+  }
+  .tab:hover { color: var(--cyan); }
+  .tab.active { color: var(--cyan); background: var(--panel); border-color: var(--cyan); text-shadow: 0 0 6px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 210px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(18,15,38,0.5); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.06); box-shadow: none; }
+  .cppview-btn {
+    margin-left: auto; padding: 9px 15px; border: 1px solid var(--green); border-radius: 4px;
+    background: rgba(0,255,156,0.1); color: var(--green); font-size: 13px; letter-spacing: 1px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .cppview-btn:hover { background: var(--green); color: #05060f; box-shadow: 0 0 16px rgba(0,255,156,.5); }
+  main { padding: 6px 30px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px; backdrop-filter: blur(6px);
+  }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .plabel.mt { margin-top: 16px; }
+  /* 竖式数位网格 */
+  .calc { overflow-x: auto; padding: 10px 4px; }
+  .grid { display: inline-grid; gap: 3px; font-family: "SF Mono", Menlo, monospace; margin: 0 auto; }
+  .cell {
+    width: 38px; height: 44px; display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; border-radius: 7px; color: var(--text);
+    background: transparent; transition: background .15s, color .15s;
+  }
+  .cell.digit { background: color-mix(in srgb, var(--cyan) 7%, var(--node-fill)); border: 1px solid var(--border); }
+  .cell.op { color: var(--magenta); font-size: 20px; }
+  .cell.carry { font-size: 14px; height: 24px; color: var(--yellow); font-weight: 800; }
+  .cell.borrow { font-size: 13px; height: 24px; color: var(--magenta); font-weight: 800; }
+  .cell.small { font-size: 13px; height: 22px; color: var(--muted); }
+  .cell.cur { background: color-mix(in srgb, var(--yellow) 32%, var(--node-fill)); border-color: var(--yellow); box-shadow: 0 0 8px rgba(255,212,0,.5); }
+  .cell.res { background: color-mix(in srgb, var(--cyan) 22%, var(--node-fill)); border: 1px solid var(--cyan); }
+  .cell.resnew { background: color-mix(in srgb, var(--green) 34%, var(--node-fill)); border: 1px solid var(--green); box-shadow: 0 0 10px rgba(0,255,156,.55); }
+  .cell.quot { background: color-mix(in srgb, var(--green) 26%, var(--node-fill)); border: 1px solid var(--green); }
+  .cell.dim { color: var(--muted); opacity: .5; }
+  .gline { grid-column: 1 / -1; height: 2px; background: var(--cyan); margin: 3px 0; border-radius: 2px; }
+  .gsub { grid-column: 1 / -1; height: 1px; background: var(--border); margin: 1px 0; }
+  .rowtag { display: flex; align-items: center; justify-content: flex-end; font-size: 11px; color: var(--muted); padding-right: 6px; }
+  .stats { margin-top: 12px; font-family: "SF Mono", Menlo, monospace; font-size: 14px; color: var(--text); }
+  .stats b { color: var(--yellow); }
+  .status { margin-top: 8px; font-size: 14px; min-height: 48px; color: var(--text); font-family: "SF Mono", Menlo, monospace; line-height: 1.6; }
+  .status .hl { color: var(--yellow); font-weight: 700; }
+  .result-big { margin-top: 12px; font-family: "SF Mono", Menlo, monospace; font-size: 15px; color: var(--muted); word-break: break-all; }
+  .result-big b { color: var(--green); font-size: 17px; }
+  .formula { font-size: 13px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; line-height: 1.7; background: rgba(5,4,15,0.5); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); }
+  .formula code, .note code { color: var(--cyan); background: rgba(0,240,255,0.08); padding: 1px 5px; border-radius: 3px; }
+  .note { margin: 6px 30px 30px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .note code { color: var(--cyan); }
+  .note b { color: var(--yellow); }
+</style>
+</head>
+<body>
+<header>
+  <h1>高精度计算演示</h1>
+  <p>当整数超出 <code style="color:var(--cyan)">long long</code> 时，用数组按位存储，模拟课本竖式逐位计算。加、减、乘、除四种运算逐列演示进位、借位、部分积累加与试商长除法。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="tabs">
+  <div class="tab active" data-op="add">加法 +</div>
+  <div class="tab" data-op="sub">减法 −</div>
+  <div class="tab" data-op="mul">乘法 ×</div>
+  <div class="tab" data-op="div">除法 ÷</div>
+</div>
+
+<div class="controls">
+  <div class="field"><label id="labA">被加数 a</label><input id="aInput" type="text" value="3857"></div>
+  <div class="field"><label id="labB">加数 b</label><input id="bInput" type="text" value="964"></div>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1300" value="620" step="50"></div>
+  <button class="btn" id="playBtn">自动播放</button>
+  <button class="btn secondary" id="stepBtn">单步 ▶</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="btn secondary" id="randBtn">随机</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="plabel" id="calcLabel">竖式过程</div>
+    <div class="calc"><div class="grid" id="grid"></div></div>
+    <div class="result-big" id="resultBig"></div>
+  </section>
+  <section class="card">
+    <div class="plabel">算法</div>
+    <div class="formula" id="formula"></div>
+    <div class="stats" id="stats"></div>
+    <div class="status" id="status"></div>
+  </section>
+</main>
+
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let op = "add", steps = [], idx = 0, timer = null, running = false;
+function setStatus(t) { $("status").innerHTML = t; }
+function norm(s) { s = (s || "").replace(/\D/g, "").replace(/^0+(?=\d)/, ""); return s || "0"; }
+function digitAt(str, pos) { const L = str.length; return pos < L ? +str[L - 1 - pos] : 0; }
+function cmpNum(a, b) { a = norm(a); b = norm(b); if (a.length !== b.length) return a.length - b.length; return a < b ? -1 : a > b ? 1 : 0; }
+
+// 行构建：str 右对齐到 W 列（列 j 从左到右，place pos = W-1-j）
+function rowDigits(tag, str, W, baseCls, posCls) {
+  posCls = posCls || {}; const L = str.length, off = W - L, cells = [];
+  for (let j = 0; j < W; j++) {
+    const pos = W - 1 - j;
+    if (j < off) cells.push(null);
+    else { let cls = "cell " + (baseCls || ""); if (posCls[pos]) cls += " " + posCls[pos]; cells.push({ ch: str[j - off], cls }); }
+  }
+  return { tag, cells };
+}
+// 稀疏行：map = { pos: {ch, cls} }
+function rowSparse(tag, W, map, baseCls) {
+  const cells = [];
+  for (let j = 0; j < W; j++) { const pos = W - 1 - j, m = map[pos]; cells.push(m ? { ch: m.ch, cls: "cell " + (baseCls || "") + (m.cls ? " " + m.cls : "") } : null); }
+  return { tag, cells };
+}
+const LINE = { line: true }, SUBLINE = { sub: true };
+
+// ======== 加法 ========
+function genAddSteps(a, b) {
+  a = norm(a); b = norm(b);
+  const W = Math.max(a.length, b.length) + 1;
+  const list = [], res = new Array(W).fill(null), carries = {};
+  let carry = 0;
+  const opRow = () => rowSparse("+", W, { [W - 1 - 0]: null }, "");   // 占位不用
+  const build = (curPos, desc, doneDigit, done) => {
+    const rows = [];
+    // 进位行
+    const cmap = {}; for (const p in carries) if (carries[p]) cmap[p] = { ch: "" + carries[p], cls: "carry" };
+    rows.push(rowSparse("进位", W, cmap, "carry"));
+    rows.push(rowDigits("a", a, W, "digit", curPos != null ? { [curPos]: "cur" } : {}));
+    rows.push(rowDigits("b", "+ " + b, W, "digit", curPos != null ? { [curPos]: "cur" } : {}));
+    rows.push(LINE);
+    const posCls = {}; for (let p = 0; p < W; p++) if (res[p] != null) posCls[p] = (p === doneDigit ? "resnew" : "res");
+    const rstr = res.map(d => d == null ? " " : d).join("").replace(/ /g, "");
+    // 直接用稀疏结果行避免空格错位
+    const rmap = {}; for (let p = 0; p < W; p++) if (res[p] != null) rmap[p] = { ch: "" + res[p], cls: p === doneDigit ? "resnew" : "res" };
+    rows.push(rowSparse("和", W, rmap, "digit"));
+    list.push({ rows, desc, done: !!done });
+  };
+  build(0, `从最低位（个位）开始：把 a、b 对齐，逐列相加，满 10 向前进位。`, null, false);
+  for (let pos = 0; pos < W; pos++) {
+    const da = digitAt(a, pos), db = digitAt(b, pos), cin = carry;
+    const s = da + db + cin, d = s % 10; carry = Math.floor(s / 10);
+    res[pos] = d; if (carry) carries[pos + 1] = carry;
+    build(pos, `第 ${pos + 1} 列：${da} + ${db}${cin ? " + 进位 " + cin : ""} = <span class="hl">${s}</span> → 本位写 <span class="hl">${d}</span>${carry ? "，向前进位 <span class='hl'>" + carry + "</span>" : "，无进位"}。`, pos, false);
+  }
+  const resStr = norm(res.map(d => d == null ? 0 : d).reverse().join(""));
+  build(null, `完成！各列相加并处理进位后，得 a + b = <span class="hl">${resStr}</span>。`, null, true);
+  return { list, resStr };
+}
+
+// ======== 减法（a - b，保证 a≥b；外层负号处理） ========
+function genSubSteps(a, b, neg) {
+  a = norm(a); b = norm(b);
+  const W = a.length;
+  const list = [], res = new Array(W).fill(null), borrows = {};
+  let borrow = 0;
+  const build = (curPos, desc, doneDigit, done) => {
+    const rows = [];
+    const bmap = {}; for (const p in borrows) if (borrows[p]) bmap[p] = { ch: "−1", cls: "borrow" };
+    rows.push(rowSparse("借位", W, bmap, "borrow"));
+    rows.push(rowDigits("a", a, W, "digit", curPos != null ? { [curPos]: "cur" } : {}));
+    rows.push(rowDigits("b", "- " + b, W, "digit", curPos != null ? { [curPos]: "cur" } : {}));
+    rows.push(LINE);
+    const rmap = {}; for (let p = 0; p < W; p++) if (res[p] != null) rmap[p] = { ch: "" + res[p], cls: p === doneDigit ? "resnew" : "res" };
+    rows.push(rowSparse("差", W, rmap, "digit"));
+    list.push({ rows, desc, done: !!done });
+  };
+  build(0, `${neg ? "因 a < b，先算 b − a，结果取负。" : ""}从个位起逐列相减，不够减就向前一位借 1（本位 +10）。`, null, false);
+  for (let pos = 0; pos < W; pos++) {
+    const da = digitAt(a, pos), db = digitAt(b, pos), bin = borrow;
+    let d = da - db - bin; let bo = 0;
+    if (d < 0) { d += 10; bo = 1; borrows[pos + 1] = 1; }
+    res[pos] = d; borrow = bo;
+    build(pos, `第 ${pos + 1} 列：${da}${bin ? " − 借位 1" : ""} − ${db} = <span class="hl">${da - bin - db}</span>${bo ? "，不够减，向前借 1 → 本位 " + (da - bin + 10) + " − " + db + " = <span class='hl'>" + d + "</span>" : "，本位写 <span class='hl'>" + d + "</span>"}。`, pos, false);
+  }
+  const resStr = (neg && norm(res.slice().reverse().join("")) !== "0" ? "−" : "") + norm(res.map(d => d == null ? 0 : d).reverse().join(""));
+  build(null, `完成！a − b = <span class="hl">${resStr}</span>。`, null, true);
+  return { list, resStr };
+}
+
+// ======== 乘法（竖式部分积） ========
+function mulByDigit(a, d) {  // a(字符串) × 单个数字 d → 字符串
+  if (d === 0) return "0";
+  let carry = 0, out = [];
+  for (let i = 0; i < a.length; i++) { const p = digitAt(a, i) * d + carry; out.push(p % 10); carry = Math.floor(p / 10); }
+  while (carry) { out.push(carry % 10); carry = Math.floor(carry / 10); }
+  return norm(out.reverse().join(""));
+}
+function genMulSteps(a, b) {
+  a = norm(a); b = norm(b);
+  const W = a.length + b.length;
+  const list = [];
+  // 部分积（shifted 字符串）
+  const partials = [];   // {str, shift, bDigit, bPos}
+  for (let pos = 0; pos < b.length; pos++) { const bd = digitAt(b, pos); partials.push({ raw: mulByDigit(a, bd), shift: pos, bd, pos }); }
+  const shownPartials = [];
+  const build = (rows, desc, done) => list.push({ rows, desc, done: !!done, wide: true });
+  const headRows = (curBPos, resMap) => {
+    const rows = [];
+    rows.push(rowDigits("a", a, W, "digit", {}));
+    rows.push(rowDigits("b", "× " + b, W, "digit", curBPos != null ? { [curBPos]: "cur" } : {}));
+    rows.push(LINE);
+    shownPartials.forEach((sp, i) => {
+      const shifted = sp.raw === "0" ? "0" : sp.raw + "0".repeat(sp.shift);
+      const pc = (i === shownPartials.length - 1 && sp.justNew) ? "resnew" : "res";
+      rows.push(rowDigits("×" + sp.bd, shifted, W, "digit", {}, ));
+      rows[rows.length - 1].cells.forEach(c => { if (c) c.cls = c.cls.replace("digit", pc === "resnew" ? "resnew" : "res"); });
+    });
+    if (resMap) { rows.push(SUBLINE); rows.push(rowSparse("积", W, resMap, "digit")); }
+    return rows;
+  };
+  build(headRows(null, null), `竖式乘法：用 b 的每一位（从个位起）去乘整个 a，得到一行"部分积"（第 k 位要左移 k 位），最后把所有部分积错位相加。`, false);
+  // 阶段①：逐位生成部分积
+  for (let pos = 0; pos < b.length; pos++) {
+    shownPartials.forEach(sp => sp.justNew = false);
+    shownPartials.push(Object.assign({}, partials[pos], { justNew: true }));
+    const sp = partials[pos];
+    const shiftDesc = sp.shift ? `，再左移 ${sp.shift} 位（末尾补 ${sp.shift} 个 0）` : "";
+    build(headRows(pos, null), `b 的第 ${pos + 1} 位是 <span class="hl">${sp.bd}</span>：${sp.bd} × ${a} = <span class="hl">${sp.raw}</span>${shiftDesc}。`, false);
+  }
+  // 阶段②：错位相加（直接算总和，逐列展示）
+  // 计算最终积
+  let prod = new Array(W).fill(0);
+  partials.forEach(sp => { const s = sp.raw; for (let i = 0; i < s.length; i++) prod[i + sp.shift] += digitAt(s, i); });
+  let carry = 0; const resArr = [];
+  const resMap = {};
+  shownPartials.forEach(sp => sp.justNew = false);
+  build(headRows(null, {}), `所有部分积已就位，下面把它们<b>错位相加</b>（同加法，逐列求和处理进位）。`, false);
+  for (let p = 0; p < W; p++) {
+    const colSum = prod[p] + carry; const d = colSum % 10; carry = Math.floor(colSum / 10);
+    resArr[p] = d; resMap[p] = { ch: "" + d, cls: "resnew" };
+    // 之前列固定为 res
+    const fixed = {}; for (const k in resMap) fixed[k] = { ch: resMap[k].ch, cls: +k === p ? "resnew" : "res" };
+    build(headRows(null, fixed), `第 ${p + 1} 列部分积求和 = ${prod[p]}${carry || (colSum >= 10) ? "（+进位后 " + colSum + "）" : ""} → 本位 <span class="hl">${d}</span>${carry ? "，进位 " + carry : ""}。`, false);
+  }
+  const resStr = norm(resArr.map((d, i) => d).reverse().join(""));
+  const finalMap = {}; for (let p = 0; p < resArr.length; p++) finalMap[p] = { ch: "" + resArr[p], cls: "res" };
+  build(headRows(null, finalMap), `完成！a × b = <span class="hl">${resStr}</span>。`, true);
+  return { list, resStr };
+}
+
+// ======== 除法（长除法 · 试商） ========
+function genDivSteps(a, b) {
+  a = norm(a); b = norm(b);
+  const W = a.length;
+  const list = [];
+  const qres = new Array(W).fill(null);   // 商，按被除数列对齐
+  let cur = 0, firstSig = false;
+  const build = (curCol, desc, curNum, q, rem, done) => {
+    const rows = [];
+    // 商行（对齐被除数）
+    const qmap = {}; for (let p = 0; p < W; p++) if (qres[p] != null) qmap[p] = { ch: "" + qres[p], cls: (p === (W - 1 - curCol) && q != null) ? "resnew" : "quot" };
+    rows.push(rowSparse("商", W, qmap, "digit"));
+    rows.push(LINE);
+    rows.push(rowDigits("被除数", a, W, "digit", curCol != null ? { [W - 1 - curCol]: "cur" } : {}));
+    list.push({ rows, desc, done: !!done, divInfo: { curNum, q, rem } });
+  };
+  build(null, `长除法：从被除数最高位开始，逐位"落下"组成当前数；每步试商——当前数里最多能放几个 b（0~9），商写在上方，减去 商×b 得余数，再落下一位。除数 b = <span class="hl">${b}</span>。`, null, null, 0, false);
+  for (let col = 0; col < W; col++) {
+    const bringDown = +a[col];
+    const before = cur;
+    cur = cur * 10 + bringDown;
+    const q = Math.floor(cur / (+b || 1)), rem = cur - q * (+b);
+    // 商对齐：第 col 个被除数位 → 商位置 W-1-col。
+    // 前导 0 不写（长除法惯例留空）；但最后一列即使为 0 也要写，保证商本身为 0 时能显示。
+    if (q > 0 || firstSig || col === W - 1) { qres[W - 1 - col] = q; firstSig = true; }
+    build(col, `落下第 ${col + 1} 位 "${bringDown}"，当前数 = <span class="hl">${cur}</span>。试商：${cur} ÷ ${b} = <span class="hl">${q}</span> …… 余 <span class="hl">${rem}</span>（因为 ${q}×${b} = ${q * (+b)}，${cur} − ${q * (+b)} = ${rem}）。`, cur, q, rem, false);
+    cur = rem;
+  }
+  // 去前导0得商
+  let qstr = ""; for (let p = W - 1; p >= 0; p--) qstr += (qres[p] == null ? 0 : qres[p]);
+  qstr = norm(qstr);
+  const resStr = qstr, remStr = "" + cur;
+  build(null, `完成！商 = <span class="hl">${qstr}</span>，余数 = <span class="hl">${cur}</span>。即 ${a} = ${qstr} × ${b} + ${cur}。`, cur, null, cur, true);
+  return { list, resStr, remStr };
+}
+
+// ======== 渲染 ========
+let gridW = 1;
+function draw(k) {
+  const s = steps[k];
+  const rows = s.rows;
+  // 计算列数
+  let W = 1; rows.forEach(r => { if (r.cells) W = Math.max(W, r.cells.length); });
+  gridW = W;
+  const g = $("grid");
+  g.style.gridTemplateColumns = `56px repeat(${W}, 38px)`;
+  let html = "";
+  rows.forEach(r => {
+    if (r.line) { html += `<div class="gline"></div>`; return; }
+    if (r.sub) { html += `<div class="gsub"></div>`; return; }
+    html += `<div class="rowtag">${r.tag || ""}</div>`;
+    r.cells.forEach(c => { html += c ? `<div class="${c.cls}">${c.ch}</div>` : `<div class="cell"></div>`; });
+  });
+  g.innerHTML = html;
+  setStatus(s.desc);
+  // 除法额外信息
+  if (s.divInfo && s.divInfo.q != null) {
+    $("stats").innerHTML = `当前数：<b>${s.divInfo.curNum}</b>　试商：<b>${s.divInfo.q}</b>　余数：<b>${s.divInfo.rem}</b>`;
+  } else if (s.divInfo) {
+    $("stats").innerHTML = `余数：<b>${s.divInfo.rem}</b>`;
+  } else {
+    $("stats").innerHTML = "";
+  }
+  // 结果
+  if (s.done) $("resultBig").innerHTML = resultLine();
+  else $("resultBig").innerHTML = "";
+}
+let lastResult = { resStr: "", remStr: "" };
+function resultLine() {
+  const A = $("aInput").value, B = $("bInput").value;
+  if (op === "add") return `${norm(A)} + ${norm(B)} = <b>${lastResult.resStr}</b>`;
+  if (op === "sub") return `${norm(A)} − ${norm(B)} = <b>${lastResult.resStr}</b>`;
+  if (op === "mul") return `${norm(A)} × ${norm(B)} = <b>${lastResult.resStr}</b>`;
+  return `${norm(A)} ÷ ${norm(B)} = <b>${lastResult.resStr}</b> 余 <b>${lastResult.remStr}</b>`;
+}
+
+// ======== 引擎 ========
+function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(idx); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 1420 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+const FORMULA = {
+  add: `carry = 0<br>for i = 0 … 最高位:<br>&nbsp;&nbsp;s = a[i] + b[i] + carry<br>&nbsp;&nbsp;res[i] = s % 10; carry = s / 10`,
+  sub: `borrow = 0<br>for i = 0 … 最高位:<br>&nbsp;&nbsp;d = a[i] − b[i] − borrow<br>&nbsp;&nbsp;if d &lt; 0: d += 10; borrow = 1<br>&nbsp;&nbsp;else: borrow = 0<br>&nbsp;&nbsp;res[i] = d　<span style="color:var(--muted)">// a&lt;b 则换算加负号</span>`,
+  mul: `for j = 0 … len(b):　<span style="color:var(--muted)">// 部分积</span><br>&nbsp;&nbsp;for i = 0 … len(a):<br>&nbsp;&nbsp;&nbsp;&nbsp;res[i+j] += a[i]·b[j]<br>统一处理进位：res[k+1] += res[k]/10; res[k] %= 10`,
+  div: `cur = 0<br>for i = 高位 … 低位:<br>&nbsp;&nbsp;cur = cur·10 + a[i]<br>&nbsp;&nbsp;q[i] = cur / b　<span style="color:var(--muted)">// 试商 0~9</span><br>&nbsp;&nbsp;cur = cur % b　<span style="color:var(--muted)">// 余数带下一位</span>`,
+};
+const LABELS = {
+  add: ["被加数 a", "加数 b"], sub: ["被减数 a", "减数 b"],
+  mul: ["被乘数 a", "乘数 b"], div: ["被除数 a", "除数 b"],
+};
+
+function prepare() {
+  stopTimer();
+  let A = norm($("aInput").value), B = norm($("bInput").value);
+  $("aInput").value = A; $("bInput").value = B;
+  let out;
+  if (op === "add") out = genAddSteps(A, B);
+  else if (op === "sub") {
+    const c = cmpNum(A, B);
+    if (c >= 0) out = genSubSteps(A, B, false);
+    else out = genSubSteps(B, A, true);   // a<b：算 b-a 加负号
+  } else if (op === "mul") out = genMulSteps(A, B);
+  else { if (B === "0") { setStatus("⚠ 除数不能为 0。"); $("grid").innerHTML = ""; return; } out = genDivSteps(A, B); }
+  steps = out.list;
+  lastResult = { resStr: out.resStr, remStr: out.remStr || "" };
+  idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  $("formula").innerHTML = FORMULA[op];
+  draw(0);
+}
+function switchOp(o) {
+  if (o === op) return;
+  op = o;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.op === o));
+  $("labA").textContent = LABELS[o][0]; $("labB").textContent = LABELS[o][1];
+  // 给个合适的默认示例
+  const ex = { add: ["3857", "964"], sub: ["10000", "1"], mul: ["999", "999"], div: ["1000", "7"] }[o];
+  $("aInput").value = ex[0]; $("bInput").value = ex[1];
+  prepare();
+}
+
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) prepare(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("resetBtn").onclick = () => prepare();
+$("randBtn").onclick = () => {
+  const rnd = (lo, hi) => "" + (lo + Math.floor(Math.random() * (hi - lo)));
+  if (op === "mul") { $("aInput").value = rnd(10, 999); $("bInput").value = rnd(10, 999); }
+  else if (op === "div") { $("aInput").value = rnd(100, 99999); $("bInput").value = rnd(2, 99); }
+  else { $("aInput").value = rnd(100, 999999); $("bInput").value = rnd(100, 999999); }
+  prepare();
+};
+$("aInput").addEventListener("keydown", e => { if (e.key === "Enter") prepare(); });
+$("bInput").addEventListener("keydown", e => { if (e.key === "Enter") prepare(); });
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchOp(t.dataset.op));
+$("cppBtn").onclick = () => CppView.open("bignum_" + op);
+
+$("note").innerHTML = `高精度：把大整数按<b>十进制位</b>存进数组（低位在前），逐位模拟手算竖式。<code>加/减</code>为 O(n)，<code>乘</code>为 O(n·m)（部分积错位相加），<code>除</code>用试商法逐位 O(n·len(b))。这样就能处理远超 <code>long long</code>（约 19 位）的大数运算，是 NOIP/CSP 常见基础题。`;
+
+CppView.register({
+  bignum_add: { title: "高精度加法 — C++", code:
+`// 功能：两个大整数(字符串)相加，逐位模拟竖式，处理进位。
+#include <iostream>
+#include <string>
+#include <algorithm>
+using namespace std;
+
+string add(string a, string b) {
+    string res;
+    int i = a.size() - 1, j = b.size() - 1, carry = 0;
+    while (i >= 0 || j >= 0 || carry) {
+        int s = carry;
+        if (i >= 0) s += a[i--] - '0';
+        if (j >= 0) s += b[j--] - '0';
+        res += char(s % 10 + '0');   // 本位
+        carry = s / 10;              // 进位
+    }
+    reverse(res.begin(), res.end());
+    return res;
+}
+int main() { string a, b; cin >> a >> b; cout << add(a, b) << endl; }`
+  },
+  bignum_sub: { title: "高精度减法 — C++", code:
+`// 功能：两个大整数相减，逐位借位。若 a < b，先算 b-a 再加负号。
+#include <iostream>
+#include <string>
+#include <algorithm>
+using namespace std;
+
+bool less_(const string& a, const string& b) {          // a < b ?
+    if (a.size() != b.size()) return a.size() < b.size();
+    return a < b;
+}
+string sub(string a, string b) {                        // 需保证 a >= b
+    string res;
+    int i = a.size() - 1, j = b.size() - 1, borrow = 0;
+    while (i >= 0) {
+        int d = (a[i--] - '0') - borrow - (j >= 0 ? b[j--] - '0' : 0);
+        if (d < 0) { d += 10; borrow = 1; } else borrow = 0;
+        res += char(d + '0');
+    }
+    while (res.size() > 1 && res.back() == '0') res.pop_back();   // 去前导0
+    reverse(res.begin(), res.end());
+    return res;
+}
+int main() {
+    string a, b; cin >> a >> b;
+    if (less_(a, b)) cout << "-" << sub(b, a) << endl;   // a<b 加负号
+    else cout << sub(a, b) << endl;
+}`
+  },
+  bignum_mul: { title: "高精度乘法 — C++", code:
+`// 功能：两个大整数相乘。res[i+j] 累加 a[i]*b[j]，最后统一处理进位。
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+using namespace std;
+
+string mul(string a, string b) {
+    int n = a.size(), m = b.size();
+    vector<int> res(n + m, 0);
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < m; j++)
+            res[i + j] += (a[n-1-i] - '0') * (b[m-1-j] - '0');  // 错位累加
+    int carry = 0;
+    for (int k = 0; k < n + m; k++) {                            // 统一进位
+        res[k] += carry; carry = res[k] / 10; res[k] %= 10;
+    }
+    string s;
+    for (int k = n + m - 1; k >= 0; k--) s += char(res[k] + '0');
+    int p = 0; while (p + 1 < (int)s.size() && s[p] == '0') p++; // 去前导0
+    return s.substr(p);
+}
+int main() { string a, b; cin >> a >> b; cout << mul(a, b) << endl; }`
+  },
+  bignum_div: { title: "高精度除法（大数 ÷ 大数）— C++", code:
+`// 功能：大整数 a 除以大整数 b，长除法试商，输出商与余数。
+// 逐位落下被除数，维护当前余数段 cur；每位试商 0~9（此处 b 也是大数，
+// 用高精度比较/减法；若 b 在 long long 内可直接用整数试商更简单）。
+#include <iostream>
+#include <string>
+#include <algorithm>
+using namespace std;
+
+// 简化版：b 在 long long 范围内时的长除法
+int main() {
+    string a; long long b; cin >> a >> b;
+    string q; long long cur = 0;
+    for (char c : a) {
+        cur = cur * 10 + (c - '0');   // 落下一位
+        q += char(cur / b + '0');     // 试商
+        cur %= b;                     // 余数带入下一位
+    }
+    int p = 0; while (p + 1 < (int)q.size() && q[p] == '0') p++;  // 去前导0
+    cout << q.substr(p) << " ... " << cur << endl;                // 商 ... 余数
+}`
+  }
+});
+
+switchOp("add");
+prepare();
+</script>
+<script src="../assets/theme.js"></script>
+</body>
+</html>
