@@ -47,6 +47,18 @@
   }
   .tab:hover { color: var(--cyan); }
   .tab.active { color: var(--cyan); background: var(--panel); border-color: var(--cyan); text-shadow: 0 0 6px rgba(0,240,255,.5); }
+  .viewbar { display: flex; align-items: center; gap: 14px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .viewbar .vlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .segbtn {
+    padding: 8px 16px; border: none; background: transparent; cursor: pointer;
+    color: var(--muted); font-size: 13px; font-family: "SF Mono", Menlo, monospace;
+    letter-spacing: .5px; transition: all .18s;
+  }
+  .segbtn + .segbtn { border-left: 1px solid var(--border); }
+  .segbtn:hover { color: var(--cyan); }
+  .segbtn.active { background: color-mix(in srgb, var(--cyan) 22%, var(--node-fill)); color: var(--text); font-weight: 700; }
+  .viewbar .vhint { font-size: 12px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; }
   .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
   .field { display: flex; flex-direction: column; gap: 5px; }
   .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
@@ -131,6 +143,15 @@
   <div class="tab" data-op="div">除法 ÷</div>
 </div>
 
+<div class="viewbar">
+  <span class="vlabel">演示视角</span>
+  <div class="seg">
+    <button class="segbtn active" data-view="math">📐 数学竖式</button>
+    <button class="segbtn" data-view="prog">💻 编程实现</button>
+  </div>
+  <span class="vhint" id="viewHint"></span>
+</div>
+
 <div class="controls">
   <div class="field"><label id="labA">被加数 a</label><input id="aInput" type="text" value="3857"></div>
   <div class="field"><label id="labB">加数 b</label><input id="bInput" type="text" value="964"></div>
@@ -161,7 +182,7 @@
 <script src="../assets/cppview.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-let op = "add", steps = [], idx = 0, timer = null, running = false;
+let op = "add", view = "math", steps = [], idx = 0, timer = null, running = false;
 function setStatus(t) { $("status").innerHTML = t; }
 function norm(s) { s = (s || "").replace(/\D/g, "").replace(/^0+(?=\d)/, ""); return s || "0"; }
 function digitAt(str, pos) { const L = str.length; return pos < L ? +str[L - 1 - pos] : 0; }
@@ -346,6 +367,149 @@ function genDivSteps(a, b) {
   return { list, resStr, remStr };
 }
 
+// ============================================================
+// 编程视角：数字逆序存进数组（index 0 = 个位/最低位），
+// 左→右 = index 0,1,2,…；加减标注 carry / borrow 的值。
+// ============================================================
+function toArr(s) { s = norm(s); const a = []; for (let i = s.length - 1; i >= 0; i--) a.push(+s[i]); return a; } // a[0]=个位
+// index 标注行（列 i = 数组下标 i，从左到右）
+function rowIdx(W) { const cells = []; for (let i = 0; i < W; i++) cells.push({ ch: "" + i, cls: "cell small" }); return { tag: "下标", cells }; }
+// 逆序数组行：arr[i] 显示在第 i 列（左=低位）
+function rowArrL(tag, arr, W, curIdx, baseCls, posCls) {
+  posCls = posCls || {}; const cells = [];
+  for (let i = 0; i < W; i++) {
+    if (i >= arr.length || arr[i] == null) { cells.push(null); continue; }
+    let cls = "cell " + (baseCls || ""); if (i === curIdx) cls += " cur"; if (posCls[i]) cls += " " + posCls[i];
+    cells.push({ ch: "" + arr[i], cls });
+  }
+  return { tag, cells };
+}
+
+// ======== 编程·加法 ========
+function genAddProg(a, b) {
+  const A = toArr(a), B = toArr(b), W = Math.max(A.length, B.length) + 1;
+  const list = [], res = new Array(W).fill(null), carryRow = new Array(W).fill(null);
+  let carry = 0;
+  const build = (i, desc, doneIdx, carryVal) => {
+    const rows = [rowIdx(W)];
+    rows.push(rowArrL("a[]", A, W, i, "digit"));
+    rows.push(rowArrL("b[]", B, W, i, "digit"));
+    rows.push(rowArrL("carry", carryRow, W, i, "carry"));
+    rows.push(LINE);
+    const posCls = {}; for (let k = 0; k < W; k++) if (res[k] != null) posCls[k] = (k === doneIdx ? "resnew" : "res");
+    rows.push(rowArrL("res[]", res, W, -1, "digit", posCls));
+    list.push({ rows, desc, done: doneIdx === -2, carryVal });
+  };
+  build(-1, `编程实现：把 a、b <b>逆序</b>存进数组，<code>a[0]</code> 是个位。从下标 0 开始逐位相加，<code>carry</code> 记进位。`, null, 0);
+  for (let i = 0; i < W; i++) {
+    const ai = A[i] || 0, bi = B[i] || 0, cin = carry;
+    const s = ai + bi + cin; res[i] = s % 10; carry = Math.floor(s / 10);
+    carryRow[i] = cin;                 // 本位用到的进位（进入值）
+    if (i + 1 < W) carryRow[i + 1] = carry;   // 产生的进位（给下一位）
+    build(i, `i=${i}：<code>s = a[${i}] + b[${i}] + carry = ${ai} + ${bi} + ${cin} = <span class="hl">${s}</span></code>；<code>res[${i}] = s%10 = <span class="hl">${res[i]}</span></code>，<code>carry = s/10 = <span class="hl">${carry}</span></code>。`, i, s >= 10 || carry ? carry : 0);
+    carryVal = carry;
+  }
+  const resStr = norm(res.map(d => d == null ? 0 : d).slice().reverse().join(""));
+  build(-1, `循环结束，carry=${carry}。把 res[] <b>逆序</b>读出（去前导 0）即得 a+b = <span class="hl">${resStr}</span>。`, -2, carry);
+  list[list.length - 1].done = true;
+  return { list, resStr };
+}
+
+// ======== 编程·减法 ========
+function genSubProg(a, b, neg) {
+  const A = toArr(a), B = toArr(b), W = A.length;
+  const list = [], res = new Array(W).fill(null), borrowRow = new Array(W).fill(null);
+  let borrow = 0;
+  const build = (i, desc, doneIdx, done) => {
+    const rows = [rowIdx(W)];
+    rows.push(rowArrL("a[]", A, W, i, "digit"));
+    rows.push(rowArrL("b[]", B, W, i, "digit"));
+    rows.push(rowArrL("borrow", borrowRow, W, i, "borrow"));
+    rows.push(LINE);
+    const posCls = {}; for (let k = 0; k < W; k++) if (res[k] != null) posCls[k] = (k === doneIdx ? "resnew" : "res");
+    rows.push(rowArrL("res[]", res, W, -1, "digit", posCls));
+    list.push({ rows, desc, done: !!done });
+  };
+  build(-1, `编程实现：${neg ? "因 a&lt;b，先算 b−a 再加负号。" : ""}逆序存数组，<code>a[0]</code> 个位。逐位相减，<code>borrow</code> 记借位。`, null, false);
+  for (let i = 0; i < W; i++) {
+    const ai = A[i] || 0, bi = B[i] || 0, bin = borrow;
+    let d = ai - bi - bin; borrowRow[i] = bin;
+    if (d < 0) { d += 10; borrow = 1; if (i + 1 < W) borrowRow[i + 1] = 1; } else borrow = 0;
+    res[i] = d;
+    build(i, `i=${i}：<code>d = a[${i}] − b[${i}] − borrow = ${ai} − ${bi} − ${bin} = <span class="hl">${ai - bi - bin}</span></code>${ai - bi - bin < 0 ? `，&lt;0 → <code>d+=10=<span class="hl">${d}</span>，borrow=1</code>` : `，<code>res[${i}]=<span class="hl">${d}</span>，borrow=0</code>`}。`, i, false);
+  }
+  const resStr = (neg && norm(res.slice().reverse().join("")) !== "0" ? "−" : "") + norm(res.map(d => d == null ? 0 : d).slice().reverse().join(""));
+  build(-1, `循环结束。res[] 逆序读出（去前导 0）得 a−b = <span class="hl">${resStr}</span>。`, -1, true);
+  return { list, resStr };
+}
+
+// ======== 编程·乘法（res[i+j] 累加，再统一进位） ========
+function genMulProg(a, b) {
+  const A = toArr(a), B = toArr(b), n = A.length, m = B.length, W = n + m;
+  const list = [], res = new Array(W).fill(0);
+  const rowsHead = (ci, cj, hotK, hotCls) => {
+    const rows = [rowIdx(W)];
+    rows.push(rowArrL("a[]", A, W, ci, "digit"));
+    rows.push(rowArrL("b[]", B, W, cj, "digit"));
+    rows.push(LINE);
+    const posCls = {}; for (let k = 0; k < W; k++) if (hotK === k) posCls[k] = hotCls || "resnew";
+    // res 可能 >9（未进位），用字符串显示
+    const resRow = { tag: "res[]", cells: res.map((v, k) => ({ ch: "" + v, cls: "cell digit" + (posCls[k] ? " " + posCls[k] : "") })) };
+    rows.push(resRow);
+    return rows;
+  };
+  list.push({ rows: rowsHead(-1, -1, -1), desc: `编程实现：a、b 逆序存数组。第①阶段：双重循环把 <code>a[i]·b[j]</code> 累加到 <code>res[i+j]</code>（此时 res 各位可能 &gt;9，先不进位）。`, done: false });
+  for (let j = 0; j < m; j++) {
+    for (let i = 0; i < n; i++) {
+      const add = A[i] * B[j]; res[i + j] += add;
+      list.push({ rows: rowsHead(i, j, i + j), desc: `i=${i}, j=${j}：<code>res[${i + j}] += a[${i}]·b[${j}] = ${A[i]}·${B[j]} = <span class="hl">${add}</span></code> → res[${i + j}] = <span class="hl">${res[i + j]}</span>。`, done: false });
+    }
+  }
+  // 第②阶段：统一进位
+  let carry = 0;
+  list.push({ rows: rowsHead(-1, -1, -1), desc: `第②阶段：从低位起<b>统一进位</b> —— <code>res[k+1] += res[k]/10; res[k] %= 10</code>。`, done: false, carryVal: 0 });
+  for (let k = 0; k < W; k++) {
+    const before = res[k] + carry; res[k] = before % 10; carry = Math.floor(before / 10);
+    const rows = [rowIdx(W)];
+    rows.push(rowArrL("a[]", A, W, -1, "digit"));
+    rows.push(rowArrL("b[]", B, W, -1, "digit"));
+    rows.push(LINE);
+    const resRow = { tag: "res[]", cells: res.map((v, kk) => ({ ch: "" + v, cls: "cell digit" + (kk === k ? " resnew" : (kk < k ? " res" : "")) })) };
+    rows.push(resRow);
+    list.push({ rows, desc: `k=${k}：<code>res[${k}] = ${before}%10 = <span class="hl">${res[k]}</span></code>，进位 <code>${before}/10 = <span class="hl">${carry}</span></code> 加到 res[${k + 1 < W ? k + 1 : "—"}]。`, done: false, carryVal: carry });
+  }
+  const resStr = norm(res.map(d => d).slice().reverse().join(""));
+  const rows = [rowIdx(W), rowArrL("a[]", A, W, -1, "digit"), rowArrL("b[]", B, W, -1, "digit"), LINE,
+    { tag: "res[]", cells: res.map(v => ({ ch: "" + v, cls: "cell digit res" })) }];
+  list.push({ rows, desc: `进位完成。res[] 逆序读出（去前导 0）得 a×b = <span class="hl">${resStr}</span>。`, done: true });
+  return { list, resStr };
+}
+
+// ======== 编程·除法（数组高位→低位，cur 累进） ========
+function genDivProg(a, b) {
+  a = norm(a); const A = toArr(a), n = A.length, B = +b;
+  const list = [], q = new Array(n).fill(null);
+  let cur = 0;
+  const build = (i, desc, qi, curVal, remVal, done) => {
+    const rows = [rowIdx(n)];
+    rows.push(rowArrL("a[]", A, n, i, "digit"));
+    const posCls = {}; for (let k = 0; k < n; k++) if (q[k] != null) posCls[k] = (k === qi ? "resnew" : "quot");
+    rows.push(rowArrL("q[]", q, n, -1, "digit", posCls));
+    list.push({ rows, desc, done: !!done, divInfo: { curNum: curVal, q: qi != null && qi >= 0 ? q[qi] : null, rem: remVal } });
+  };
+  build(-1, `编程实现：a 逆序存数组（a[0] 个位）。除法从<b>高位下标</b>往低走：<code>cur = cur·10 + a[i]; q[i] = cur/b; cur %= b</code>。`, null, 0, 0, false);
+  for (let i = n - 1; i >= 0; i--) {
+    cur = cur * 10 + A[i];
+    const qi = Math.floor(cur / B), rem = cur - qi * B;
+    q[i] = qi;
+    build(i, `i=${i}：<code>cur = cur·10 + a[${i}] = <span class="hl">${cur}</span></code>；<code>q[${i}] = cur/b = <span class="hl">${qi}</span></code>，<code>cur = cur%b = <span class="hl">${rem}</span></code>。`, i, cur, rem, false);
+    cur = rem;
+  }
+  let qstr = ""; for (let k = n - 1; k >= 0; k--) qstr += (q[k] == null ? 0 : q[k]); qstr = norm(qstr);
+  build(-1, `循环结束。q[] 逆序读出（去前导 0）得商 = <span class="hl">${qstr}</span>，余数 cur = <span class="hl">${cur}</span>。`, null, cur, cur, true);
+  return { list, resStr: qstr, remStr: "" + cur };
+}
+
 // ======== 渲染 ========
 let gridW = 1;
 function draw(k) {
@@ -365,11 +529,13 @@ function draw(k) {
   });
   g.innerHTML = html;
   setStatus(s.desc);
-  // 除法额外信息
+  // 额外变量信息
   if (s.divInfo && s.divInfo.q != null) {
-    $("stats").innerHTML = `当前数：<b>${s.divInfo.curNum}</b>　试商：<b>${s.divInfo.q}</b>　余数：<b>${s.divInfo.rem}</b>`;
+    $("stats").innerHTML = `cur = <b>${s.divInfo.curNum}</b>　试商 q = <b>${s.divInfo.q}</b>　余 cur = <b>${s.divInfo.rem}</b>`;
   } else if (s.divInfo) {
-    $("stats").innerHTML = `余数：<b>${s.divInfo.rem}</b>`;
+    $("stats").innerHTML = `余数 cur = <b>${s.divInfo.rem}</b>`;
+  } else if (s.carryVal != null) {
+    $("stats").innerHTML = `变量 carry = <b>${s.carryVal}</b>`;
   } else {
     $("stats").innerHTML = "";
   }
@@ -408,13 +574,14 @@ function prepare() {
   let A = norm($("aInput").value), B = norm($("bInput").value);
   $("aInput").value = A; $("bInput").value = B;
   let out;
-  if (op === "add") out = genAddSteps(A, B);
+  const prog = view === "prog";
+  if (op === "add") out = prog ? genAddProg(A, B) : genAddSteps(A, B);
   else if (op === "sub") {
-    const c = cmpNum(A, B);
-    if (c >= 0) out = genSubSteps(A, B, false);
-    else out = genSubSteps(B, A, true);   // a<b：算 b-a 加负号
-  } else if (op === "mul") out = genMulSteps(A, B);
-  else { if (B === "0") { setStatus("⚠ 除数不能为 0。"); $("grid").innerHTML = ""; return; } out = genDivSteps(A, B); }
+    const c = cmpNum(A, B), neg = c < 0;
+    const [x, y] = neg ? [B, A] : [A, B];
+    out = prog ? genSubProg(x, y, neg) : genSubSteps(x, y, neg);
+  } else if (op === "mul") out = prog ? genMulProg(A, B) : genMulSteps(A, B);
+  else { if (B === "0") { setStatus("⚠ 除数不能为 0。"); $("grid").innerHTML = ""; return; } out = prog ? genDivProg(A, B) : genDivSteps(A, B); }
   steps = out.list;
   lastResult = { resStr: out.resStr, remStr: out.remStr || "" };
   idx = 0; running = true;
@@ -427,8 +594,10 @@ function switchOp(o) {
   op = o;
   document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.op === o));
   $("labA").textContent = LABELS[o][0]; $("labB").textContent = LABELS[o][1];
-  // 给个合适的默认示例
-  const ex = { add: ["3857", "964"], sub: ["10000", "1"], mul: ["999", "999"], div: ["1000", "7"] }[o];
+  // 给个合适的默认示例（编程视角用小一点的数，步数更短）
+  const exMath = { add: ["3857", "964"], sub: ["10000", "1"], mul: ["999", "999"], div: ["1000", "7"] };
+  const exProg = { add: ["857", "964"], sub: ["1000", "1"], mul: ["23", "45"], div: ["1000", "7"] };
+  const ex = (view === "prog" ? exProg : exMath)[o];
   $("aInput").value = ex[0]; $("bInput").value = ex[1];
   prepare();
 }
@@ -446,6 +615,26 @@ $("randBtn").onclick = () => {
 $("aInput").addEventListener("keydown", e => { if (e.key === "Enter") prepare(); });
 $("bInput").addEventListener("keydown", e => { if (e.key === "Enter") prepare(); });
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchOp(t.dataset.op));
+
+const VIEW_HINT = {
+  math: "数学竖式：从个位（右）向高位（左）逐列计算，与手算一致。",
+  prog: "编程实现：数字逆序存进数组（a[0] = 个位，左=低位），下标 0 起步。",
+};
+function updateCalcLabel() { $("calcLabel").textContent = view === "prog" ? "数组逐位过程（a[0]=个位）" : "竖式过程"; $("viewHint").textContent = VIEW_HINT[view]; }
+function switchView(v) {
+  if (v === view) return;
+  view = v;
+  document.querySelectorAll(".segbtn").forEach(b => b.classList.toggle("active", b.dataset.view === v));
+  updateCalcLabel();
+  // 换视角时给该运算重置一个合适示例
+  const exMath = { add: ["3857", "964"], sub: ["10000", "1"], mul: ["999", "999"], div: ["1000", "7"] };
+  const exProg = { add: ["857", "964"], sub: ["1000", "1"], mul: ["23", "45"], div: ["1000", "7"] };
+  const ex = (v === "prog" ? exProg : exMath)[op];
+  $("aInput").value = ex[0]; $("bInput").value = ex[1];
+  prepare();
+}
+document.querySelectorAll(".segbtn").forEach(b => b.onclick = () => switchView(b.dataset.view));
+updateCalcLabel();
 $("cppBtn").onclick = () => CppView.open("bignum_" + op);
 
 $("note").innerHTML = `高精度：把大整数按<b>十进制位</b>存进数组（低位在前），逐位模拟手算竖式。<code>加/减</code>为 O(n)，<code>乘</code>为 O(n·m)（部分积错位相加），<code>除</code>用试商法逐位 O(n·len(b))。这样就能处理远超 <code>long long</code>（约 19 位）的大数运算，是 NOIP/CSP 常见基础题。`;
