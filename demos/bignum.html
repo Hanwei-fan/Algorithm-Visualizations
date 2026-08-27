@@ -115,6 +115,10 @@
   .cell.dim { color: var(--muted); opacity: .5; }
   .gline { grid-column: 1 / -1; height: 2px; background: var(--cyan); margin: 3px 0; border-radius: 2px; }
   .gsub { grid-column: 1 / -1; height: 1px; background: var(--border); margin: 1px 0; }
+  .cell.barcell { height: 3px; border-top: 2px solid var(--magenta); border-radius: 0; }
+  .cell.prod { color: var(--magenta); }
+  .cell.rem { background: color-mix(in srgb, var(--green) 24%, var(--node-fill)); border: 1px solid var(--green); }
+  .cell.brought { background: color-mix(in srgb, var(--yellow) 30%, var(--node-fill)); border: 1px solid var(--yellow); }
   .rowtag { display: flex; align-items: center; justify-content: flex-end; font-size: 11px; color: var(--muted); padding-right: 6px; }
   .stats { margin-top: 12px; font-family: "SF Mono", Menlo, monospace; font-size: 14px; color: var(--text); }
   .stats b { color: var(--yellow); }
@@ -341,40 +345,94 @@ function genMulSteps(a, b) {
   return { list, resStr };
 }
 
-// ======== 除法（长除法 · 试商） ========
+// ======== 除法（长除法竖式 · 老师分步写法） ========
+// 列 j（左→右）= 被除数从高位到低位。商写在对应列正上方；
+// 每个有效商位：写商 → 写 商×b（对齐到当前列）→ 画横线 → 写余数 → 落下一位。
 function genDivSteps(a, b) {
   a = norm(a); b = norm(b);
-  const W = a.length;
-  const list = [];
-  const qres = new Array(W).fill(null);   // 商，按被除数列对齐
-  let cur = 0, firstSig = false;
-  const build = (curCol, desc, curNum, q, rem, done) => {
-    const rows = [];
-    // 商行（对齐被除数）
-    const qmap = {}; for (let p = 0; p < W; p++) if (qres[p] != null) qmap[p] = { ch: "" + qres[p], cls: (p === (W - 1 - curCol) && q != null) ? "resnew" : "quot" };
-    rows.push(rowSparse("商", W, qmap, "digit"));
-    rows.push(LINE);
-    rows.push(rowDigits("被除数", a, W, "digit", curCol != null ? { [W - 1 - curCol]: "cur" } : {}));
-    list.push({ rows, desc, done: !!done, divInfo: { curNum, q, rem } });
+  const W = a.length, B = +b, list = [];
+  const qmap = {};        // 商行：col -> {ch,cls}
+  let body = [];          // 竖式下方逐步累积的行（product / bar / remainder）
+  // 把字符串 str 放到"末位对齐 endCol"的稀疏行
+  const placed = (str, endCol, cls, opCh) => {
+    const map = {}; const L = str.length;
+    for (let t = 0; t < L; t++) { const col = endCol - (L - 1 - t); if (col >= 0) map[col] = { ch: str[t], cls }; }
+    if (opCh) { const oc = endCol - L; if (oc >= 0) map[oc] = { ch: opCh, cls: "op" }; }
+    return { kind: "digits", map };
   };
-  build(null, `长除法：从被除数最高位开始，逐位"落下"组成当前数；每步试商——当前数里最多能放几个 b（0~9），商写在上方，减去 商×b 得余数，再落下一位。除数 b = <span class="hl">${b}</span>。`, null, null, 0, false);
+  const rowFromSpec = (sp, hotCols) => {
+    if (sp.kind === "bar") return { bar: true, tag: "", from: sp.from, to: sp.to };
+    const cells = [];
+    for (let j = 0; j < W; j++) {
+      const m = sp.map[j];
+      if (!m) { cells.push(null); continue; }
+      let cls = "cell " + (m.cls === "op" ? "op" : "digit");
+      if (m.cls && m.cls !== "op" && m.cls !== "digit") cls += " " + m.cls;
+      if (hotCols && hotCols.has(j)) cls += " resnew";
+      cells.push({ ch: m.ch, cls });
+    }
+    return { tag: sp.tag || "", cells };
+  };
+  const snap = (curCol, desc, divInfo, done) => {
+    const rows = [];
+    // 商行
+    const qcells = [];
+    for (let j = 0; j < W; j++) { const m = qmap[j]; qcells.push(m ? { ch: m.ch, cls: "cell digit " + m.cls } : null); }
+    rows.push({ tag: "商", cells: qcells });
+    rows.push(LINE);
+    // 被除数（除数写在左侧标签，形如 "b )"）
+    const dvCls = {}; if (curCol != null) dvCls[curCol] = "cur";
+    const dcells = [];
+    for (let j = 0; j < W; j++) { let cls = "cell digit"; if (dvCls[j]) cls += " " + dvCls[j]; dcells.push({ ch: a[j], cls }); }
+    rows.push({ tag: b + " )", cells: dcells });
+    // 竖式下方各行
+    body.forEach(sp => rows.push(rowFromSpec(sp)));
+    list.push({ rows, desc, done: !!done, divInfo });
+  };
+
+  snap(null, `长除法（竖式）：除数 <span class="hl">${b}</span> 写在左侧、被除数在右。从最高位起，够除就试商写在<b>正上方</b>，减去 <code>商×${b}</code> 得余数，再落下一位。`, { curNum: 0, q: null, rem: 0 }, false);
+
+  let cur = 0, firstSig = false, remRowIdx = -1, remEndCol = -1;
   for (let col = 0; col < W; col++) {
-    const bringDown = +a[col];
-    const before = cur;
-    cur = cur * 10 + bringDown;
-    const q = Math.floor(cur / (+b || 1)), rem = cur - q * (+b);
-    // 商对齐：第 col 个被除数位 → 商位置 W-1-col。
-    // 前导 0 不写（长除法惯例留空）；但最后一列即使为 0 也要写，保证商本身为 0 时能显示。
-    if (q > 0 || firstSig || col === W - 1) { qres[W - 1 - col] = q; firstSig = true; }
-    build(col, `落下第 ${col + 1} 位 "${bringDown}"，当前数 = <span class="hl">${cur}</span>。试商：${cur} ÷ ${b} = <span class="hl">${q}</span> …… 余 <span class="hl">${rem}</span>（因为 ${q}×${b} = ${q * (+b)}，${cur} − ${q * (+b)} = ${rem}）。`, cur, q, rem, false);
+    const digit = +a[col];
+    // —— 落下这一位 ——
+    if (remRowIdx >= 0) {
+      // 把新数位接到上一余数行的右侧（col 列）
+      const sp = body[remRowIdx];
+      sp.map[col] = { ch: "" + digit, cls: "brought" };
+      snap(col, `落下第 ${col + 1} 位 “${digit}”，与上面的余数拼成当前数 <span class="hl">${cur * 10 + digit}</span>。`, { curNum: cur * 10 + digit, q: null, rem: cur }, false);
+    }
+    cur = cur * 10 + digit;
+    const q = Math.floor(cur / B), rem = cur - q * B;
+
+    if (q === 0 && !firstSig && col !== W - 1) {
+      // 前导：还不够除，商位留空，只是把这一位纳入当前数（继续落下）
+      snap(col, `当前数 ${cur} &lt; 除数 ${b}，商这一位是 0（<b>不写</b>，继续往右落一位）。`, { curNum: cur, q: 0, rem: cur }, false);
+      continue;
+    }
+    // —— 有效商位 ——
+    firstSig = true;
+    qmap[col] = { ch: "" + q, cls: "resnew" };
+    // 把先前的商固定色
+    for (const k in qmap) if (+k !== col) qmap[k].cls = "quot";
+    snap(col, `试商：当前数 <span class="hl">${cur}</span> ÷ ${b} = <span class="hl">${q}</span>（因为 ${q}×${b}=${q * B} ≤ ${cur} &lt; ${(q + 1) * B}）。把 <b>${q}</b> 写在这一位正上方。`, { curNum: cur, q, rem }, false);
+    // 写 商×b
+    const prod = "" + (q * B), prodEnd = col, prodStart = Math.max(0, col - (prod.length - 1));
+    body.push(placed(prod, prodEnd, "prod", "−"));
+    body.push({ kind: "bar", from: prodStart, to: col });
+    // 写余数
+    const remStr = "" + rem, remEnd = col;
+    const remSpec = placed(remStr, remEnd, "rem");
+    body.push(remSpec);
+    remRowIdx = body.length - 1; remEndCol = remEnd;
+    snap(col, `减去 <code>${q}×${b} = ${q * B}</code>：<span class="hl">${cur}</span> − ${q * B} = 余 <span class="hl">${rem}</span>。`, { curNum: cur, q, rem }, false);
     cur = rem;
   }
-  // 去前导0得商
-  let qstr = ""; for (let p = W - 1; p >= 0; p--) qstr += (qres[p] == null ? 0 : qres[p]);
-  qstr = norm(qstr);
-  const resStr = qstr, remStr = "" + cur;
-  build(null, `完成！商 = <span class="hl">${qstr}</span>，余数 = <span class="hl">${cur}</span>。即 ${a} = ${qstr} × ${b} + ${cur}。`, cur, null, cur, true);
-  return { list, resStr, remStr };
+  let qstr = ""; for (let j = 0; j < W; j++) qstr += (qmap[j] ? qmap[j].ch : "");
+  qstr = norm(qstr || "0");
+  const remStr = "" + cur;
+  snap(null, `完成！商 = <span class="hl">${qstr}</span>，余数 = <span class="hl">${cur}</span>。即 ${a} = ${qstr} × ${b} + ${cur}。`, { curNum: cur, q: null, rem: cur }, true);
+  return { list, resStr: qstr, remStr };
 }
 
 // ============================================================
@@ -574,6 +632,11 @@ function draw(k) {
   rows.forEach(r => {
     if (r.line) { html += `<div class="gline"></div>`; return; }
     if (r.sub) { html += `<div class="gsub"></div>`; return; }
+    if (r.bar) {   // 部分减法横线：只在 [from,to] 列画线（左基下标）
+      html += `<div class="rowtag">${r.tag || ""}</div>`;
+      for (let j = 0; j < W; j++) html += (j >= r.from && j <= r.to) ? `<div class="cell barcell"></div>` : `<div class="cell"></div>`;
+      return;
+    }
     html += `<div class="rowtag">${r.tag || ""}</div>`;
     r.cells.forEach(c => { html += c ? `<div class="${c.cls}">${c.ch}</div>` : `<div class="cell"></div>`; });
   });
