@@ -96,17 +96,22 @@
   /* 人物 */
   .person { cursor: pointer; }
   .person.locked { cursor: default; }
-  .person circle { fill: var(--node-fill); stroke: var(--border); stroke-width: 2; transition: all .18s; }
-  .person .head { fill: var(--muted); }
-  .person text.t { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; text-anchor: middle; }
-  .person text.nm { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 10px; text-anchor: middle; }
-  .person.sel circle { fill: color-mix(in srgb, var(--yellow) 32%, var(--node-fill)); stroke: var(--yellow); stroke-width: 3; filter: drop-shadow(0 0 8px rgba(255,212,0,.6)); }
-  .person.crossed circle { fill: color-mix(in srgb, var(--green) 30%, var(--node-fill)); stroke: var(--green); }
-  .person.boarding circle { fill: color-mix(in srgb, var(--magenta) 34%, var(--node-fill)); stroke: var(--magenta); filter: drop-shadow(0 0 10px rgba(255,43,214,.6)); }
-  .person.clickable circle { stroke: var(--cyan); }
-  .person.clickable:hover circle { filter: drop-shadow(0 0 8px rgba(0,240,255,.6)); }
+  .person .pcard { fill: var(--node-fill); stroke: var(--border); stroke-width: 1.5; transition: all .18s; }
+  .person .fig { fill: var(--muted); transition: all .18s; }
+  .person text.t { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 19px; font-weight: 800; text-anchor: middle; }
+  .person text.nm { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 9.5px; text-anchor: middle; }
+  .person.clickable .pcard { stroke: var(--cyan); stroke-width: 2; }
+  .person.clickable .fig { fill: var(--cyan); }
+  .person.clickable:hover .pcard { filter: drop-shadow(0 0 8px rgba(0,240,255,.55)); }
+  .person.sel .pcard { fill: color-mix(in srgb, var(--yellow) 30%, var(--node-fill)); stroke: var(--yellow); stroke-width: 2.5; filter: drop-shadow(0 0 9px rgba(255,212,0,.6)); }
+  .person.sel .fig { fill: var(--yellow); }
+  .person.crossed .pcard { fill: color-mix(in srgb, var(--green) 26%, var(--node-fill)); stroke: var(--green); stroke-width: 2; }
+  .person.crossed .fig { fill: var(--green); }
   /* 船 */
-  .boat { fill: color-mix(in srgb, var(--yellow) 26%, var(--node-fill)); stroke: var(--yellow); stroke-width: 2.5; transition: all .4s ease; }
+  .boat { fill: color-mix(in srgb, var(--yellow) 24%, var(--node-fill)); stroke: var(--yellow); stroke-width: 2.5; stroke-linejoin: round; }
+  .boatg { transition: all .4s ease; }
+  .mast { stroke: var(--muted); stroke-width: 2; }
+  .sail { fill: color-mix(in srgb, var(--cyan) 40%, var(--node-fill)); stroke: var(--cyan); stroke-width: 1.5; stroke-linejoin: round; }
   .boatlabel { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 11px; font-weight: 700; text-anchor: middle; }
   /* 统计 / 状态 */
   .stats { display: flex; justify-content: center; gap: 20px; margin-top: 14px; font-family: "SF Mono", Menlo, monospace; font-size: 14px; flex-wrap: wrap; }
@@ -117,7 +122,7 @@
   .win-banner.bad { border-color: var(--magenta); background: color-mix(in srgb, var(--magenta) 14%, var(--node-fill)); color: var(--magenta); box-shadow: 0 0 16px rgba(255,43,214,.3); }
   .win-banner.hint { border-color: var(--yellow); background: color-mix(in srgb, var(--yellow) 14%, var(--node-fill)); color: var(--yellow); box-shadow: 0 0 16px rgba(255,212,0,.3); }
   .movelog { display: flex; flex-direction: column; gap: 6px; max-height: 320px; overflow-y: auto; font-family: "SF Mono", Menlo, monospace; font-size: 13px; }
-  .movelog .mv { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: rgba(18,15,38,0.5); }
+  .movelog .mv { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: color-mix(in srgb, var(--cyan) 6%, var(--node-fill)); color: var(--text); }
   .movelog .mv b { color: var(--cyan); }
   .movelog .mv.ret { border-left: 3px solid var(--yellow); }
   .movelog .mv.go { border-left: 3px solid var(--green); }
@@ -169,7 +174,7 @@
 <main>
   <section class="card">
     <div class="rowlabel">河流两岸（黄=船所在岸；点击本岸的人上船，最多 2 人）</div>
-    <svg id="scene" viewBox="0 0 720 300" preserveAspectRatio="xMidYMid meet"></svg>
+    <svg id="scene" viewBox="0 0 720 340" preserveAspectRatio="xMidYMid meet"></svg>
     <div class="stats" id="stats"></div>
     <div class="status" id="status"></div>
     <div class="ctrlrow manual-only">
@@ -301,15 +306,15 @@ function solveOptimal(persons) {
 }
 
 // ======== 渲染：两岸 / 河 / 船 / 人物 ========
-const W = 720, H = 300;
-const BANK_W = 170, RIVER_X = BANK_W, RIVER_W = W - 2 * BANK_W;
+const W = 720, H = 340;
+const BANK_W = 176, RIVER_X = BANK_W, RIVER_W = W - 2 * BANK_W;
 function personXY(side, idx, count) {
-  const cols = Math.min(count, 3);
+  const cols = Math.min(count, 2);
   const col = idx % cols, row = Math.floor(idx / cols);
-  const zoneX = side === "A" ? 16 : W - BANK_W + 16;
-  const cellW = (BANK_W - 32) / cols;
+  const zoneX = side === "A" ? 12 : W - BANK_W + 12;
+  const cellW = (BANK_W - 24) / cols;
   const x = zoneX + col * cellW + cellW / 2;
-  const y = 74 + row * 78;
+  const y = 82 + row * 62;
   return { x, y };
 }
 function drawScene() {
@@ -326,10 +331,14 @@ function drawScene() {
   s += `<text class="banklabel" x="${W - BANK_W / 2}" y="30">B 岸 (终点)</text>`;
   s += `<text class="rivertext" x="${W / 2}" y="${H / 2 - 6}">～～ 河 ～～</text>`;
   s += `<text class="rivertext" x="${W / 2}" y="${H / 2 + 12}">船限 2 人 · 耗时取较慢者</text>`;
-  // 船
-  s += `<g><rect class="boat" x="${boatX}" y="${H / 2 - 20}" width="52" height="34" rx="8"/>`;
-  s += `<text class="boatlabel" x="${boatX + 26}" y="${H / 2 + 2}">⛵船</text></g>`;
-  // 人物：按各自岸分组布局
+  // 船（船身梯形 + 桅杆帆）
+  const bcx = boatX + 30, bcy = H / 2;
+  s += `<g class="boatg">`;
+  s += `<path class="boat" d="M ${bcx - 30} ${bcy} L ${bcx + 30} ${bcy} L ${bcx + 22} ${bcy + 18} L ${bcx - 22} ${bcy + 18} Z"/>`;
+  s += `<line class="mast" x1="${bcx}" y1="${bcy}" x2="${bcx}" y2="${bcy - 26}"/>`;
+  s += `<path class="sail" d="M ${bcx + 1} ${bcy - 25} L ${bcx + 18} ${bcy - 6} L ${bcx + 1} ${bcy - 6} Z"/>`;
+  s += `<text class="boatlabel" x="${bcx}" y="${bcy + 34}">船 (限2)</text></g>`;
+  // 人物：卡片式头像（人形剪影 + 大号时间 + 编号）
   const clickableSide = (mode === "manual" && !solved) ? boat : null;
   const drawPerson = (p, idx, cnt) => {
     const { x, y } = personXY(p.side, idx, cnt);
@@ -339,11 +348,16 @@ function drawScene() {
     const clickable = clickableSide === p.side;
     if (clickable) cls += " clickable"; else cls += " locked";
     const data = clickable ? ` data-pid="${p.id}"` : "";
+    const cardW = 62, cardH = 46, cx = x - cardW / 2, cy = y - cardH / 2;
+    // 人形剪影：头 + 肩，放在卡片左侧
+    const hx = cx + 15, hy = cy + 15;
+    const fig = `<circle class="fig" cx="${hx}" cy="${hy}" r="6"/>`
+      + `<path class="fig" d="M ${hx - 9} ${cy + cardH - 6} Q ${hx} ${cy + 20} ${hx + 9} ${cy + cardH - 6} Z"/>`;
     return `<g class="${cls}"${data}>`
-      + `<circle cx="${x}" cy="${y}" r="20"/>`
-      + `<circle class="head" cx="${x}" cy="${y - 5}" r="6"/>`
-      + `<text class="t" x="${x}" y="${y + 12}">${p.t}</text>`
-      + `<text class="nm" x="${x}" y="${y + 32}">P${p.id + 1}</text></g>`;
+      + `<rect class="pcard" x="${cx}" y="${cy}" width="${cardW}" height="${cardH}" rx="10"/>`
+      + fig
+      + `<text class="t" x="${cx + 42}" y="${cy + 22}">${p.t}</text>`
+      + `<text class="nm" x="${cx + 42}" y="${cy + 37}">P${p.id + 1}</text></g>`;
   };
   onA.forEach((p, i) => s += drawPerson(p, i, onA.length));
   onB.forEach((p, i) => s += drawPerson(p, i, onB.length));
