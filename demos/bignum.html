@@ -189,11 +189,12 @@ function digitAt(str, pos) { const L = str.length; return pos < L ? +str[L - 1 -
 function cmpNum(a, b) { a = norm(a); b = norm(b); if (a.length !== b.length) return a.length - b.length; return a < b ? -1 : a > b ? 1 : 0; }
 
 // 行构建：str 右对齐到 W 列（列 j 从左到右，place pos = W-1-j）
-function rowDigits(tag, str, W, baseCls, posCls) {
+// opCh：运算符，放到本行最左列（竖式惯例，符号在最前面）
+function rowDigits(tag, str, W, baseCls, posCls, opCh) {
   posCls = posCls || {}; const L = str.length, off = W - L, cells = [];
   for (let j = 0; j < W; j++) {
     const pos = W - 1 - j;
-    if (j < off) cells.push(null);
+    if (j < off) { cells.push(opCh && j === 0 ? { ch: opCh, cls: "cell op" } : null); }
     else { let cls = "cell " + (baseCls || ""); if (posCls[pos]) cls += " " + posCls[pos]; cells.push({ ch: str[j - off], cls }); }
   }
   return { tag, cells };
@@ -219,7 +220,7 @@ function genAddSteps(a, b) {
     const cmap = {}; for (const p in carries) if (carries[p]) cmap[p] = { ch: "" + carries[p], cls: "carry" };
     rows.push(rowSparse("进位", W, cmap, "carry"));
     rows.push(rowDigits("a", a, W, "digit", curPos != null ? { [curPos]: "cur" } : {}));
-    rows.push(rowDigits("b", "+ " + b, W, "digit", curPos != null ? { [curPos]: "cur" } : {}));
+    rows.push(rowDigits("b", b, W, "digit", curPos != null ? { [curPos]: "cur" } : {}, "+"));
     rows.push(LINE);
     const posCls = {}; for (let p = 0; p < W; p++) if (res[p] != null) posCls[p] = (p === doneDigit ? "resnew" : "res");
     const rstr = res.map(d => d == null ? " " : d).join("").replace(/ /g, "");
@@ -243,25 +244,25 @@ function genAddSteps(a, b) {
 // ======== 减法（a - b，保证 a≥b；外层负号处理） ========
 function genSubSteps(a, b, neg) {
   a = norm(a); b = norm(b);
-  const W = a.length;
-  const list = [], res = new Array(W).fill(null), borrows = {};
+  const nDigits = a.length, W = a.length + 1;   // 多留一列放运算符（竖式符号在最前）
+  const list = [], res = new Array(nDigits).fill(null), borrows = {};
   let borrow = 0;
   const build = (curPos, desc, doneDigit, done) => {
     const rows = [];
     const bmap = {}; for (const p in borrows) if (borrows[p]) bmap[p] = { ch: "−1", cls: "borrow" };
     rows.push(rowSparse("借位", W, bmap, "borrow"));
     rows.push(rowDigits("a", a, W, "digit", curPos != null ? { [curPos]: "cur" } : {}));
-    rows.push(rowDigits("b", "- " + b, W, "digit", curPos != null ? { [curPos]: "cur" } : {}));
+    rows.push(rowDigits("b", b, W, "digit", curPos != null ? { [curPos]: "cur" } : {}, "−"));
     rows.push(LINE);
     const rmap = {}; for (let p = 0; p < W; p++) if (res[p] != null) rmap[p] = { ch: "" + res[p], cls: p === doneDigit ? "resnew" : "res" };
     rows.push(rowSparse("差", W, rmap, "digit"));
     list.push({ rows, desc, done: !!done });
   };
   build(0, `${neg ? "因 a < b，先算 b − a，结果取负。" : ""}从个位起逐列相减，不够减就向前一位借 1（本位 +10）。`, null, false);
-  for (let pos = 0; pos < W; pos++) {
+  for (let pos = 0; pos < nDigits; pos++) {
     const da = digitAt(a, pos), db = digitAt(b, pos), bin = borrow;
     let d = da - db - bin; let bo = 0;
-    if (d < 0) { d += 10; bo = 1; borrows[pos + 1] = 1; }
+    if (d < 0) { d += 10; bo = 1; if (pos + 1 < nDigits) borrows[pos + 1] = 1; }
     res[pos] = d; borrow = bo;
     build(pos, `第 ${pos + 1} 列：${da}${bin ? " − 借位 1" : ""} − ${db} = <span class="hl">${da - bin - db}</span>${bo ? "，不够减，向前借 1 → 本位 " + (da - bin + 10) + " − " + db + " = <span class='hl'>" + d + "</span>" : "，本位写 <span class='hl'>" + d + "</span>"}。`, pos, false);
   }
@@ -291,7 +292,7 @@ function genMulSteps(a, b) {
   const headRows = (curBPos, accMap, resMap) => {
     const rows = [];
     rows.push(rowDigits("a", a, W, "digit", {}));
-    rows.push(rowDigits("b", "× " + b, W, "digit", curBPos != null ? { [curBPos]: "cur" } : {}));
+    rows.push(rowDigits("b", b, W, "digit", curBPos != null ? { [curBPos]: "cur" } : {}, "×"));
     rows.push(LINE);
     shownPartials.forEach((sp, i) => {
       const shifted = sp.raw === "0" ? "0" : sp.raw + "0".repeat(sp.shift);
