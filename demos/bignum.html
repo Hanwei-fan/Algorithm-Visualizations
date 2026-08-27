@@ -287,7 +287,8 @@ function genMulSteps(a, b) {
   for (let pos = 0; pos < b.length; pos++) { const bd = digitAt(b, pos); partials.push({ raw: mulByDigit(a, bd), shift: pos, bd, pos }); }
   const shownPartials = [];
   const build = (rows, desc, done) => list.push({ rows, desc, done: !!done, wide: true });
-  const headRows = (curBPos, resMap) => {
+  // accMap/resMap: 稀疏 {pos:{ch,cls}}；两者出现前各加一条分隔线
+  const headRows = (curBPos, accMap, resMap) => {
     const rows = [];
     rows.push(rowDigits("a", a, W, "digit", {}));
     rows.push(rowDigits("b", "× " + b, W, "digit", curBPos != null ? { [curBPos]: "cur" } : {}));
@@ -298,36 +299,44 @@ function genMulSteps(a, b) {
       rows.push(rowDigits("×" + sp.bd, shifted, W, "digit", {}, ));
       rows[rows.length - 1].cells.forEach(c => { if (c) c.cls = c.cls.replace("digit", pc === "resnew" ? "resnew" : "res"); });
     });
+    if (accMap) { rows.push(LINE); rows.push(rowSparse("累加", W, accMap, "digit")); }
     if (resMap) { rows.push(SUBLINE); rows.push(rowSparse("积", W, resMap, "digit")); }
     return rows;
   };
-  build(headRows(null, null), `竖式乘法：用 b 的每一位（从个位起）去乘整个 a，得到一行"部分积"（第 k 位要左移 k 位），最后把所有部分积错位相加。`, false);
+  build(headRows(null, null, null), `竖式乘法：用 b 的每一位（从个位起）去乘整个 a，得到一行"部分积"（第 k 位要左移 k 位）。最后把各部分积<b>先逐列累加、再统一进位</b>。`, false);
   // 阶段①：逐位生成部分积
   for (let pos = 0; pos < b.length; pos++) {
     shownPartials.forEach(sp => sp.justNew = false);
     shownPartials.push(Object.assign({}, partials[pos], { justNew: true }));
     const sp = partials[pos];
     const shiftDesc = sp.shift ? `，再左移 ${sp.shift} 位（末尾补 ${sp.shift} 个 0）` : "";
-    build(headRows(pos, null), `b 的第 ${pos + 1} 位是 <span class="hl">${sp.bd}</span>：${sp.bd} × ${a} = <span class="hl">${sp.raw}</span>${shiftDesc}。`, false);
+    build(headRows(pos, null, null), `b 的第 ${pos + 1} 位是 <span class="hl">${sp.bd}</span>：${sp.bd} × ${a} = <span class="hl">${sp.raw}</span>${shiftDesc}。`, false);
   }
-  // 阶段②：错位相加（直接算总和，逐列展示）
-  // 计算最终积
-  let prod = new Array(W).fill(0);
+  // 各列部分积之和（可能 >9）
+  const prod = new Array(W).fill(0);
   partials.forEach(sp => { const s = sp.raw; for (let i = 0; i < s.length; i++) prod[i + sp.shift] += digitAt(s, i); });
-  let carry = 0; const resArr = [];
-  const resMap = {};
   shownPartials.forEach(sp => sp.justNew = false);
-  build(headRows(null, {}), `所有部分积已就位，下面把它们<b>错位相加</b>（同加法，逐列求和处理进位）。`, false);
+  // 阶段②：逐列累加（先不进位，和可 >9），分隔线下方是累加行
+  const accMap = {};
+  build(headRows(null, {}, null), `所有部分积就位。<b>第①步·逐列累加</b>：把各部分积同一列相加，写到分隔线下的<b>累加行</b>（此时某列的和可能 &gt;9，暂不进位）。`, false);
+  for (let p = 0; p < W; p++) {
+    accMap[p] = { ch: "" + prod[p], cls: "resnew" };
+    const fixed = {}; for (const k in accMap) fixed[k] = { ch: accMap[k].ch, cls: +k === p ? "resnew" : "res" };
+    build(headRows(null, fixed, null), `第 ${p + 1} 列（下标 ${p}）各部分积相加 = <span class="hl">${prod[p]}</span>。`, false);
+  }
+  // 阶段③：从累加行统一进位 → 积行
+  const accFinal = {}; for (let p = 0; p < W; p++) accFinal[p] = { ch: "" + prod[p], cls: "res" };
+  let carry = 0; const resArr = new Array(W).fill(0); const resMap = {};
+  build(headRows(null, accFinal, {}), `<b>第②步·统一进位</b>：从最低位起处理累加行 —— 本位保留 <code>%10</code>，其余 <code>/10</code> 进到高位。`, false);
   for (let p = 0; p < W; p++) {
     const colSum = prod[p] + carry; const d = colSum % 10; carry = Math.floor(colSum / 10);
     resArr[p] = d; resMap[p] = { ch: "" + d, cls: "resnew" };
-    // 之前列固定为 res
     const fixed = {}; for (const k in resMap) fixed[k] = { ch: resMap[k].ch, cls: +k === p ? "resnew" : "res" };
-    build(headRows(null, fixed), `第 ${p + 1} 列部分积求和 = ${prod[p]}${carry || (colSum >= 10) ? "（+进位后 " + colSum + "）" : ""} → 本位 <span class="hl">${d}</span>${carry ? "，进位 " + carry : ""}。`, false);
+    build(headRows(null, accFinal, fixed), `下标 ${p}：累加值 ${prod[p]}${carry || colSum >= 10 ? " + 进位 " + (colSum - prod[p]) + " = " + colSum : ""} → 本位 <span class="hl">${d}</span>${carry ? "，进位 " + carry : ""}。`, false);
   }
-  const resStr = norm(resArr.map((d, i) => d).reverse().join(""));
+  const resStr = norm(resArr.slice().reverse().join(""));
   const finalMap = {}; for (let p = 0; p < resArr.length; p++) finalMap[p] = { ch: "" + resArr[p], cls: "res" };
-  build(headRows(null, finalMap), `完成！a × b = <span class="hl">${resStr}</span>。`, true);
+  build(headRows(null, accFinal, finalMap), `完成！a × b = <span class="hl">${resStr}</span>。`, true);
   return { list, resStr };
 }
 
@@ -443,73 +452,85 @@ function genSubProg(a, b, neg) {
   return { list, resStr };
 }
 
-// ======== 编程·乘法（res[i+j] 累加，再统一进位） ========
+// ======== 编程·乘法（分层：逐位乘 → 逐列累加 → 统一进位） ========
 function genMulProg(a, b) {
   const A = toArr(a), B = toArr(b), n = A.length, m = B.length, W = n + m;
   const list = [];
-  // 各层部分积：layers[j][k] = a[k-j]·b[j]（k-j∈[0,n-1] 才有值，否则 null）
-  const layers = [];
-  for (let j = 0; j < m; j++) { const row = new Array(W).fill(null); for (let i = 0; i < n; i++) row[i + j] = A[i] * B[j]; layers.push(row); }
-  // 通用行构建：shownLayers=已揭示的层数；acc=累加行(或null)；opts 高亮
-  const build = (shownLayers, acc, opts, desc, extra) => {
+  const shown = []; for (let j = 0; j < m; j++) shown.push(new Array(W).fill(null)); // 各层逐格揭示
+  let acc = null, carryRow = null, res = null;
+  const mk = (opts, desc, extra) => {
     opts = opts || {};
+    const sl = opts.shownLayers != null ? opts.shownLayers : m;
     const rows = [rowIdx(W)];
     rows.push(rowArrL("a[]", A, W, opts.ai != null ? opts.ai : -1, "digit"));
     rows.push(rowArrL("b[]", B, W, opts.bj != null ? opts.bj : -1, "digit"));
     rows.push(LINE);
-    for (let j = 0; j < shownLayers; j++) {
-      const cells = layers[j].map((v, k) => {
+    for (let j = 0; j < sl; j++) {
+      const cells = shown[j].map((v, k) => {
         if (v == null) return null;
-        let cls = "cell digit"; const isNewLayer = (opts.newLayer === j);
-        if (opts.accCol === k) cls += " cur"; else if (isNewLayer) cls += " resnew"; else cls += " res";
+        let cls = "cell digit";
+        if (opts.hotLayer === j && opts.hotK === k) cls += " resnew";
+        else if (opts.accCol === k) cls += " cur";
+        else cls += " res";
         return { ch: "" + v, cls };
       });
       rows.push({ tag: "层" + j + "(×" + B[j] + ")", cells });
     }
     if (acc) {
-      rows.push(SUBLINE);
-      const cells = acc.map((v, k) => {
+      rows.push(LINE);
+      rows.push({ tag: "累加", cells: acc.map((v, k) => {
         if (v == null) return null;
-        let cls = "cell digit"; if (opts.accCol === k) cls += " resnew"; else if (opts.carryK != null) { cls += (k <= opts.carryK ? " res" : ""); } else cls += " res";
+        let cls = "cell digit";
+        if (opts.accCol === k) cls += " resnew"; else if (opts.accDone != null && k <= opts.accDone) cls += " res dim"; else cls += " res";
         return { ch: "" + v, cls };
-      });
-      rows.push({ tag: "累加", cells });
+      }) });
+    }
+    if (carryRow) {
+      rows.push({ tag: "进位", cells: carryRow.map((v, k) => v == null ? null : { ch: "" + v, cls: "cell carry" + (opts.carryHot === k ? " cur" : "") }) });
+    }
+    if (res) {
+      rows.push({ tag: "res[]", cells: res.map((v, k) => {
+        if (v == null) return null;
+        let cls = "cell digit"; if (opts.resCol === k) cls += " resnew"; else cls += " res";
+        return { ch: "" + v, cls };
+      }) });
     }
     list.push(Object.assign({ rows, desc, done: false }, extra || {}));
   };
-  // 阶段①：逐层列出部分积
-  build(0, null, {}, `编程乘法（分层）：a、b 逆序存数组。<b>第①步</b>——b 的每一位 <code>b[j]</code> 乘整个 a，得到一"层"部分积放在下标 <code>i+j</code>（原始乘积可能 &gt;9，先不进位）。`);
+  // 阶段①：逐个 a[i]·b[j]，标出正在相乘的两个数，放到下标 i+j
+  mk({ shownLayers: 0 }, `编程乘法（分层）：a、b <b>逆序</b>存数组。<b>第①步·逐位相乘</b>——依次算 <code>a[i]·b[j]</code>，结果放到层 j 的下标 <code>i+j</code>（原始乘积可能 &gt;9，先不进位）。`);
   for (let j = 0; j < m; j++) {
-    const prodList = [];
-    for (let i = 0; i < n; i++) prodList.push(`a[${i}]·b[${j}]=${A[i]}·${B[j]}=${A[i] * B[j]}`);
-    build(j + 1, null, { bj: j, newLayer: j }, `层 ${j}（× b[${j}]=${B[j]}）：${prodList.join("，")}，分别放到下标 ${j}…${j + n - 1}。`);
+    for (let i = 0; i < n; i++) {
+      shown[j][i + j] = A[i] * B[j];
+      mk({ shownLayers: j + 1, ai: i, bj: j, hotLayer: j, hotK: i + j },
+        `正在相乘：<code>a[${i}] · b[${j}] = <span class="hl">${A[i]}</span> · <span class="hl">${B[j]}</span> = <span class="hl">${A[i] * B[j]}</span></code>，放到层 ${j} 的下标 ${i + j}。`);
+    }
   }
   // 阶段②：逐列累加各层 → acc（仍可 >9）
-  const acc = new Array(W).fill(0);
-  build(m, acc.slice(), {}, `<b>第②步</b>——把各层<b>逐列相加</b>到累加行 <code>acc</code>：<code>acc[k] = Σ 层j[k]</code>（此时 acc 各位仍可能 &gt;9）。`);
+  acc = new Array(W).fill(0);
+  mk({}, `<b>第②步·逐列累加</b>——把各层同一列相加到<b>累加行</b> <code>acc[k]</code>（此时某列的和可能 &gt;9，暂不进位）。`);
   for (let k = 0; k < W; k++) {
     let sum = 0; const parts = [];
-    for (let j = 0; j < m; j++) if (layers[j][k] != null) { sum += layers[j][k]; parts.push("" + layers[j][k]); }
+    for (let j = 0; j < m; j++) if (shown[j][k] != null) { sum += shown[j][k]; parts.push("" + shown[j][k]); }
     acc[k] = sum;
-    build(m, acc.slice(), { accCol: k }, `下标 ${k}：把各层此列相加 <code>acc[${k}] = ${parts.length ? parts.join(" + ") : "0"} = <span class="hl">${sum}</span></code>。`);
+    mk({ accCol: k }, `下标 ${k}：各层此列相加 <code>acc[${k}] = ${parts.length ? parts.join(" + ") : "0"} = <span class="hl">${sum}</span></code>。`);
   }
-  // 阶段③：统一进位
-  const res = acc.slice(); let carry = 0;
-  build(m, res.slice(), { carryK: -1 }, `<b>第③步</b>——从低位起<b>统一进位</b>：<code>res[k] = acc[k] % 10</code>，进位累加到高位。`, { carryVal: 0 });
+  // 阶段③：统一进位——进位行画在累加行下方，标出当前进位值
+  carryRow = new Array(W).fill(null);
+  res = new Array(W).fill(null);
+  let carry = 0;
+  mk({}, `<b>第③步·统一进位</b>——从低位起：<code>本列和 = acc[k] + 进位</code>，<code>res[k] = 本列和 % 10</code>，新进位 = <code>本列和 / 10</code>，<b>进位写在累加行下方</b>、加到下一列。`, { carryVal: 0 });
   for (let k = 0; k < W; k++) {
-    const before = res[k] + carry; res[k] = before % 10; carry = Math.floor(before / 10);
-    const rows = [rowIdx(W)];
-    rows.push(rowArrL("a[]", A, W, -1, "digit"));
-    rows.push(rowArrL("b[]", B, W, -1, "digit"));
-    rows.push(LINE);
-    const resRow = { tag: "res[]", cells: res.map((v, kk) => ({ ch: "" + v, cls: "cell digit" + (kk === k ? " resnew" : (kk < k ? " res" : "")) })) };
-    rows.push(resRow);
-    list.push({ rows, desc: `下标 ${k}：<code>res[${k}] = ${before} % 10 = <span class="hl">${res[k]}</span></code>，进位 <code>${before} / 10 = <span class="hl">${carry}</span></code>${carry ? " 带到下一位" : ""}。`, done: false, carryVal: carry });
+    const carryIn = carry;
+    const total = acc[k] + carryIn;
+    res[k] = total % 10; carry = Math.floor(total / 10);
+    carryRow[k] = carry > 0 ? carry : null;   // 本列产生的进位，标在累加行下方
+    mk({ accCol: k, resCol: k, carryHot: k, accDone: k - 1 },
+      `下标 ${k}：<code>acc[${k}] = ${acc[k]}${carryIn ? " + 进位 " + carryIn : ""} = ${total}</code> → <code>res[${k}] = ${total} % 10 = <span class="hl">${res[k]}</span></code>，产生进位 <code><span class="hl">${carry}</span></code>${carry ? `（标在下方，加到下标 ${k + 1}）` : "（无进位）"}。`,
+      { carryVal: carry });
   }
   const resStr = norm(res.slice().reverse().join(""));
-  const rows = [rowIdx(W), rowArrL("a[]", A, W, -1, "digit"), rowArrL("b[]", B, W, -1, "digit"), LINE,
-    { tag: "res[]", cells: res.map(v => ({ ch: "" + v, cls: "cell digit res" })) }];
-  list.push({ rows, desc: `进位完成。res[] 逆序读出（去前导 0）得 a×b = <span class="hl">${resStr}</span>。`, done: true });
+  mk({ resCol: -1 }, `进位完成。<code>res[]</code> 逆序读出（去前导 0）得 a×b = <span class="hl">${resStr}</span>。`, { done: true });
   return { list, resStr };
 }
 
