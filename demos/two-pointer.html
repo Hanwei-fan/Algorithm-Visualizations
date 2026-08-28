@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>双指针扫描演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+    --node-fill: #16213e;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 8px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .tab {
+    padding: 9px 18px; border: 1px solid var(--border); border-bottom: none;
+    border-radius: 8px 8px 0 0; cursor: pointer; color: var(--muted);
+    font-size: 14px; letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace;
+    background: rgba(18,15,38,0.4); transition: all .18s;
+  }
+  .tab:hover { color: var(--cyan); }
+  .tab.active { color: var(--cyan); background: var(--panel); border-color: var(--cyan); text-shadow: 0 0 6px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .field input.wide { width: 240px; }
+  .field input.narrow { width: 90px; }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(18,15,38,0.5); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.06); box-shadow: none; }
+  .cppview-btn {
+    margin-left: auto; padding: 9px 15px; border: 1px solid var(--green); border-radius: 4px;
+    background: rgba(0,255,156,0.1); color: var(--green); font-size: 13px; letter-spacing: 1px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .cppview-btn:hover { background: var(--green); color: #05060f; box-shadow: 0 0 16px rgba(0,255,156,.5); }
+  main { padding: 6px 30px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px; backdrop-filter: blur(6px);
+  }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .plabel.mt { margin-top: 16px; }
+  /* 双指针数组/字符串格子 */
+  .arrwrap { overflow-x: auto; padding: 8px 4px 4px; }
+  .parr { display: inline-flex; gap: 6px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .ptrslot { height: 34px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; line-height: 1.1; }
+  .ptrslot .pl { color: var(--cyan); } .ptrslot .pr { color: var(--magenta); }
+  .ptrslot .arrow { font-size: 14px; }
+  .cell {
+    width: 46px; height: 50px; display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700; border-radius: 8px; color: var(--text);
+    background: color-mix(in srgb, var(--cyan) 8%, var(--node-fill)); border: 1px solid var(--border);
+    transition: all .18s;
+  }
+  .cell.l { border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,240,255,.5); background: color-mix(in srgb, var(--cyan) 26%, var(--node-fill)); }
+  .cell.r { border-color: var(--magenta); box-shadow: 0 0 8px rgba(255,43,214,.5); background: color-mix(in srgb, var(--magenta) 26%, var(--node-fill)); }
+  .cell.paired { background: color-mix(in srgb, var(--green) 28%, var(--node-fill)); border-color: var(--green); }
+  .cell.solo { background: color-mix(in srgb, var(--yellow) 30%, var(--node-fill)); border-color: var(--yellow); }
+  .cell.match { background: color-mix(in srgb, var(--green) 28%, var(--node-fill)); border-color: var(--green); }
+  .cell.bad { background: color-mix(in srgb, #ff5555 30%, var(--node-fill)); border-color: #ff5555; }
+  .cell.done { opacity: .45; }
+  .idxlab { font-family: "SF Mono", Menlo, monospace; font-size: 10px; color: var(--muted); }
+  .grouplog { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; font-family: "SF Mono", Menlo, monospace; font-size: 13px; }
+  .grouplog .gv { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: color-mix(in srgb, var(--cyan) 6%, var(--node-fill)); color: var(--text); }
+  .grouplog .gv.solo { border-left: 3px solid var(--yellow); } .grouplog .gv.pair { border-left: 3px solid var(--green); }
+  .stats { margin-top: 14px; font-family: "SF Mono", Menlo, monospace; font-size: 14px; color: var(--text); }
+  .stats b { color: var(--yellow); }
+  .status { margin-top: 8px; font-size: 14px; min-height: 48px; color: var(--text); font-family: "SF Mono", Menlo, monospace; line-height: 1.6; }
+  .status .hl { color: var(--yellow); font-weight: 700; }
+  .verdict { margin-top: 12px; font-family: "SF Mono", Menlo, monospace; font-size: 16px; font-weight: 700; }
+  .verdict.yes { color: var(--green); } .verdict.no { color: var(--magenta); }
+  .formula { font-size: 13px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; line-height: 1.7; background: rgba(5,4,15,0.5); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); }
+  .formula code, .note code { color: var(--cyan); background: rgba(0,240,255,0.08); padding: 1px 5px; border-radius: 3px; }
+  .note { margin: 6px 30px 30px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .note code { color: var(--cyan); } .note b { color: var(--yellow); }
+  .scene-pair-only, .scene-pal-only { }
+  body.scene-pal .scene-pair-only { display: none !important; }
+  body.scene-pair .scene-pal-only { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>双指针扫描 · 对撞指针</h1>
+  <p>相向双指针：<code style="color:var(--cyan)">l</code> 从头、<code style="color:var(--magenta)">r</code> 从尾，向中间对撞。两个经典场景——有序数组两两分组求最小组数（救生艇）、回文判断。（快慢指针、滑动窗口后续补充）</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="tabs">
+  <div class="tab active" data-scene="pair">两两分组（最小组数）</div>
+  <div class="tab" data-scene="pal">回文判断</div>
+</div>
+
+<div class="controls">
+  <div class="field scene-pair-only"><label>有序数组（逗号分隔，自动升序）</label><input id="arrInput" class="wide" type="text" value="1,2,3,4,5"></div>
+  <div class="field scene-pair-only"><label>载重上限 limit</label><input id="limInput" class="narrow" type="number" value="6" min="1"></div>
+  <div class="field scene-pal-only"><label>字符串</label><input id="strInput" class="wide" type="text" value="abcba"></div>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1300" value="650" step="50"></div>
+  <button class="btn" id="playBtn">自动播放</button>
+  <button class="btn secondary" id="stepBtn">单步 ▶</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="btn secondary" id="randBtn">随机</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="plabel" id="calcLabel">对撞过程</div>
+    <div class="arrwrap"><div class="parr" id="parr"></div></div>
+    <div class="stats" id="stats"></div>
+    <div class="status" id="status"></div>
+    <div class="verdict" id="verdict"></div>
+  </section>
+  <section class="card">
+    <div class="plabel" id="logLabel">分组记录</div>
+    <div class="grouplog" id="grouplog"></div>
+    <div class="plabel mt">算法</div>
+    <div class="formula" id="formula"></div>
+  </section>
+</main>
+
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let scene = "pair", steps = [], idx = 0, timer = null, running = false;
+function setStatus(t) { $("status").innerHTML = t; }
+
+// ======== 场景①：有序数组两两分组求最小组数（救生艇 LC881） ========
+// 每步快照：{vals, l, r, mark:{idx:cls}, groups:[{txt,type}], count, desc, done, verdict}
+function genPairSteps(vals, limit) {
+  const n = vals.length, list = [];
+  const done = {};            // idx -> true（已处理置灰）
+  const groups = [];
+  let l = 0, r = n - 1, count = 0;
+  const snap = (mark, desc, doneFlag) => {
+    const m = {}; for (const k in done) m[k] = "done";
+    Object.assign(m, mark || {});
+    list.push({ vals: vals.slice(), l, r, mark: m, groups: groups.map(g => ({ ...g })), count, desc, done: !!doneFlag });
+  };
+  snap({ [l]: "l", [r]: "r" }, `对撞指针：l 指向最轻(<span class="hl">${vals[l]}</span>)、r 指向最重(<span class="hl">${vals[r]}</span>)。每组尽量让最轻的陪最重的，载重上限 limit=<span class="hl">${limit}</span>。`, false);
+  while (l <= r) {
+    if (l === r) {
+      count++; groups.push({ txt: `第${count}组：${vals[l]}（单独）`, type: "solo" });
+      done[l] = true;
+      snap({ [l]: "solo" }, `只剩一个 <span class="hl">${vals[l]}</span>，单独成第 <span class="hl">${count}</span> 组。`, false);
+      l++; r--;
+      break;
+    }
+    if (vals[l] + vals[r] <= limit) {
+      count++; groups.push({ txt: `第${count}组：${vals[l]} + ${vals[r]} = ${vals[l] + vals[r]} ≤ ${limit}`, type: "pair" });
+      done[l] = true; done[r] = true;
+      snap({ [l]: "paired", [r]: "paired" }, `<span class="hl">${vals[l]}</span> + <span class="hl">${vals[r]}</span> = ${vals[l] + vals[r]} ≤ ${limit} ✓ → 两人一组（第 <span class="hl">${count}</span> 组）。l→右，r→左。`, false);
+      l++; r--;
+    } else {
+      count++; groups.push({ txt: `第${count}组：${vals[r]}（单独，太重）`, type: "solo" });
+      done[r] = true;
+      snap({ [r]: "solo" }, `<span class="hl">${vals[l]}</span> + <span class="hl">${vals[r]}</span> = ${vals[l] + vals[r]} &gt; ${limit} ✗ → 最重的 ${vals[r]} 只能自己一组（第 <span class="hl">${count}</span> 组）。只移 r。`, false);
+      r--;
+    }
+    if (l <= r) snap({ [l]: "l", [r]: "r" }, `继续对撞：l=${vals[l]}，r=${vals[r]}。`, false);
+  }
+  snap({}, `完成！所有人分完，最少需要 <span class="hl">${count}</span> 组。`, true);
+  return { list, resStr: "" + count };
+}
+
+// ======== 场景②：回文判断 ========
+function genPalSteps(str) {
+  const n = str.length, list = [];
+  const done = {}; let l = 0, r = n - 1, isPal = true;
+  const chOf = i => str[i] === " " ? "␣" : str[i];
+  const snap = (mark, desc, doneFlag, verdict) => {
+    const m = {}; for (const k in done) m[k] = "done"; Object.assign(m, mark || {});
+    list.push({ vals: str.split("").map((_, i) => chOf(i)), l, r, mark: m, groups: [], count: null, desc, done: !!doneFlag, verdict });
+  };
+  if (n === 0) { snap({}, "空串视为回文。", true, "yes"); return { list, resStr: "是回文" }; }
+  snap({ [l]: "l", [r]: "r" }, `对撞指针判回文：比较两端字符 s[0]=<span class="hl">${chOf(0)}</span> 与 s[${n - 1}]=<span class="hl">${chOf(n - 1)}</span>。`, false);
+  while (l < r) {
+    if (str[l] === str[r]) {
+      snap({ [l]: "match", [r]: "match" }, `s[${l}]=<span class="hl">${chOf(l)}</span> == s[${r}]=<span class="hl">${chOf(r)}</span> ✓ 相等，向内收缩。`, false);
+      done[l] = true; done[r] = true; l++; r--;
+      if (l < r) snap({ [l]: "l", [r]: "r" }, `比较 s[${l}]=<span class="hl">${chOf(l)}</span> 与 s[${r}]=<span class="hl">${chOf(r)}</span>。`, false);
+    } else {
+      isPal = false;
+      snap({ [l]: "bad", [r]: "bad" }, `s[${l}]=<span class="hl">${chOf(l)}</span> ≠ s[${r}]=<span class="hl">${chOf(r)}</span> ✗ 不相等 → <b>不是回文</b>，可提前结束。`, true, "no");
+      return { list, resStr: "不是回文" };
+    }
+  }
+  snap({}, `l ≥ r，所有对称位置都相等 → <b>是回文</b>。`, true, "yes");
+  return { list, resStr: "是回文" };
+}
+
+// ======== 渲染 ========
+function draw(k) {
+  const s = steps[k];
+  // 格子 + 指针箭头
+  let html = "";
+  for (let i = 0; i < s.vals.length; i++) {
+    const cls = s.mark[i] || "";
+    // 指针槽（箭头在上方）
+    let ptr = "";
+    if (s.l === i && s.r === i) ptr = `<span class="pl arrow">▼</span><span class="pl">L=R</span>`;
+    else if (s.l === i) ptr = `<span class="pl arrow">▼</span><span class="pl">L</span>`;
+    else if (s.r === i) ptr = `<span class="pr arrow">▼</span><span class="pr">R</span>`;
+    html += `<div class="col"><div class="ptrslot">${ptr}</div>`
+      + `<div class="cell ${cls}">${s.vals[i]}</div>`
+      + `<div class="idxlab">${i}</div></div>`;
+  }
+  $("parr").innerHTML = html;
+  setStatus(s.desc);
+  // 统计
+  if (scene === "pair") {
+    $("stats").innerHTML = s.count != null ? `已分组数：<b>${s.count}</b>` : "";
+  } else {
+    $("stats").innerHTML = "";
+  }
+  // 分组记录 / 结论
+  if (scene === "pair") {
+    $("grouplog").innerHTML = s.groups.length
+      ? s.groups.map(g => `<div class="gv ${g.type}">${g.txt}</div>`).join("")
+      : '<div class="gv" style="color:var(--muted)">（还没有分组）</div>';
+  } else {
+    $("grouplog").innerHTML = '<div class="gv" style="color:var(--muted)">回文判断无分组记录，看下方结论。</div>';
+  }
+  // 结论
+  if (s.verdict) $("verdict").innerHTML = `<span class="${s.verdict === "yes" ? "yes" : "no"}">${s.verdict === "yes" ? "✅ 是回文" : "✗ 不是回文"}</span>`;
+  else if (s.done && scene === "pair") $("verdict").innerHTML = `<span class="yes">✅ 最少分 ${lastResult} 组</span>`;
+  else $("verdict").innerHTML = "";
+}
+
+// ======== 引擎 ========
+function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(idx); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 1420 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+const FORMULA = {
+  pair: `sort(a)　<span style="color:var(--muted)">// 升序</span><br>l = 0, r = n−1, cnt = 0<br>while l ≤ r:<br>&nbsp;&nbsp;if a[l] + a[r] ≤ limit: l++　<span style="color:var(--muted)">// 最轻陪最重</span><br>&nbsp;&nbsp;r−−; cnt++　<span style="color:var(--muted)">// 每轮成一组</span>`,
+  pal: `l = 0, r = n−1<br>while l &lt; r:<br>&nbsp;&nbsp;if s[l] != s[r]: return 非回文<br>&nbsp;&nbsp;l++; r−−<br>return 回文`,
+};
+
+function normArr(raw) {
+  const xs = (raw || "").split(/[，,\s]+/).map(x => x.trim()).filter(x => x !== "").map(Number).filter(x => Number.isFinite(x) && x > 0);
+  return xs.sort((a, b) => a - b);
+}
+let lastResult = "";
+function prepare() {
+  stopTimer();
+  let out;
+  if (scene === "pair") {
+    const arr = normArr($("arrInput").value);
+    let lim = parseInt($("limInput").value, 10);
+    if (arr.length === 0) { setStatus("⚠ 请输入至少一个正整数。"); $("parr").innerHTML = ""; return; }
+    if (!Number.isFinite(lim) || lim < 1) { lim = arr[arr.length - 1]; $("limInput").value = lim; }
+    $("arrInput").value = arr.join(",");
+    out = genPairSteps(arr, lim);
+  } else {
+    const str = ($("strInput").value || "").trim();
+    if (!str) { setStatus("⚠ 请输入字符串。"); $("parr").innerHTML = ""; return; }
+    out = genPalSteps(str);
+  }
+  steps = out.list; lastResult = out.resStr;
+  idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  $("formula").innerHTML = FORMULA[scene];
+  draw(0);
+}
+function switchScene(sc) {
+  if (sc === scene) return;
+  scene = sc;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.scene === sc));
+  document.body.classList.toggle("scene-pair", sc === "pair");
+  document.body.classList.toggle("scene-pal", sc === "pal");
+  $("calcLabel").textContent = sc === "pair" ? "对撞分组过程" : "对撞比较过程";
+  $("logLabel").textContent = sc === "pair" ? "分组记录" : "结论";
+  prepare();
+}
+
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) prepare(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("resetBtn").onclick = () => prepare();
+$("randBtn").onclick = () => {
+  if (scene === "pair") {
+    const n = 4 + Math.floor(Math.random() * 4), xs = [];
+    for (let i = 0; i < n; i++) xs.push(1 + Math.floor(Math.random() * 9));
+    $("arrInput").value = xs.sort((a, b) => a - b).join(",");
+    $("limInput").value = 6 + Math.floor(Math.random() * 6);
+  } else {
+    const pals = ["level", "abcba", "racecar", "hello", "noon", "abca"];
+    $("strInput").value = pals[Math.floor(Math.random() * pals.length)];
+  }
+  prepare();
+};
+["arrInput", "limInput", "strInput"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") prepare(); }));
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchScene(t.dataset.scene));
+$("cppBtn").onclick = () => CppView.open(scene === "pair" ? "tp_pair" : "tp_pal");
+
+$("note").innerHTML = `对撞指针（相向双指针）：两个指针从两端向中间移动，每步靠 O(1) 判断决定谁移动，整体 <code>O(n)</code>（分组场景需先排序 O(n log n)）。适用前提是数据<b>有序</b>或问题<b>两端对称</b>。这里演示救生艇分组与回文判断，后续会补充<b>快慢指针</b>（链表判环）与<b>滑动窗口</b>（最长无重复子串等）。`;
+
+CppView.register({
+  tp_pair: { title: "对撞指针 · 两两分组最小组数（救生艇）— C++", code:
+`// 功能：有序重量数组，每组≤2人且总重≤limit，求最少组数。
+// 对撞指针：最轻的尽量陪最重的，配得上就一起走，配不上最重的自己走。
+#include <iostream>
+#include <vector>
+#include <algorithm>
+using namespace std;
+
+int minGroups(vector<int>& a, int limit) {
+    sort(a.begin(), a.end());
+    int l = 0, r = a.size() - 1, cnt = 0;
+    while (l <= r) {
+        if (a[l] + a[r] <= limit) l++;   // 最轻的能陪最重的 → 一起
+        r--;                              // 最重的这一组已定
+        cnt++;                            // 每轮成一组
+    }
+    return cnt;
+}
+int main() {
+    int n, limit; cin >> n >> limit;
+    vector<int> a(n);
+    for (int i = 0; i < n; i++) cin >> a[i];
+    cout << minGroups(a, limit) << endl;
+}`
+  },
+  tp_pal: { title: "对撞指针 · 回文判断 — C++", code:
+`// 功能：判断字符串是否回文。对撞指针从两端向中间比较。
+#include <iostream>
+#include <string>
+using namespace std;
+
+bool isPalindrome(const string& s) {
+    int l = 0, r = s.size() - 1;
+    while (l < r) {
+        if (s[l] != s[r]) return false;  // 对称位不等 → 非回文
+        l++; r--;
+    }
+    return true;
+}
+int main() {
+    string s; getline(cin, s);
+    cout << (isPalindrome(s) ? "YES" : "NO") << endl;
+}`
+  }
+});
+
+document.body.classList.add("scene-pair");
+prepare();
+</script>
+<script src="../assets/theme.js"></script>
+</body>
+</html>
