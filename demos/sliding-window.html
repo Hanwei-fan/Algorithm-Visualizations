@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>滑动窗口演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+    --node-fill: #16213e;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 8px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .tab {
+    padding: 9px 16px; border: 1px solid var(--border); border-bottom: none;
+    border-radius: 8px 8px 0 0; cursor: pointer; color: var(--muted);
+    font-size: 13.5px; letter-spacing: .5px; font-family: "SF Mono", Menlo, monospace;
+    background: rgba(18,15,38,0.4); transition: all .18s;
+  }
+  .tab:hover { color: var(--cyan); }
+  .tab.active { color: var(--cyan); background: var(--panel); border-color: var(--cyan); text-shadow: 0 0 6px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .field input.wide { width: 260px; }
+  .field input.narrow { width: 90px; }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(18,15,38,0.5); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.06); box-shadow: none; }
+  .cppview-btn {
+    margin-left: auto; padding: 9px 15px; border: 1px solid var(--green); border-radius: 4px;
+    background: rgba(0,255,156,0.1); color: var(--green); font-size: 13px; letter-spacing: 1px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .cppview-btn:hover { background: var(--green); color: #05060f; box-shadow: 0 0 16px rgba(0,255,156,.5); }
+  main { padding: 6px 30px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px; backdrop-filter: blur(6px);
+  }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .plabel.mt { margin-top: 16px; }
+  /* 滑动窗口格子 */
+  .arrwrap { overflow-x: auto; padding: 8px 4px 4px; }
+  .parr { display: inline-flex; gap: 6px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .ptrslot { height: 34px; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; line-height: 1.1; }
+  .ptrslot .pl { color: var(--cyan); } .ptrslot .pr { color: var(--magenta); }
+  .ptrslot .both { color: var(--yellow); }
+  .cell {
+    width: 46px; height: 50px; display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 700; border-radius: 8px; color: var(--text);
+    background: color-mix(in srgb, var(--cyan) 6%, var(--node-fill)); border: 1px solid var(--border);
+    transition: all .18s;
+  }
+  .cell.win { background: color-mix(in srgb, var(--cyan) 22%, var(--node-fill)); border-color: var(--cyan); }
+  .cell.l { border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,240,255,.55); }
+  .cell.r { border-color: var(--magenta); box-shadow: 0 0 8px rgba(255,43,214,.55); }
+  .cell.dup { background: color-mix(in srgb, #ff5555 34%, var(--node-fill)); border-color: #ff5555; }
+  .cell.best { background: color-mix(in srgb, var(--green) 30%, var(--node-fill)); border-color: var(--green); }
+  .idxlab { font-family: "SF Mono", Menlo, monospace; font-size: 10px; color: var(--muted); }
+  .aux { display: flex; flex-direction: column; gap: 10px; font-family: "SF Mono", Menlo, monospace; font-size: 13px; }
+  .auxrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+  .auxrow .k { color: var(--cyan); min-width: 96px; }
+  .auxrow .v { color: var(--text); }
+  .chips { display: flex; gap: 5px; flex-wrap: wrap; }
+  .chip { padding: 2px 8px; border-radius: 5px; border: 1px solid var(--border); background: color-mix(in srgb, var(--cyan) 10%, var(--node-fill)); color: var(--text); font-size: 12.5px; }
+  .chip.need { border-color: var(--yellow); } .chip.ok { border-color: var(--green); color: var(--green); }
+  .best-box { margin-top: 4px; padding: 8px 12px; border-radius: 6px; border: 1px solid var(--green); background: color-mix(in srgb, var(--green) 10%, var(--node-fill)); color: var(--text); }
+  .best-box b { color: var(--green); }
+  .stats { margin-top: 14px; font-family: "SF Mono", Menlo, monospace; font-size: 14px; color: var(--text); }
+  .stats b { color: var(--yellow); }
+  .status { margin-top: 8px; font-size: 14px; min-height: 48px; color: var(--text); font-family: "SF Mono", Menlo, monospace; line-height: 1.6; }
+  .status .hl { color: var(--yellow); font-weight: 700; } .status .good { color: var(--green); font-weight: 700; } .status .bad { color: var(--magenta); font-weight: 700; }
+  .formula { font-size: 13px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; line-height: 1.7; background: rgba(5,4,15,0.5); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); }
+  .formula code, .note code { color: var(--cyan); background: rgba(0,240,255,0.08); padding: 1px 5px; border-radius: 3px; }
+  .note { margin: 6px 30px 30px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .note code { color: var(--cyan); } .note b { color: var(--yellow); }
+  body.scene-longest .only-cover, body.scene-longest .only-fixed, body.scene-longest .only-atleast { display: none !important; }
+  body.scene-cover .only-longest, body.scene-cover .only-fixed, body.scene-cover .only-atleast { display: none !important; }
+  body.scene-fixed .only-longest, body.scene-fixed .only-cover, body.scene-fixed .only-atleast { display: none !important; }
+  body.scene-atleast .only-longest, body.scene-atleast .only-cover, body.scene-atleast .only-fixed { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>滑动窗口</h1>
+  <p><code style="color:var(--cyan)">L</code>、<code style="color:var(--magenta)">R</code> 两个指针框出一段连续子区间 <code>[L,R]</code>。R 右扩纳入新元素，条件违反时 L 右缩，整个窗口只向右滑动 → <code>O(n)</code>。四个经典场景。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="tabs">
+  <div class="tab active" data-scene="longest">最长无重复子串</div>
+  <div class="tab" data-scene="cover">最短覆盖子串</div>
+  <div class="tab" data-scene="fixed">定长 k 窗口最大和</div>
+  <div class="tab" data-scene="atleast">和≥target 最短子数组</div>
+</div>
+
+<div class="controls">
+  <div class="field only-longest"><label>字符串</label><input id="strLong" class="wide" type="text" value="abcabcbb"></div>
+  <div class="field only-cover"><label>源串 s</label><input id="strS" class="wide" type="text" value="ADOBECODEBANC"></div>
+  <div class="field only-cover"><label>目标串 t</label><input id="strT" class="narrow" type="text" value="ABC"></div>
+  <div class="field only-fixed"><label>数组（逗号分隔）</label><input id="arrFixed" class="wide" type="text" value="2,1,5,1,3,2"></div>
+  <div class="field only-fixed"><label>窗口长度 k</label><input id="kInput" class="narrow" type="number" value="3" min="1"></div>
+  <div class="field only-atleast"><label>正整数数组</label><input id="arrAtleast" class="wide" type="text" value="2,3,1,2,4,3"></div>
+  <div class="field only-atleast"><label>target</label><input id="targetInput" class="narrow" type="number" value="7" min="1"></div>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1300" value="650" step="50"></div>
+  <button class="btn" id="playBtn">自动播放</button>
+  <button class="btn secondary" id="stepBtn">单步 ▶</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="btn secondary" id="randBtn">随机</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="plabel" id="seqLabel">窗口滑动过程（L 青 / R 洋红，蓝底=当前窗口 [L,R]）</div>
+    <div class="arrwrap"><div class="parr" id="parr"></div></div>
+    <div class="stats" id="stats"></div>
+    <div class="status" id="status"></div>
+  </section>
+  <section class="card">
+    <div class="plabel">窗口状态</div>
+    <div class="aux" id="aux"></div>
+    <div class="plabel mt">算法</div>
+    <div class="formula" id="formula"></div>
+  </section>
+</main>
+
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let scene = "longest", steps = [], idx = 0, timer = null, running = false;
+function setStatus(t) { $("status").innerHTML = t; }
+
+// 每步快照通用格式：
+// { vals:[], l, r, mark:{idx:cls}, auxRows:[{k,v}], bestHtml, desc, done }
+
+// ======== 渲染 ========
+function draw(k) {
+  const s = steps[k];
+  let html = "";
+  for (let i = 0; i < s.vals.length; i++) {
+    const inWin = s.r >= 0 && s.l <= s.r && i >= s.l && i <= s.r;
+    let cls = inWin ? "win" : "";
+    if (s.l === i) cls += " l";
+    if (s.r === i) cls += " r";
+    if (s.mark && s.mark[i]) cls += " " + s.mark[i];
+    let ptr = "";
+    if (s.l === i && s.r === i) ptr = `<span class="both">▼</span><span class="both">L=R</span>`;
+    else if (s.l === i) ptr = `<span class="pl">▼</span><span class="pl">L</span>`;
+    else if (s.r === i) ptr = `<span class="pr">▼</span><span class="pr">R</span>`;
+    html += `<div class="col"><div class="ptrslot">${ptr}</div>`
+      + `<div class="cell ${cls.trim()}">${s.vals[i]}</div>`
+      + `<div class="idxlab">${i}</div></div>`;
+  }
+  $("parr").innerHTML = html;
+  setStatus(s.desc || "");
+  // 辅助状态
+  let auxHtml = (s.auxRows || []).map(row => `<div class="auxrow"><span class="k">${row.k}</span><span class="v">${row.v}</span></div>`).join("");
+  if (s.bestHtml) auxHtml += `<div class="best-box">${s.bestHtml}</div>`;
+  $("aux").innerHTML = auxHtml;
+}
+
+// ======== 引擎 ========
+function stepOnce() { if (idx < steps.length - 1) { idx++; draw(idx); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 1420 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+const FORMULA = {
+  longest: `set = {}  <span style="color:var(--muted)">// 窗口内字符</span><br>l = 0, best = 0<br>for r in 0..n−1:<br>&nbsp;&nbsp;while s[r] in set:  <span style="color:var(--muted)">// 有重复</span><br>&nbsp;&nbsp;&nbsp;&nbsp;set.erase(s[l]); l++  <span style="color:var(--muted)">// 收缩</span><br>&nbsp;&nbsp;set.insert(s[r])<br>&nbsp;&nbsp;best = max(best, r−l+1)`,
+  cover: `need = 计数(t); formed = 0<br>l = 0, best = ∞<br>for r in 0..n−1:<br>&nbsp;&nbsp;纳入 s[r]，若凑齐某字符 formed++<br>&nbsp;&nbsp;while 窗口已覆盖 t:  <span style="color:var(--muted)">// 满足则收缩</span><br>&nbsp;&nbsp;&nbsp;&nbsp;更新 best；移出 s[l]; l++`,
+  fixed: `sum = a[0..k−1] 之和<br>best = sum<br>for r in k..n−1:  <span style="color:var(--muted)">// 定长滑动</span><br>&nbsp;&nbsp;sum += a[r] − a[r−k]  <span style="color:var(--muted)">// 进一出一</span><br>&nbsp;&nbsp;best = max(best, sum)`,
+  atleast: `sum = 0, l = 0, best = ∞<br>for r in 0..n−1:<br>&nbsp;&nbsp;sum += a[r]  <span style="color:var(--muted)">// 右扩</span><br>&nbsp;&nbsp;while sum ≥ target:  <span style="color:var(--muted)">// 满足则收缩求最短</span><br>&nbsp;&nbsp;&nbsp;&nbsp;best = min(best, r−l+1)<br>&nbsp;&nbsp;&nbsp;&nbsp;sum −= a[l]; l++`,
+};
+
+$("note").innerHTML =
+`滑动窗口把"枚举所有子区间"的 <code>O(n²)</code> 降到 <code>O(n)</code>：<code>R</code> 单调右移把新元素纳入窗口，一旦违反约束（出现重复 / 已覆盖目标 / 和过大或需保持定长）就右移 <code>L</code> 收缩，两指针各自只前进不后退，故每个元素至多进出窗口一次。适用前提：窗口扩大/缩小对目标量的影响<b>单调</b>。这里演示变长窗口（① ② ④）与定长窗口（③）两类。`;
+
+// ======== 场景①：最长无重复子串 ========
+function genLongest(str) {
+  const vals = str.split("").map(c => c === " " ? "␣" : c);
+  const n = vals.length, list = [];
+  let l = 0, best = 0, bestL = 0, bestR = -1;
+  const inWin = {};   // 当前窗口内出现的字符
+  const snap = (r, mark, desc, done) => {
+    const chips = Object.keys(inWin).length ? Object.keys(inWin).map(c => `<span class="chip">${c === " " ? "␣" : c}</span>`).join("") : `<span style="color:var(--muted)">空</span>`;
+    const winLen = (r >= l && r >= 0) ? (r - l + 1) : 0;
+    list.push({
+      vals: vals.slice(), l, r, mark: mark || {},
+      auxRows: [
+        { k: "窗口内字符", v: `<div class="chips">${chips}</div>` },
+        { k: "当前窗口长", v: `${winLen}　[${l}, ${r < 0 ? "—" : r}]` },
+      ],
+      bestHtml: bestR >= 0 ? `最长无重复：<b>${best}</b>（"${str.slice(bestL, bestR + 1)}"）` : `最长无重复：<b>${best}</b>`,
+      desc, done: !!done,
+    });
+  };
+  if (n === 0) { snap(-1, {}, "空串，答案 0。", true); return { list, resStr: "0" }; }
+  snap(-1, {}, `准备：l=0，窗口为空，逐个把 R 指向的字符纳入窗口。`, false);
+  for (let r = 0; r < n; r++) {
+    const ch = str[r];
+    while (inWin[ch]) {
+      // 收缩：移出 s[l]
+      snap(r, { [r]: "dup", [l]: "" }, `s[${r}]=<span class="bad">${vals[r]}</span> 已在窗口 → 从左移出 s[${l}]=${vals[l]}，l 右移。`, false);
+      delete inWin[str[l]]; l++;
+    }
+    inWin[ch] = true;
+    const len = r - l + 1;
+    if (len > best) { best = len; bestL = l; bestR = r; }
+    snap(r, {}, `纳入 s[${r}]=<span class="hl">${vals[r]}</span>，窗口 [${l},${r}] 长度 ${len}${len === best ? `，<span class="good">刷新最长=${best}</span>` : `（当前最长 ${best}）`}。`, false);
+  }
+  snap(n - 1, {}, `扫描结束，最长无重复子串长度 = <span class="good">${best}</span>（"${str.slice(bestL, bestR + 1)}"）。`, true);
+  return { list, resStr: "" + best };
+}
+
+// ======== 场景②：最短覆盖子串 ========
+function genCover(sStr, tStr) {
+  const vals = sStr.split("").map(c => c === " " ? "␣" : c);
+  const n = sStr.length, list = [];
+  const need = {}; for (const c of tStr) need[c] = (need[c] || 0) + 1;
+  const required = Object.keys(need).length;
+  const win = {}; let formed = 0, l = 0, best = Infinity, bestL = 0, bestR = -1;
+  const needChips = () => Object.keys(need).map(c => {
+    const have = win[c] || 0, ok = have >= need[c];
+    return `<span class="chip ${ok ? "ok" : "need"}">${c}:${have}/${need[c]}</span>`;
+  }).join("");
+  const snap = (r, mark, desc, done) => {
+    const winLen = (r >= l && r >= 0) ? (r - l + 1) : 0;
+    list.push({
+      vals: vals.slice(), l, r, mark: mark || {},
+      auxRows: [
+        { k: "目标 t 覆盖", v: `<div class="chips">${needChips()}</div>` },
+        { k: "已凑齐种类", v: `${formed} / ${required}` },
+        { k: "当前窗口", v: `[${l}, ${r < 0 ? "—" : r}] 长 ${winLen}` },
+      ],
+      bestHtml: bestR >= 0 ? `最短覆盖：<b>"${sStr.slice(bestL, bestR + 1)}"</b>（长 ${best}）` : `最短覆盖：<b>暂无</b>`,
+      desc, done: !!done,
+    });
+  };
+  if (required === 0 || n === 0) { snap(-1, {}, "t 为空或 s 为空，无需覆盖。", true); return { list, resStr: "" }; }
+  snap(-1, {}, `目标 t="${tStr}" 需覆盖 ${required} 种字符。R 右扩纳入直到窗口覆盖全部 t，再收缩 L 求最短。`, false);
+  for (let r = 0; r < n; r++) {
+    const c = sStr[r];
+    if (c in need) { win[c] = (win[c] || 0) + 1; if (win[c] === need[c]) formed++; }
+    snap(r, {}, `纳入 s[${r}]=<span class="hl">${vals[r]}</span>${c in need ? `（是目标字符，win[${c}]=${win[c]}）` : `（非目标字符）`}。已凑齐 ${formed}/${required} 种。`, false);
+    while (formed === required) {
+      if (r - l + 1 < best) { best = r - l + 1; bestL = l; bestR = r; }
+      snap(r, { [l]: "best" }, `窗口已覆盖 t（${formed}/${required}）→ <span class="good">记录候选，长 ${r - l + 1}</span>；尝试移出左端 s[${l}]=${vals[l]} 求更短。`, false);
+      const lc = sStr[l];
+      if (lc in need) { win[lc]--; if (win[lc] < need[lc]) formed--; }
+      l++;
+    }
+  }
+  const res = bestR >= 0 ? sStr.slice(bestL, bestR + 1) : "";
+  snap(n - 1, {}, bestR >= 0 ? `扫描结束，最短覆盖子串 = <span class="good">"${res}"</span>（长 ${best}）。` : `扫描结束，<span class="bad">不存在</span>覆盖 t 的子串。`, true);
+  return { list, resStr: res };
+}
+
+// ======== 场景③：定长 k 窗口最大和 ========
+function genFixed(arr, k) {
+  const n = arr.length, list = [];
+  let l = 0, r = k - 1, sum = 0, best = -Infinity, bestL = 0;
+  const snap = (mark, desc, done) => {
+    list.push({
+      vals: arr.slice(), l, r, mark: mark || {},
+      auxRows: [
+        { k: "窗口和", v: `${sum}　[${l}, ${r}]` },
+        { k: "窗口长度", v: `${k}（定长）` },
+      ],
+      bestHtml: `最大和：<b>${best === -Infinity ? "—" : best}</b>${best !== -Infinity ? `（窗口 [${bestL}, ${bestL + k - 1}]）` : ""}`,
+      desc, done: !!done,
+    });
+  };
+  for (let i = 0; i < k; i++) sum += arr[i];
+  best = sum; bestL = 0;
+  snap({}, `初始定长窗口 [0,${k - 1}] 的和 = <span class="hl">${sum}</span>，作为当前最大。`, false);
+  for (let rr = k; rr < n; rr++) {
+    const add = arr[rr], rem = arr[l];
+    sum += add - rem;
+    l++; r = rr;
+    snap({ [rr]: "", [l - 1]: "" }, `窗口右滑：进 a[${rr}]=<span class="good">+${add}</span>，出 a[${l - 1}]=<span class="bad">−${rem}</span> → 新和 ${sum}。`, false);
+    if (sum > best) { best = sum; bestL = l; snap({}, `<span class="good">刷新最大和 = ${best}</span>（窗口 [${l},${r}]）。`, false); }
+  }
+  snap({}, `扫描结束，定长 ${k} 窗口最大和 = <span class="good">${best}</span>。`, true);
+  return { list, resStr: "" + best };
+}
+
+// ======== 场景④：和≥target 最短子数组 ========
+function genAtleast(arr, target) {
+  const n = arr.length, list = [];
+  let l = 0, sum = 0, best = Infinity, bestL = 0, bestR = -1;
+  const snap = (r, mark, desc, done) => {
+    const winLen = (r >= l && r >= 0) ? (r - l + 1) : 0;
+    list.push({
+      vals: arr.slice(), l, r, mark: mark || {},
+      auxRows: [
+        { k: "窗口和", v: `${sum}　(target=${target})` },
+        { k: "当前窗口", v: `[${l}, ${r < 0 ? "—" : r}] 长 ${winLen}` },
+      ],
+      bestHtml: bestR >= 0 ? `最短长度：<b>${best}</b>（[${bestL}, ${bestR}]）` : `最短长度：<b>暂无</b>`,
+      desc, done: !!done,
+    });
+  };
+  snap(-1, {}, `R 右扩累加，窗口和 ≥ target=${target} 时收缩 L 求最短。`, false);
+  for (let r = 0; r < n; r++) {
+    sum += arr[r];
+    snap(r, {}, `纳入 a[${r}]=<span class="hl">${arr[r]}</span>，窗口和 = ${sum}${sum >= target ? `（已达标）` : `（还差 ${target - sum}）`}。`, false);
+    while (sum >= target) {
+      if (r - l + 1 < best) { best = r - l + 1; bestL = l; bestR = r; }
+      snap(r, { [l]: "best" }, `和 ${sum} ≥ ${target} → <span class="good">记录长度 ${r - l + 1}</span>；移出左端 a[${l}]=${arr[l]} 试更短。`, false);
+      sum -= arr[l]; l++;
+    }
+  }
+  snap(n - 1, {}, bestR >= 0 ? `扫描结束，和≥${target} 的最短子数组长度 = <span class="good">${best}</span>。` : `扫描结束，<span class="bad">不存在</span>和≥${target} 的子数组。`, true);
+  return { list, resStr: bestR >= 0 ? "" + best : "0" };
+}
+
+// ======== 接线 ========
+function parseArr(raw, posOnly) {
+  return (raw || "").split(/[，,\s]+/).map(x => x.trim()).filter(x => x !== "")
+    .map(Number).filter(x => Number.isFinite(x) && (!posOnly || x > 0));
+}
+function prepare() {
+  stopTimer();
+  let out;
+  if (scene === "longest") {
+    const str = $("strLong").value || "";
+    out = genLongest(str);
+  } else if (scene === "cover") {
+    const s = $("strS").value || "", t = $("strT").value || "";
+    if (!s || !t) { setStatus("⚠ 请输入源串 s 和目标串 t。"); $("parr").innerHTML = ""; $("aux").innerHTML = ""; return; }
+    out = genCover(s, t);
+  } else if (scene === "fixed") {
+    const arr = parseArr($("arrFixed").value, false);
+    let k = parseInt($("kInput").value, 10);
+    if (arr.length === 0) { setStatus("⚠ 请输入数组。"); $("parr").innerHTML = ""; $("aux").innerHTML = ""; return; }
+    if (!Number.isFinite(k) || k < 1) k = 1;
+    if (k > arr.length) { k = arr.length; $("kInput").value = k; }
+    out = genFixed(arr, k);
+  } else {
+    const arr = parseArr($("arrAtleast").value, true);
+    let target = parseInt($("targetInput").value, 10);
+    if (arr.length === 0) { setStatus("⚠ 请输入正整数数组。"); $("parr").innerHTML = ""; $("aux").innerHTML = ""; return; }
+    if (!Number.isFinite(target) || target < 1) target = 1;
+    out = genAtleast(arr, target);
+  }
+  steps = out.list; idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  $("formula").innerHTML = FORMULA[scene];
+  draw(0);
+}
+function switchScene(sc) {
+  if (sc === scene) return;
+  scene = sc;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.scene === sc));
+  ["longest", "cover", "fixed", "atleast"].forEach(x => document.body.classList.toggle("scene-" + x, x === sc));
+  prepare();
+}
+
+$("playBtn").onclick = () => { if (!steps.length || idx >= steps.length - 1) prepare(); running = true; $("stepBtn").disabled = false; playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("resetBtn").onclick = () => prepare();
+$("randBtn").onclick = () => {
+  if (scene === "longest") {
+    const pool = "abcabcbb,pwwkew,bbbbb,abcdef,dvdf,tmmzuxt".split(",");
+    $("strLong").value = pool[Math.floor(Math.random() * pool.length)];
+  } else if (scene === "cover") {
+    const cases = [["ADOBECODEBANC", "ABC"], ["aa", "aa"], ["cabwefgewcwaefgcf", "cae"]];
+    const c = cases[Math.floor(Math.random() * cases.length)];
+    $("strS").value = c[0]; $("strT").value = c[1];
+  } else if (scene === "fixed") {
+    const n = 5 + Math.floor(Math.random() * 4), xs = [];
+    for (let i = 0; i < n; i++) xs.push(-2 + Math.floor(Math.random() * 9));
+    $("arrFixed").value = xs.join(","); $("kInput").value = 2 + Math.floor(Math.random() * 3);
+  } else {
+    const n = 5 + Math.floor(Math.random() * 4), xs = [];
+    for (let i = 0; i < n; i++) xs.push(1 + Math.floor(Math.random() * 5));
+    $("arrAtleast").value = xs.join(","); $("targetInput").value = 5 + Math.floor(Math.random() * 8);
+  }
+  prepare();
+};
+["strLong", "strS", "strT", "arrFixed", "kInput", "arrAtleast", "targetInput"].forEach(id =>
+  $(id).addEventListener("keydown", e => { if (e.key === "Enter") prepare(); }));
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchScene(t.dataset.scene));
+$("cppBtn").onclick = () => CppView.open("sw_" + scene);
+
+CppView.register({
+  sw_longest: { title: "滑动窗口 · 最长无重复子串 — C++", code:
+`// 功能：求最长不含重复字符的子串长度。
+// 变长窗口：r 右扩纳入，遇重复则 l 收缩到无重复。
+#include <iostream>
+#include <string>
+#include <unordered_set>
+using namespace std;
+
+int lengthOfLongest(const string& s) {
+    unordered_set<char> win;
+    int l = 0, best = 0;
+    for (int r = 0; r < (int)s.size(); r++) {
+        while (win.count(s[r])) {   // 有重复 → 收缩左端
+            win.erase(s[l]); l++;
+        }
+        win.insert(s[r]);
+        best = max(best, r - l + 1);
+    }
+    return best;
+}
+int main() {
+    string s; getline(cin, s);
+    cout << lengthOfLongest(s) << endl;   // "abcabcbb" -> 3
+}`
+  },
+  sw_cover: { title: "滑动窗口 · 最短覆盖子串 — C++", code:
+`// 功能：s 中包含 t 所有字符(计重)的最短子串。
+// r 右扩直到覆盖，l 收缩求最短。
+#include <iostream>
+#include <string>
+#include <unordered_map>
+using namespace std;
+
+string minWindow(const string& s, const string& t) {
+    unordered_map<char,int> need, win;
+    for (char c : t) need[c]++;
+    int required = need.size(), formed = 0;
+    int l = 0, bestLen = 1e9, bestL = 0;
+    for (int r = 0; r < (int)s.size(); r++) {
+        char c = s[r];
+        if (need.count(c) && ++win[c] == need[c]) formed++;
+        while (formed == required) {          // 已覆盖 → 收缩求最短
+            if (r - l + 1 < bestLen) { bestLen = r - l + 1; bestL = l; }
+            char lc = s[l++];
+            if (need.count(lc) && win[lc]-- == need[lc]) formed--;
+        }
+    }
+    return bestLen == 1e9 ? "" : s.substr(bestL, bestLen);
+}
+int main() {
+    string s, t; getline(cin, s); getline(cin, t);
+    cout << minWindow(s, t) << endl;   // "ADOBECODEBANC","ABC" -> "BANC"
+}`
+  },
+  sw_fixed: { title: "滑动窗口 · 定长 k 窗口最大和 — C++", code:
+`// 功能：长度固定为 k 的连续子数组的最大和。
+// 定长窗口：进一出一，O(1) 更新窗口和。
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int maxSumK(vector<int>& a, int k) {
+    int sum = 0;
+    for (int i = 0; i < k; i++) sum += a[i];
+    int best = sum;
+    for (int r = k; r < (int)a.size(); r++) {
+        sum += a[r] - a[r - k];   // 进 a[r]，出 a[r-k]
+        best = max(best, sum);
+    }
+    return best;
+}
+int main() {
+    int n, k; cin >> n >> k;
+    vector<int> a(n);
+    for (int i = 0; i < n; i++) cin >> a[i];
+    cout << maxSumK(a, k) << endl;   // [2,1,5,1,3,2] k=3 -> 9
+}`
+  },
+  sw_atleast: { title: "滑动窗口 · 和≥target 最短子数组 — C++", code:
+`// 功能：正整数数组中，和 ≥ target 的最短连续子数组长度(不存在返回0)。
+// 变长窗口：r 右扩累加，达标则 l 收缩求最短。
+#include <iostream>
+#include <vector>
+using namespace std;
+
+int minSubLen(int target, vector<int>& a) {
+    int l = 0, sum = 0, best = 1e9;
+    for (int r = 0; r < (int)a.size(); r++) {
+        sum += a[r];
+        while (sum >= target) {          // 达标 → 收缩求更短
+            best = min(best, r - l + 1);
+            sum -= a[l++];
+        }
+    }
+    return best == 1e9 ? 0 : best;
+}
+int main() {
+    int n, target; cin >> n >> target;
+    vector<int> a(n);
+    for (int i = 0; i < n; i++) cin >> a[i];
+    cout << minSubLen(target, a) << endl;   // [2,3,1,2,4,3] target=7 -> 2
+}`
+  },
+});
+
+document.body.classList.add("scene-longest");
+prepare();
+</script>
+<script src="../assets/theme.js"></script>
+</body>
+</html>

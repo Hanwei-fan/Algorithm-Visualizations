@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>快慢指针 · 链表判环 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+    --node-fill: #16213e;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .field input.wide { width: 220px; } .field input.narrow { width: 100px; }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(18,15,38,0.5); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.06); box-shadow: none; }
+  .cppview-btn {
+    margin-left: auto; padding: 9px 15px; border: 1px solid var(--green); border-radius: 4px;
+    background: rgba(0,255,156,0.1); color: var(--green); font-size: 13px; letter-spacing: 1px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .cppview-btn:hover { background: var(--green); color: #05060f; box-shadow: 0 0 16px rgba(0,255,156,.5); }
+  main { padding: 6px 30px; display: grid; grid-template-columns: 1.7fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; backdrop-filter: blur(6px); }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .plabel.mt { margin-top: 16px; }
+  /* 链表可视化 (SVG) */
+  svg { width: 100%; height: auto; display: block; }
+  .lnode circle { fill: var(--node-fill); stroke: var(--border); stroke-width: 2; transition: all .18s; }
+  .lnode-val { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 16px; font-weight: 700; text-anchor: middle; }
+  .lnode-idx { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 10px; text-anchor: middle; }
+  .lnode.meet circle { fill: color-mix(in srgb, var(--green) 30%, var(--node-fill)); stroke: var(--green); filter: drop-shadow(0 0 8px rgba(0,255,156,.6)); }
+  .lnode.entry circle { fill: color-mix(in srgb, var(--yellow) 30%, var(--node-fill)); stroke: var(--yellow); }
+  .ledge { stroke: var(--muted); stroke-width: 2; marker-end: url(#arrow); fill: none; }
+  .ledge.loop { stroke: var(--magenta); stroke-dasharray: 5 3; }
+  .ptrtag { font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 800; text-anchor: middle; }
+  .ptrtag.slow { fill: var(--cyan); } .ptrtag.fast { fill: var(--magenta); }
+  .ptrarrow.slow { fill: var(--cyan); } .ptrarrow.fast { fill: var(--magenta); }
+  .stats { margin-top: 14px; font-family: "SF Mono", Menlo, monospace; font-size: 14px; color: var(--text); }
+  .stats b { color: var(--yellow); }
+  .status { margin-top: 8px; font-size: 14px; min-height: 48px; color: var(--text); font-family: "SF Mono", Menlo, monospace; line-height: 1.6; }
+  .status .hl { color: var(--green); font-weight: 700; } .status .rej { color: var(--magenta); font-weight: 700; }
+  .verdict { margin-top: 12px; font-family: "SF Mono", Menlo, monospace; font-size: 16px; font-weight: 700; }
+  .verdict.yes { color: var(--green); } .verdict.no { color: var(--magenta); }
+  .formula { font-size: 13px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; line-height: 1.7; background: rgba(5,4,15,0.5); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); }
+  .formula b { color: var(--yellow); } .formula code, .note code { color: var(--cyan); background: rgba(0,240,255,0.08); padding: 1px 5px; border-radius: 3px; }
+  .trace { display: flex; flex-direction: column; gap: 5px; max-height: 260px; overflow-y: auto; font-family: "SF Mono", Menlo, monospace; font-size: 12.5px; }
+  .trace .tv { padding: 5px 9px; border: 1px solid var(--border); border-radius: 6px; background: color-mix(in srgb, var(--cyan) 6%, var(--node-fill)); color: var(--text); }
+  .note { margin: 6px 30px 30px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .note code { color: var(--cyan); } .note b { color: var(--yellow); }
+</style>
+</head>
+<body>
+<header>
+  <h1>快慢指针 · 链表判环</h1>
+  <p>Floyd 判圈：<code style="color:var(--cyan)">slow</code> 每步走一格、<code style="color:var(--magenta)">fast</code> 每步走两格。若有环，fast 一定会在环内追上 slow（相遇）；若 fast 走到链表末尾（null）则无环。相遇后可再找环入口。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="controls">
+  <div class="field"><label>结点值序列（逗号分隔）</label><input id="valInput" class="wide" type="text" value="1,2,3,4,5,6"></div>
+  <div class="field"><label>环入口下标（-1 = 无环）</label><input id="entryInput" class="narrow" type="number" value="2" min="-1"></div>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="150" max="1300" value="650" step="50"></div>
+  <button class="btn cy" id="startBtn">开始</button>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="btn secondary" id="randBtn">随机</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="plabel">链表（slow 青色、fast 洋红，箭头=next；虚线=环回边）</div>
+    <svg id="scene" viewBox="0 0 760 220" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="stats" id="stats"></div>
+    <div class="status" id="status"></div>
+    <div class="verdict" id="verdict"></div>
+  </section>
+  <section class="card">
+    <div class="plabel">指针轨迹（slow / fast 位置）</div>
+    <div class="trace" id="trace"></div>
+    <div class="plabel mt">算法</div>
+    <div class="formula" id="formula"></div>
+  </section>
+</main>
+
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let steps = [], idx = 0, timer = null, running = false;
+let vals = [], nxt = [], entry = -1;   // nxt[i]=下一个下标或 -1(null)
+function setStatus(t) { $("status").innerHTML = t; }
+
+// ======== 建链表 + Floyd 分步 ========
+function build(valStr, ent) {
+  vals = (valStr || "").split(/[，,\s]+/).map(x => x.trim()).filter(x => x !== "");
+  const n = vals.length;
+  nxt = vals.map((_, i) => i < n - 1 ? i + 1 : -1);
+  entry = (ent >= 0 && ent < n) ? ent : -1;
+  if (entry >= 0 && n > 0) nxt[n - 1] = entry;   // 末结点指回环入口
+}
+function genSteps() {
+  const list = [], trace = [];
+  const n = vals.length;
+  const snap = (o) => list.push(Object.assign({ slow: null, fast: null, meet: null, entryNode: null, trace: [...trace], verdict: null, done: false }, o));
+  if (n === 0) { snap({ desc: "空链表，无环。", verdict: "no", done: true }); return { list, resStr: "无环" }; }
+  let slow = 0, fast = 0;
+  trace.push(`初始：slow=#0, fast=#0`);
+  snap({ slow, fast, desc: `slow、fast 都从头结点 #0 出发。` });
+  // Floyd 主循环
+  let meet = -1, guard = 0;
+  while (guard++ < 4 * n + 10) {
+    // fast 先判断能否走两步
+    if (nxt[fast] === -1 || nxt[nxt[fast]] === -1) {
+      const why = nxt[fast] === -1 ? `fast 的 next 是 null` : `fast 走一步后 next 又是 null`;
+      snap({ slow, fast, desc: `${why} → fast 到达链表末尾，<span class="rej">说明无环</span>。`, verdict: "no", done: true });
+      return { list, resStr: "无环" };
+    }
+    slow = nxt[slow]; fast = nxt[nxt[fast]];
+    trace.push(`slow=#${slow}, fast=#${fast}`);
+    if (slow === fast) {
+      meet = slow;
+      snap({ slow, fast, meet, desc: `slow 走到 #${slow}，fast 走到 #${fast} → <span class="hl">两指针相遇！说明有环</span>（相遇结点 #${meet}）。` });
+      break;
+    }
+    snap({ slow, fast, desc: `slow 走一步到 #${slow}，fast 走两步到 #${fast}，未相遇，继续。` });
+  }
+  // 找环入口：ptr1 从头、ptr2 从相遇点，同速走，相遇即入口
+  let p1 = 0, p2 = meet;
+  trace.push(`找入口：p1=#0, p2=#${meet}`);
+  snap({ slow: p1, fast: p2, meet, desc: `找环入口：一个指针回到头 #0，另一个留在相遇点 #${meet}，两者<b>同速</b>每步一格，再次相遇处即环入口。` });
+  while (p1 !== p2) {
+    p1 = nxt[p1]; p2 = nxt[p2];
+    trace.push(`p1=#${p1}, p2=#${p2}`);
+    snap({ slow: p1, fast: p2, meet, desc: `两指针各走一步：p1=#${p1}, p2=#${p2}。` });
+  }
+  snap({ slow: p1, fast: p2, meet, entryNode: p1, verdict: "yes", done: true,
+    desc: `p1、p2 在 #${p1} 相遇 → <span class="hl">环入口 = #${p1}</span>（值 ${vals[p1]}）。` });
+  return { list, resStr: `有环，入口 #${p1}` };
+}
+
+// ======== 渲染（链表 SVG）========
+const R = 22;                       // 结点半径
+function layout(n) {
+  // 横排；自适应间距，尽量铺满 viewBox 宽度（含两侧留白）
+  const W = 760, padL = 46, padR = 46;
+  const usable = W - padL - padR;
+  const gap = n > 1 ? Math.min(96, usable / (n - 1)) : 0;
+  const totalW = gap * (n - 1);
+  const startX = padL + (usable - totalW) / 2;
+  const cy = 118;
+  const pos = [];
+  for (let i = 0; i < n; i++) pos.push({ x: startX + i * gap, y: cy });
+  return pos;
+}
+function draw(k) {
+  const s = steps[k];
+  const n = vals.length;
+  const pos = layout(n);
+  const svg = $("scene");
+  let out = `<defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+    </marker>
+    <marker id="arrowLoop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="var(--magenta)"/>
+    </marker>
+  </defs>`;
+
+  // --- 先画边(next) ---
+  for (let i = 0; i < n; i++) {
+    const t = nxt[i];
+    if (t === -1) {
+      // 指向 null：短横线 + ∅
+      const x0 = pos[i].x + R, y0 = pos[i].y;
+      out += `<line class="ledge" x1="${x0}" y1="${y0}" x2="${x0 + 34}" y2="${y0}"></line>`;
+      out += `<text x="${x0 + 46}" y="${y0 + 5}" fill="var(--muted)" font-family="SF Mono,Menlo,monospace" font-size="16">∅</text>`;
+    } else if (t === i + 1) {
+      // 相邻：直线
+      const x1 = pos[i].x + R, x2 = pos[t].x - R, y = pos[i].y;
+      out += `<line class="ledge" x1="${x1}" y1="${y}" x2="${x2}" y2="${y}"></line>`;
+    } else {
+      // 回环边：从当前结点底部弯回环入口底部
+      const a = pos[i], b = pos[t];
+      const dip = 62;
+      const x1 = a.x, y1 = a.y + R, x2 = b.x, y2 = b.y + R;
+      const my = Math.max(y1, y2) + dip;
+      out += `<path class="ledge loop" d="M${x1},${y1} C ${x1},${my} ${x2},${my} ${x2},${y2 + 2}" marker-end="url(#arrowLoop)"></path>`;
+    }
+  }
+
+  // --- 再画结点 ---
+  for (let i = 0; i < n; i++) {
+    const p = pos[i];
+    let cls = "lnode";
+    if (s.entryNode === i) cls += " entry";
+    else if (s.meet === i) cls += " meet";
+    out += `<g class="${cls}">
+      <circle cx="${p.x}" cy="${p.y}" r="${R}"></circle>
+      <text class="lnode-val" x="${p.x}" y="${p.y + 6}">${vals[i]}</text>
+      <text class="lnode-idx" x="${p.x}" y="${p.y + R + 15}">#${i}</text>
+    </g>`;
+  }
+
+  // --- 指针标记(slow 上方偏左 / fast 上方偏右；重合时并排) ---
+  const drawPtr = (i, kind, dx) => {
+    if (i == null || i < 0 || i >= n) return "";
+    const p = pos[i];
+    const tx = p.x + dx, ty = p.y - R - 10;
+    return `<text class="ptrtag ${kind}" x="${tx}" y="${ty}">${kind}</text>`
+      + `<path class="ptrarrow ${kind}" d="M${tx},${ty + 3} l -4,-8 l 8,0 z" transform="translate(0,10)"></path>`;
+  };
+  const same = s.slow != null && s.slow === s.fast;
+  out += drawPtr(s.slow, "slow", same ? -14 : 0);
+  out += drawPtr(s.fast, "fast", same ? 14 : 0);
+
+  svg.innerHTML = out;
+
+  // --- 文字区 ---
+  const cycleTxt = entry >= 0 ? `环入口 #${entry}（值 ${vals[entry]}）` : `无环（末结点→null）`;
+  $("stats").innerHTML = `结点数 <b>${n}</b>　结构：${cycleTxt}`;
+  setStatus(s.desc || "");
+  // 轨迹
+  $("trace").innerHTML = (s.trace && s.trace.length)
+    ? s.trace.map(t => `<div class="tv">${t}</div>`).join("")
+    : `<div class="tv" style="color:var(--muted)">（等待开始）</div>`;
+  // 结论
+  if (s.verdict === "yes") $("verdict").innerHTML = `<span class="yes">✅ 有环${s.entryNode != null ? `，入口 #${s.entryNode}` : ""}</span>`;
+  else if (s.verdict === "no") $("verdict").innerHTML = `<span class="no">✗ 无环</span>`;
+  else $("verdict").innerHTML = "";
+}
+
+// ======== 引擎 ========
+function stepOnce() {
+  if (idx < steps.length - 1) { idx++; draw(idx); }
+  if (idx >= steps.length - 1) endRun();
+}
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() {
+  stopTimer();
+  const spd = 1420 - parseInt($("speedInput").value, 10);
+  timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(idx); } else endRun(); }, spd);
+}
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+function prepare() {
+  stopTimer();
+  build($("valInput").value, parseInt($("entryInput").value, 10));
+  if (vals.length === 0) { setStatus("⚠ 请至少输入一个结点值。"); $("scene").innerHTML = ""; $("trace").innerHTML = ""; $("verdict").innerHTML = ""; return; }
+  const out = genSteps();
+  steps = out.list; idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  draw(0);
+}
+
+$("startBtn").onclick = () => prepare();
+$("playBtn").onclick = () => { if (!steps.length || idx >= steps.length - 1) prepare(); running = true; $("stepBtn").disabled = false; playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("randBtn").onclick = () => {
+  const n = 5 + Math.floor(Math.random() * 4);
+  const xs = []; for (let i = 0; i < n; i++) xs.push(1 + Math.floor(Math.random() * 9));
+  $("valInput").value = xs.join(",");
+  // 一半概率有环
+  $("entryInput").value = Math.random() < 0.6 ? Math.floor(Math.random() * n) : -1;
+  prepare();
+};
+["valInput", "entryInput"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") prepare(); }));
+
+$("formula").innerHTML =
+`<b>① 判环</b><br>slow = fast = head<br>while fast &amp;&amp; fast.next:<br>&nbsp;&nbsp;slow = slow.next　<span style="color:var(--muted)">// 走1步</span><br>&nbsp;&nbsp;fast = fast.next.next　<span style="color:var(--muted)">// 走2步</span><br>&nbsp;&nbsp;if slow == fast: 有环, break<br>若循环因 fast 到 null 结束 → 无环<br><br><b>② 找入口</b><br>p1 = head, p2 = 相遇点<br>while p1 != p2: p1=p1.next; p2=p2.next<br>相遇处即环入口`;
+
+$("note").innerHTML =
+`快慢指针（Floyd 判圈）：<code>slow</code> 每步 1 格、<code>fast</code> 每步 2 格。若有环，fast 会在环内不断"套圈"，最终追上 slow → <b>相遇即有环</b>；若 fast 先遇到 <code>null</code> 则<b>无环</b>。找入口原理：设头到入口距离 a、入口到相遇点距离 b、环长 c，则相遇时 fast 比 slow 多走整数圈，可推出 <code>a = c − b</code>（模环长），故一个指针从头、一个从相遇点<b>同速</b>前进，必在入口相遇。整体 <code>O(n)</code> 时间、<code>O(1)</code> 空间。`;
+
+CppView.register({
+  fast_slow: {
+    title: "快慢指针 · Floyd 判环 + 找环入口 — C++", code:
+`// 功能：判断单链表是否有环；若有，返回环入口结点，否则返回 nullptr。
+// Floyd 判圈：slow 每步1格、fast 每步2格；相遇则有环。
+#include <iostream>
+using namespace std;
+
+struct ListNode { int val; ListNode* next; ListNode(int v): val(v), next(nullptr) {} };
+
+ListNode* detectCycle(ListNode* head) {
+    ListNode *slow = head, *fast = head;
+    while (fast && fast->next) {
+        slow = slow->next;          // 走 1 步
+        fast = fast->next->next;    // 走 2 步
+        if (slow == fast) {         // 相遇 → 有环
+            ListNode* p = head;     // p 从头、slow 留在相遇点
+            while (p != slow) {     // 同速前进，相遇处即入口
+                p = p->next;
+                slow = slow->next;
+            }
+            return p;               // 环入口
+        }
+    }
+    return nullptr;                 // fast 到 null → 无环
+}
+
+int main() {
+    // 构造 0->1->2->3->4->5，5 再指回 #2（环入口）
+    int n = 6, entry = 2;
+    ListNode* nodes[6];
+    for (int i = 0; i < n; i++) nodes[i] = new ListNode(i);
+    for (int i = 0; i < n - 1; i++) nodes[i]->next = nodes[i + 1];
+    if (entry >= 0) nodes[n - 1]->next = nodes[entry];   // 制造环
+    ListNode* e = detectCycle(nodes[0]);
+    if (e) cout << "有环，入口值 = " << e->val << endl;
+    else   cout << "无环" << endl;
+}`
+  }
+});
+$("cppBtn").onclick = () => CppView.open("fast_slow");
+
+prepare();
+</script>
+<script src="../assets/theme.js"></script>
+</body>
+</html>
