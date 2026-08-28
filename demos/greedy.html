@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>贪心：活动选择 / 分数背包 // CYBER</title>
+<title>贪心：分数背包 // CYBER</title>
 <style>
   :root {
     --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
@@ -79,20 +79,6 @@
   }
   .rowlabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 12px; }
   .rowlabel.mt { margin-top: 20px; }
-  /* 活动选择：时间轴条 */
-  .timeline { position: relative; }
-  .actbar { position: relative; height: 30px; margin-bottom: 7px; }
-  .actbar .track {
-    position: absolute; height: 24px; top: 3px; border-radius: 4px;
-    border: 1px solid var(--border); background: rgba(0,240,255,0.06);
-    display: flex; align-items: center; justify-content: center;
-    font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--text);
-    transition: all .2s; white-space: nowrap; overflow: hidden;
-  }
-  .actbar.consider .track { border-color: var(--yellow); background: rgba(255,212,0,0.18); color: var(--yellow); box-shadow: 0 0 10px rgba(255,212,0,.35); }
-  .actbar.chosen .track { border-color: var(--green); background: rgba(0,255,156,0.22); color: var(--green); box-shadow: 0 0 10px rgba(0,255,156,.4); }
-  .actbar.reject .track { border-color: var(--magenta); background: rgba(255,43,214,0.14); color: var(--magenta); opacity: .55; }
-  .axis { display: flex; justify-content: space-between; font-family: "SF Mono", Menlo, monospace; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 4px; margin-top: 4px; }
   /* 分数背包：物品条 */
   .items { display: flex; flex-direction: column; gap: 9px; }
   .item {
@@ -132,15 +118,11 @@
 </head>
 <body>
 <header>
-  <h1>贪心算法</h1>
-  <p>每一步都做当前看起来最优的选择，不回头。两个经典问题：活动选择按"结束时间最早"贪心，分数背包按"性价比最高"贪心。</p>
+  <h1>分数背包</h1>
+  <p>贪心：每一步都做当前看起来最优的选择，不回头。分数背包按"性价比（价值/重量）最高"依次装入，最后切一块填满背包。</p>
 </header>
 <a class="back" href="../index.html">← 返回门户</a>
 
-<div class="tabs">
-  <div class="tab active" data-mode="act">活动选择</div>
-  <div class="tab" data-mode="knap">分数背包</div>
-</div>
 <div class="controls">
   <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1100" value="600" step="50"></div>
   <div class="field" id="capField"><label>背包容量 C</label><input id="capInput" type="number" value="15" min="1" max="40"></div>
@@ -153,14 +135,8 @@
 
 <main>
   <section class="card">
-    <!-- 活动选择视图 -->
-    <div id="actView">
-      <div class="rowlabel">活动时间轴（已按结束时间升序排序）</div>
-      <div class="timeline" id="timeline"></div>
-      <div class="axis" id="axis"></div>
-    </div>
     <!-- 分数背包视图 -->
-    <div id="knapView" class="hidden">
+    <div id="knapView">
       <div class="rowlabel">物品（已按 价值/重量 降序排序）</div>
       <div class="items" id="items"></div>
       <div class="cap">
@@ -181,9 +157,7 @@
 <script src="../assets/cppview.js"></script>
 <script>
 const $ = id => document.getElementById(id);
-let mode = "act";
 let steps = [], idx = 0, timer = null, running = false;
-let acts = [];   // 活动 {id,s,f}
 let items = [];  // 物品 {id,w,v}
 let CAP = 15;
 
@@ -192,65 +166,25 @@ function setStatus(t) { $("status").innerHTML = t; }
 // ======== 随机数据 ========
 function randomData() {
   stopTimer(); running = false; $("stepBtn").disabled = true; $("playBtn").disabled = true;
-  if (mode === "act") {
-    const cnt = 6 + Math.floor(Math.random() * 2);
-    acts = [];
-    for (let i = 0; i < cnt; i++) {
-      const s = Math.floor(Math.random() * 14);
-      const f = s + 2 + Math.floor(Math.random() * 6);
-      acts.push({ id: i, s, f });
-    }
-    acts.sort((a, b) => a.f - b.f || a.s - b.s);  // 按结束时间排序
-    acts.forEach((a, i) => a.id = i);             // 排序后重编号显示
-  } else {
-    CAP = Math.max(1, parseInt($("capInput").value, 10) || 15);
-    const cnt = 5 + Math.floor(Math.random() * 2);
-    items = [];
-    for (let i = 0; i < cnt; i++) {
-      const w = 2 + Math.floor(Math.random() * 8);
-      const v = 3 + Math.floor(Math.random() * 18);
-      items.push({ id: i, w, v });
-    }
-    items.sort((a, b) => b.v / b.w - a.v / a.w);  // 按性价比降序
-    items.forEach((it, i) => it.id = i);
+  CAP = Math.max(1, parseInt($("capInput").value, 10) || 15);
+  const cnt = 5 + Math.floor(Math.random() * 2);
+  items = [];
+  for (let i = 0; i < cnt; i++) {
+    const w = 2 + Math.floor(Math.random() * 8);
+    const v = 3 + Math.floor(Math.random() * 18);
+    items.push({ id: i, w, v });
   }
+  items.sort((a, b) => b.v / b.w - a.v / a.w);  // 按性价比降序
+  items.forEach((it, i) => it.id = i);
   steps = []; idx = 0;
   renderStatic();
   refreshFormula();
-  setStatus(mode === "act" ? `已生成 ${acts.length} 个活动并按结束时间排序。点「开始贪心」逐个决策。` : `已生成 ${items.length} 件物品并按性价比排序，背包容量 ${CAP}。点「开始贪心」。`);
+  setStatus(`已生成 ${items.length} 件物品并按性价比排序，背包容量 ${CAP}。点「开始贪心」。`);
 }
 
 function refreshFormula() {
-  if (mode === "act") {
-    $("formula").innerHTML = `按<b>结束时间</b>升序排序。<br>维护 lastEnd = 上个选中活动的结束时间。<br>若当前活动 <b>start ≥ lastEnd</b>（不冲突）→ 选它，更新 lastEnd。`;
-    $("note").innerHTML = `活动选择：为什么按<code>结束时间</code>贪心最优？结束越早，留给后续活动的时间越多。每次选"能选的里面结束最早的"，不会比最优解差。时间复杂度 O(n log n)（排序主导）。`;
-  } else {
-    $("formula").innerHTML = `按<b>单位价值 v/w</b>降序排序。<br>依次尝试装入：<br>· 整件能装下 → 全装，容量减 w；<br>· 装不下 → <b>切一部分</b>填满背包，结束。`;
-    $("note").innerHTML = `分数背包：物品<code>可切分</code>，所以按性价比从高到低装、最后切一块填满一定最优（这点与 0/1 背包不同，0/1 背包不能切、需用 DP）。时间复杂度 O(n log n)。`;
-  }
-}
-
-// ======== 活动选择 分步 ========
-function genActSteps() {
-  const list = [];
-  list.push({ desc: `开始：已按结束时间排序。lastEnd = -∞（还没选任何活动）。`, chosen: [], consider: -1, reject: [], lastEnd: -Infinity, count: 0 });
-  let lastEnd = -Infinity, count = 0;
-  const chosen = [], reject = [];
-  for (let i = 0; i < acts.length; i++) {
-    const a = acts[i];
-    const ok = a.s >= lastEnd;
-    if (ok) {
-      chosen.push(i); count++; const prev = lastEnd; lastEnd = a.f;
-      list.push({ desc: `活动 ${a.id} [${a.s},${a.f}]：开始 ${a.s} ≥ lastEnd ${prev === -Infinity ? "(-∞)" : prev}，<span class="hl">不冲突，选它！</span>lastEnd 更新为 ${a.f}，已选 ${count} 个。`,
-        chosen: [...chosen], consider: i, reject: [...reject], lastEnd, count });
-    } else {
-      reject.push(i);
-      list.push({ desc: `活动 ${a.id} [${a.s},${a.f}]：开始 ${a.s} < lastEnd ${lastEnd}，<span class="rej">与已选活动重叠，跳过。</span>`,
-        chosen: [...chosen], consider: i, reject: [...reject], lastEnd, count });
-    }
-  }
-  list.push({ desc: `完成！最多可选 <b>${count}</b> 个互不重叠的活动。`, chosen: [...chosen], consider: -1, reject: [...reject], lastEnd, count, done: true });
-  return list;
+  $("formula").innerHTML = `按<b>单位价值 v/w</b>降序排序。<br>依次尝试装入：<br>· 整件能装下 → 全装，容量减 w；<br>· 装不下 → <b>切一部分</b>填满背包，结束。`;
+  $("note").innerHTML = `分数背包：物品<code>可切分</code>，所以按性价比从高到低装、最后切一块填满一定最优（这点与 0/1 背包不同，0/1 背包不能切、需用 DP）。时间复杂度 O(n log n)。`;
 }
 
 // ======== 分数背包 分步 ========
@@ -279,29 +213,9 @@ function genKnapSteps() {
   return list;
 }
 
-// ======== 渲染：静态（未开始/切换时）========
-const TMAX = 22;  // 活动时间轴最大刻度
+// ======== 渲染：静态（未开始/重置时）========
 function renderStatic() {
-  if (mode === "act") drawActs({ chosen: [], consider: -1, reject: [], count: 0 });
-  else drawKnap({ consider: -1, fill: items.map(() => 0), cap: CAP, total: 0 });
-}
-
-// 活动选择时间轴
-function drawActs(s) {
-  const maxF = Math.max(TMAX, ...acts.map(a => a.f));
-  $("timeline").innerHTML = acts.map((a, i) => {
-    let cls = "actbar";
-    if (s.done ? false : s.consider === i) cls += " consider";
-    if (s.chosen && s.chosen.includes(i)) cls += " chosen";
-    else if (s.reject && s.reject.includes(i)) cls += " reject";
-    const left = (a.s / maxF * 100).toFixed(1);
-    const wid = ((a.f - a.s) / maxF * 100).toFixed(1);
-    return `<div class="${cls}"><div class="track" style="left:${left}%;width:${wid}%">#${a.id} [${a.s},${a.f}]</div></div>`;
-  }).join("");
-  let ax = "";
-  for (let t = 0; t <= maxF; t += Math.ceil(maxF / 11)) ax += `<span>${t}</span>`;
-  $("axis").innerHTML = ax;
-  $("stats").innerHTML = `已选活动数：<b>${s.count || 0}</b>` + (s.lastEnd !== undefined && isFinite(s.lastEnd) ? `　lastEnd = ${s.lastEnd}` : "");
+  drawKnap({ consider: -1, fill: items.map(() => 0), cap: CAP, total: 0 });
 }
 
 // 分数背包物品条
@@ -327,7 +241,7 @@ function drawKnap(s) {
 }
 
 // ======== 引擎 ========
-function draw(s) { if (mode === "act") drawActs(s); else drawKnap(s); setStatus(s.desc); }
+function draw(s) { drawKnap(s); setStatus(s.desc); }
 function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(steps[idx]); } if (idx >= steps.length - 1) endRun(); }
 function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
 function playAll() { stopTimer(); const spd = 1250 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(steps[idx]); } else endRun(); }, spd); }
@@ -335,63 +249,20 @@ function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
 
 function start() {
   stopTimer();
-  steps = mode === "act" ? genActSteps() : genKnapSteps();
+  steps = genKnapSteps();
   idx = 0; running = true;
   $("stepBtn").disabled = false; $("playBtn").disabled = false;
   draw(steps[0]);
 }
 
-function switchMode(m) {
-  if (m === mode) return;
-  mode = m;
-  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.mode === m));
-  $("actView").classList.toggle("hidden", m !== "act");
-  $("knapView").classList.toggle("hidden", m !== "knap");
-  $("capField").style.display = m === "knap" ? "flex" : "none";
-  randomData();
-}
-
-document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchMode(t.dataset.mode));
 $("randBtn").onclick = () => randomData();
 $("startBtn").onclick = () => start();
 $("playBtn").onclick = () => { if (idx >= steps.length - 1) start(); playAll(); };
 $("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
-$("cppBtn").onclick = () => CppView.open(mode);
-$("capInput").addEventListener("change", () => { if (mode === "knap") randomData(); });
-$("capField").style.display = "none";
+$("cppBtn").onclick = () => CppView.open("knap");
+$("capInput").addEventListener("change", () => randomData());
 
 CppView.register({
-  act: { title: "活动选择（贪心，按结束时间排序）— C++", code:
-`// 功能：从 n 个活动中选出最多的互不重叠活动（活动选择问题）。
-// 贪心策略：按【结束时间】升序排序，每次选结束最早且与已选不冲突的活动。
-//           结束越早，给后面留的空间越多——是经典可证明最优的贪心。
-#include <iostream>
-#include <algorithm>
-using namespace std;
-
-struct Act { int s, f; };            // 开始、结束时间
-
-bool cmp(const Act& a, const Act& b) {
-    return a.f < b.f;                // 按结束时间升序
-}
-
-int main() {
-    int n; cin >> n;
-    Act a[1005];
-    for (int i = 0; i < n; i++) cin >> a[i].s >> a[i].f;
-    sort(a, a + n, cmp);
-
-    int cnt = 0, lastEnd = -1;        // lastEnd: 上一个选中活动的结束时间
-    for (int i = 0; i < n; i++) {
-        if (a[i].s >= lastEnd) {      // 开始时间 >= 上次结束，不冲突
-            cnt++;
-            lastEnd = a[i].f;         // 更新结束时间
-        }
-    }
-    cout << "最多可选 " << cnt << " 个活动" << endl;
-    return 0;
-}`
-  },
   knap: { title: "分数背包（贪心，按性价比排序）— C++", code:
 `// 功能：容量为 C 的背包，物品可切分，求能装下的最大总价值（分数背包）。
 // 贪心策略：按【单位价值 v/w】降序排序，优先装性价比最高的；

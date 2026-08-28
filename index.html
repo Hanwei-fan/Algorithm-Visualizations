@@ -237,10 +237,12 @@ const SECTIONS = [
     ],
   },
   {
-    id: "greedy", icon: "🪙", title: "贪心算法", desc: "活动选择 · 分数背包",
+    id: "greedy", icon: "🪙", title: "贪心算法", desc: "分数背包 · 区间类贪心",
     items: [
-      { icon: "🪙", tag: "贪心", title: "活动选择 / 分数背包", file: "greedy.html", ready: true,
-        desc: "两个经典贪心可切换：活动选择按结束时间排序，依次选不冲突的活动求最多场次；分数背包按性价比排序，可切分装满背包求最大价值。时间轴/物品条可视化，含 C++。" },
+      { icon: "🎒", tag: "贪心", title: "分数背包", file: "greedy.html", ready: true,
+        desc: "物品可切分，按性价比（价值/重量）从高到低装入，最后切一块填满背包求最大价值。物品条 + 容量条可视化，逐步演示装入/切分，含 C++。" },
+      { icon: "📏", tag: "贪心·区间", title: "区间类贪心", file: "interval-greedy.html", ready: true,
+        desc: "两类经典区间贪心可切换：① 最大不相交区间数量（含活动选择，按右端点排序贪心选取）；② 最少区间覆盖（按左端点排序，每次选能接上且伸最远的区间）。时间轴可视化，含 C++。" },
     ],
   },
   {

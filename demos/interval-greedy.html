@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>区间类贪心演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+    --node-fill: #16213e;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 8px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .tab {
+    padding: 9px 18px; border: 1px solid var(--border); border-bottom: none;
+    border-radius: 8px 8px 0 0; cursor: pointer; color: var(--muted);
+    font-size: 14px; letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace;
+    background: rgba(18,15,38,0.4); transition: all .18s;
+  }
+  .tab:hover { color: var(--cyan); }
+  .tab.active { color: var(--cyan); background: var(--panel); border-color: var(--cyan); text-shadow: 0 0 6px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace;
+  }
+  .field input.wide { width: 300px; }
+  .field input.narrow { width: 110px; }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(18,15,38,0.5); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.06); box-shadow: none; }
+  .cppview-btn {
+    margin-left: auto; padding: 9px 15px; border: 1px solid var(--green); border-radius: 4px;
+    background: rgba(0,255,156,0.1); color: var(--green); font-size: 13px; letter-spacing: 1px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .cppview-btn:hover { background: var(--green); color: #05060f; box-shadow: 0 0 16px rgba(0,255,156,.5); }
+  main { padding: 6px 30px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; backdrop-filter: blur(6px); overflow-x: auto; }
+  .rowlabel { font-size: 12.5px; color: var(--cyan); letter-spacing: .5px; margin-bottom: 10px; }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .plabel.mt { margin-top: 16px; }
+  /* 区间时间轴 */
+  .timeline { position: relative; min-width: 420px; }
+  .covbar { height: 14px; border-radius: 4px; margin-bottom: 8px; position: relative;
+    background: color-mix(in srgb, var(--yellow) 20%, var(--node-fill)); border: 1px solid var(--yellow); }
+  .covbar .covfill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 3px;
+    background: color-mix(in srgb, var(--green) 55%, var(--node-fill)); transition: width .25s, left .25s; }
+  .ivbar { position: relative; height: 28px; margin-bottom: 7px; }
+  .ivbar .track {
+    position: absolute; height: 22px; top: 3px; border-radius: 5px;
+    border: 1px solid var(--border); background: color-mix(in srgb, var(--cyan) 10%, var(--node-fill));
+    display: flex; align-items: center; justify-content: center;
+    font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; color: var(--text);
+    transition: all .2s; white-space: nowrap; overflow: hidden; padding: 0 4px;
+  }
+  .ivbar.consider .track { border-color: var(--yellow); background: color-mix(in srgb, var(--yellow) 32%, var(--node-fill)); box-shadow: 0 0 10px rgba(255,212,0,.4); }
+  .ivbar.chosen .track { border-color: var(--green); background: color-mix(in srgb, var(--green) 32%, var(--node-fill)); box-shadow: 0 0 10px rgba(0,255,156,.4); }
+  .ivbar.reject .track { border-color: var(--magenta); background: color-mix(in srgb, var(--magenta) 20%, var(--node-fill)); opacity: .5; }
+  .ivbar.cand .track { border-color: var(--cyan); background: color-mix(in srgb, var(--cyan) 26%, var(--node-fill)); box-shadow: 0 0 8px rgba(0,240,255,.4); }
+  .axis { display: flex; justify-content: space-between; font-family: "SF Mono", Menlo, monospace; font-size: 10px; color: var(--muted); border-top: 1px solid var(--border); padding-top: 4px; margin-top: 4px; min-width: 420px; }
+  .chosenlog { display: flex; flex-direction: column; gap: 6px; max-height: 300px; overflow-y: auto; font-family: "SF Mono", Menlo, monospace; font-size: 13px; }
+  .chosenlog .cv { padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: color-mix(in srgb, var(--green) 10%, var(--node-fill)); color: var(--text); border-left: 3px solid var(--green); }
+  .stats { margin-top: 14px; font-family: "SF Mono", Menlo, monospace; font-size: 14px; color: var(--text); }
+  .stats b { color: var(--yellow); }
+  .status { margin-top: 8px; font-size: 14px; min-height: 48px; color: var(--text); font-family: "SF Mono", Menlo, monospace; line-height: 1.6; }
+  .status .hl { color: var(--green); font-weight: 700; } .status .rej { color: var(--magenta); font-weight: 700; }
+  .formula { font-size: 13px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; line-height: 1.7; background: rgba(5,4,15,0.5); padding: 10px 12px; border-radius: 6px; border: 1px solid var(--border); }
+  .formula b { color: var(--yellow); } .formula code, .note code { color: var(--cyan); background: rgba(0,240,255,0.08); padding: 1px 5px; border-radius: 3px; }
+  .note { margin: 6px 30px 30px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .note code { color: var(--cyan); } .note b { color: var(--yellow); }
+  .scene-max-only, .scene-cov-only { }
+  body.scene-cov .scene-max-only { display: none !important; }
+  body.scene-max .scene-cov-only { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>区间类贪心</h1>
+  <p>两类经典区间贪心：① <b>最大不相交区间数量</b>（含"活动选择"，按<b>右端点</b>升序，能选就选）；② <b>最少区间覆盖</b>（按<b>左端点</b>升序，每次在能接上的里选<b>伸最远</b>的）。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="tabs">
+  <div class="tab active" data-scene="max">最大不相交区间</div>
+  <div class="tab" data-scene="cov">最少区间覆盖</div>
+</div>
+
+<div class="controls">
+  <div class="field"><label>区间集合（如 1-3, 2-5, 4-7）</label><input id="ivInput" class="wide" type="text" value="1-3, 2-4, 3-6, 5-7, 6-8"></div>
+  <div class="field scene-cov-only"><label>目标区间 [0, T]</label><input id="targetInput" class="narrow" type="number" value="8" min="1"></div>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1200" value="600" step="50"></div>
+  <button class="btn cy" id="randBtn">随机</button>
+  <button class="btn" id="startBtn">开始贪心</button>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="rowlabel" id="calcLabel">区间时间轴</div>
+    <div class="timeline" id="timeline"></div>
+    <div class="axis" id="axis"></div>
+    <div class="stats" id="stats"></div>
+    <div class="status" id="status"></div>
+  </section>
+  <section class="card">
+    <div class="plabel" id="logLabel">已选区间</div>
+    <div class="chosenlog" id="chosenlog"></div>
+    <div class="plabel mt">贪心策略</div>
+    <div class="formula" id="formula"></div>
+  </section>
+</main>
+
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let scene = "max", steps = [], idx = 0, timer = null, running = false;
+let ivs = [];      // 区间 {id, s, f}
+let target = 8;
+function setStatus(t) { $("status").innerHTML = t; }
+
+// 解析 "1-3, 2-5" → [{s,f}]
+function parseIvs(raw) {
+  const out = [];
+  (raw || "").split(/[，,;；]+/).forEach(tok => {
+    const m = tok.trim().match(/^(-?\d+)\s*[-~]\s*(-?\d+)$/);
+    if (m) { let s = +m[1], f = +m[2]; if (s > f) [s, f] = [f, s]; out.push({ s, f }); }
+  });
+  return out;
+}
+function maxT() { return Math.max(target, ...ivs.map(v => v.f), 1); }
+
+// ======== 场景①：最大不相交区间数量（按右端点升序贪心） ========
+function genMaxSteps(list) {
+  const sorted = list.map((v, i) => ({ ...v })).sort((a, b) => a.f - b.f || a.s - b.s);
+  sorted.forEach((v, i) => v.id = i);
+  const out = [];
+  const snap = (o) => out.push(Object.assign({ ivs: sorted, chosen: [], reject: [], consider: -1, count: 0, lastEnd: -Infinity }, o));
+  snap({ desc: `已按<b>右端点</b>升序排序。lastEnd = −∞（还没选）。右端点越小，留给后面的空间越多。` });
+  let lastEnd = -Infinity, count = 0; const chosen = [], reject = [];
+  for (let i = 0; i < sorted.length; i++) {
+    const v = sorted[i];
+    if (v.s >= lastEnd) {
+      chosen.push(i); count++; const prev = lastEnd; lastEnd = v.f;
+      snap({ consider: i, chosen: [...chosen], reject: [...reject], count, lastEnd,
+        desc: `区间 #${v.id} [${v.s},${v.f}]：左端 ${v.s} ≥ lastEnd ${prev === -Infinity ? "−∞" : prev} → <span class="hl">不重叠，选它！</span>lastEnd=${v.f}，已选 ${count}。` });
+    } else {
+      reject.push(i);
+      snap({ consider: i, chosen: [...chosen], reject: [...reject], count, lastEnd,
+        desc: `区间 #${v.id} [${v.s},${v.f}]：左端 ${v.s} < lastEnd ${lastEnd} → <span class="rej">与已选重叠，跳过。</span>` });
+    }
+  }
+  snap({ chosen: [...chosen], reject: [...reject], count, lastEnd, done: true,
+    desc: `完成！最多可选 <b>${count}</b> 个互不相交的区间。` });
+  return { list: out, resStr: "" + count };
+}
+
+// ======== 场景②：最少区间覆盖 [0,T]（按左端点升序，每次选伸最远） ========
+function genCovSteps(list, T) {
+  const sorted = list.map(v => ({ ...v })).sort((a, b) => a.s - b.s || a.f - b.f);
+  sorted.forEach((v, i) => v.id = i);
+  const out = [];
+  const snap = (o) => out.push(Object.assign({ ivs: sorted, chosen: [], reject: [], cand: [], consider: -1, covered: 0, count: 0, T }, o));
+  snap({ desc: `目标：用最少区间覆盖 [0, ${T}]。已按<b>左端点</b>升序排序。已覆盖到 covered=0。` });
+  let covered = 0, count = 0, i = 0; const chosen = [];
+  while (covered < T) {
+    // 候选：左端 ≤ covered 的所有区间
+    const cand = [];
+    let best = -1, bestR = covered;
+    while (i < sorted.length && sorted[i].s <= covered) { cand.push(i); if (sorted[i].f > bestR) { bestR = sorted[i].f; best = i; } i++; }
+    snap({ chosen: [...chosen], cand: [...cand], covered, count,
+      desc: `已覆盖 [0, <span class="hl">${covered}</span>]。候选 = 所有左端 ≤ ${covered} 的区间（青色），从中挑<b>右端最远</b>的。` });
+    if (best === -1) {
+      snap({ chosen: [...chosen], cand: [...cand], covered, count, done: true, fail: true,
+        desc: `没有区间能从 ${covered} 继续往右接 → <span class="rej">无法覆盖 [0, ${T}]！</span>` });
+      return { list: out, resStr: "无法覆盖" };
+    }
+    chosen.push(best); count++;
+    const v = sorted[best]; const prevCov = covered; covered = bestR;
+    snap({ chosen: [...chosen], cand: [], consider: best, covered, count,
+      desc: `选右端最远的 #${v.id} [${v.s},${v.f}]（第 <span class="hl">${count}</span> 个）→ 覆盖从 ${prevCov} 推进到 <span class="hl">${covered}</span>。` });
+  }
+  snap({ chosen: [...chosen], covered, count, done: true,
+    desc: `已覆盖到 ${covered} ≥ ${T}，完成！最少需要 <b>${count}</b> 个区间。` });
+  return { list: out, resStr: "" + count };
+}
+
+// ======== 渲染 ========
+function draw(s) {
+  const T = maxT();
+  const rows = s.ivs || [];
+  // 覆盖场景：顶部一条覆盖进度条
+  let cov = "";
+  if (scene === "cov") {
+    const w = ((s.covered || 0) / T * 100).toFixed(1);
+    cov = `<div class="covbar"><div class="covfill" style="width:${w}%"></div></div>`;
+  }
+  const bars = rows.map((v, i) => {
+    let cls = "ivbar";
+    if (!s.done && s.consider === i) cls += " consider";
+    if (s.chosen && s.chosen.includes(i)) cls += " chosen";
+    else if (s.cand && s.cand.includes(i)) cls += " cand";
+    else if (s.reject && s.reject.includes(i)) cls += " reject";
+    const left = (v.s / T * 100).toFixed(1), wid = ((v.f - v.s) / T * 100).toFixed(1);
+    return `<div class="${cls}"><div class="track" style="left:${left}%;width:${wid}%">#${v.id} [${v.s},${v.f}]</div></div>`;
+  }).join("");
+  $("timeline").innerHTML = cov + bars;
+  let ax = ""; const step = Math.max(1, Math.ceil(T / 11));
+  for (let t = 0; t <= T; t += step) ax += `<span>${t}</span>`;
+  $("axis").innerHTML = ax;
+  // 统计
+  if (scene === "max") $("stats").innerHTML = `已选区间数：<b>${s.count || 0}</b>` + (isFinite(s.lastEnd) ? `　lastEnd = ${s.lastEnd}` : "");
+  else $("stats").innerHTML = `已用区间数：<b>${s.count || 0}</b>　已覆盖：[0, ${s.covered || 0}] / 目标 ${s.T}`;
+  // 已选记录
+  const ch = (s.chosen || []).map(i => rows[i]).filter(Boolean);
+  $("chosenlog").innerHTML = ch.length
+    ? ch.map((v, k) => `<div class="cv"><b>${k + 1}.</b> #${v.id} [${v.s}, ${v.f}]</div>`).join("")
+    : '<div class="cv" style="color:var(--muted);border-left-color:var(--border)">（还没有选中区间）</div>';
+  setStatus(s.desc);
+}
+
+// ======== 引擎 ========
+function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(steps[idx]); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 1300 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(steps[idx]); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+const FORMULA = {
+  max: `按<b>右端点 f</b> 升序排序。<br>lastEnd = −∞<br>for 每个区间 [s,f]（右端从小到大）:<br>&nbsp;&nbsp;if s ≥ lastEnd:　<span style="color:var(--muted)">// 不重叠</span><br>&nbsp;&nbsp;&nbsp;&nbsp;选它, cnt++, lastEnd = f`,
+  cov: `按<b>左端点 s</b> 升序排序。covered = 0<br>while covered &lt; T:<br>&nbsp;&nbsp;在所有 s ≤ covered 的区间里<br>&nbsp;&nbsp;选<b>右端 f 最大</b>的, cnt++<br>&nbsp;&nbsp;covered = 该 f　<span style="color:var(--muted)">// 推进最远</span>`,
+};
+const NOTE = {
+  max: `最大不相交区间（含<b>活动选择</b>）：按<code>右端点</code>升序贪心——右端越早结束，留给后面的空间越多，每次选"能选中里结束最早的"一定最优。<code>O(n log n)</code>。`,
+  cov: `最少区间覆盖：按<code>左端点</code>升序，每一步在所有"能接上当前已覆盖位置"的区间里选<b>右端伸得最远</b>的，用最少段数覆盖 [0,T]。<code>O(n log n)</code>。`,
+};
+
+function refresh() { $("formula").innerHTML = FORMULA[scene]; $("note").innerHTML = NOTE[scene]; }
+
+function reparse() {
+  ivs = parseIvs($("ivInput").value);
+  target = Math.max(1, parseInt($("targetInput").value, 10) || 8);
+}
+function renderStatic() {
+  // 展示排序后的静态图（未开始）
+  const T = maxT();
+  const sorted = scene === "max"
+    ? ivs.map(v => ({ ...v })).sort((a, b) => a.f - b.f || a.s - b.s)
+    : ivs.map(v => ({ ...v })).sort((a, b) => a.s - b.s || a.f - b.f);
+  sorted.forEach((v, i) => v.id = i);
+  draw({ ivs: sorted, chosen: [], reject: [], cand: [], consider: -1, count: 0, covered: 0, T: target, lastEnd: -Infinity,
+    desc: scene === "max" ? "已按右端点升序排序。点「开始贪心」逐个决策。" : "已按左端点升序排序。点「开始贪心」逐段覆盖。" });
+}
+function start() {
+  stopTimer(); reparse();
+  if (ivs.length === 0) { setStatus("⚠ 请输入区间，如 1-3, 2-5, 4-7。"); return; }
+  const out = scene === "max" ? genMaxSteps(ivs) : genCovSteps(ivs, target);
+  steps = out.list; idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  draw(steps[0]);
+}
+function prepareStatic() { stopTimer(); running = false; $("stepBtn").disabled = true; $("playBtn").disabled = true; reparse(); refresh(); renderStatic(); }
+
+function switchScene(sc) {
+  if (sc === scene) return;
+  scene = sc;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.scene === sc));
+  document.body.classList.toggle("scene-max", sc === "max");
+  document.body.classList.toggle("scene-cov", sc === "cov");
+  $("calcLabel").textContent = sc === "max" ? "区间时间轴（按右端点排序）" : "区间时间轴（按左端点排序，绿条=已覆盖）";
+  $("logLabel").textContent = sc === "max" ? "已选（互不相交）区间" : "已用覆盖区间";
+  prepareStatic();
+}
+
+$("randBtn").onclick = () => {
+  const n = 5 + Math.floor(Math.random() * 3), xs = [];
+  for (let i = 0; i < n; i++) { const s = Math.floor(Math.random() * 7); const f = s + 1 + Math.floor(Math.random() * 4); xs.push(`${s}-${f}`); }
+  $("ivInput").value = xs.join(", ");
+  if (scene === "cov") $("targetInput").value = 8 + Math.floor(Math.random() * 4);
+  prepareStatic();
+};
+$("startBtn").onclick = () => start();
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) start(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("cppBtn").onclick = () => CppView.open(scene === "max" ? "ig_max" : "ig_cov");
+["ivInput", "targetInput"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") start(); }));
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchScene(t.dataset.scene));
+
+CppView.register({
+  ig_max: { title: "最大不相交区间数量（活动选择）— C++", code:
+`// 功能：从 n 个区间中选出最多的互不相交区间（活动选择同款）。
+// 贪心：按右端点升序排序，每次选与已选不冲突（左端 ≥ lastEnd）的区间。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+struct Iv { int s, f; };
+bool cmp(const Iv& a, const Iv& b) { return a.f < b.f; }  // 按右端点升序
+
+int main() {
+    int n; cin >> n;
+    Iv a[1005];
+    for (int i = 0; i < n; i++) cin >> a[i].s >> a[i].f;
+    sort(a, a + n, cmp);
+
+    int cnt = 0, lastEnd = -2e9;
+    for (int i = 0; i < n; i++)
+        if (a[i].s >= lastEnd) { cnt++; lastEnd = a[i].f; }  // 不重叠就选
+    cout << cnt << endl;
+    return 0;
+}`
+  },
+  ig_cov: { title: "最少区间覆盖 [0,T] — C++", code:
+`// 功能：用最少的区间覆盖目标 [0, T]。
+// 贪心：按左端点升序；每一步在所有"左端 ≤ 当前已覆盖位置"的区间里，
+//       选右端最大的，把覆盖推进到该右端。
+#include <iostream>
+#include <algorithm>
+using namespace std;
+
+struct Iv { int s, f; };
+bool cmp(const Iv& a, const Iv& b) { return a.s < b.s; }  // 按左端点升序
+
+int main() {
+    int n, T; cin >> n >> T;
+    Iv a[1005];
+    for (int i = 0; i < n; i++) cin >> a[i].s >> a[i].f;
+    sort(a, a + n, cmp);
+
+    int covered = 0, cnt = 0, i = 0;
+    while (covered < T) {
+        int best = covered;
+        while (i < n && a[i].s <= covered)      // 所有能接上的
+            best = max(best, a[i++].f);          // 选右端最远的
+        if (best == covered) { cnt = -1; break; }  // 接不上 → 无解
+        covered = best; cnt++;
+    }
+    cout << cnt << endl;   // -1 表示无法覆盖
+    return 0;
+}`
+  }
+});
+
+document.body.classList.add("scene-max");
+prepareStatic();
+</script>
+<script src="../assets/theme.js"></script>
+</body>
+</html>
