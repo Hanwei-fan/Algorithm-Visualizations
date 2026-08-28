@@ -91,6 +91,11 @@
     background: color-mix(in srgb, var(--yellow) 20%, var(--node-fill)); border: 1px solid var(--yellow); }
   .covbar .covfill { position: absolute; top: 0; left: 0; height: 100%; border-radius: 3px;
     background: color-mix(in srgb, var(--green) 55%, var(--node-fill)); transition: width .25s, left .25s; }
+  /* covered 竖线：贯穿整条时间轴，标出当前已覆盖到的位置 */
+  .covline { position: absolute; top: 0; bottom: 0; width: 0; border-left: 2px dashed var(--green);
+    z-index: 3; pointer-events: none; transition: left .25s; }
+  .covline .lab { position: absolute; top: -2px; left: 3px; font-family: "SF Mono", Menlo, monospace;
+    font-size: 10px; font-weight: 700; color: var(--green); white-space: nowrap; }
   .ivbar { position: relative; height: 28px; margin-bottom: 7px; }
   .ivbar .track {
     position: absolute; height: 22px; top: 3px; border-radius: 5px;
@@ -239,10 +244,12 @@ function draw(s) {
   const T = maxT();
   const rows = s.ivs || [];
   // 覆盖场景：顶部一条覆盖进度条
-  let cov = "";
+  let cov = "", covLine = "";
   if (scene === "cov") {
-    const w = ((s.covered || 0) / T * 100).toFixed(1);
+    const c = s.covered || 0, w = (c / T * 100).toFixed(1);
     cov = `<div class="covbar"><div class="covfill" style="width:${w}%"></div></div>`;
+    // 贯穿整条时间轴的 covered 竖线：左边的区间已用不上，右边"左端≤covered"的才是候选
+    covLine = `<div class="covline" style="left:${w}%"><span class="lab">covered=${c}</span></div>`;
   }
   const bars = rows.map((v, i) => {
     let cls = "ivbar";
@@ -253,7 +260,7 @@ function draw(s) {
     const left = (v.s / T * 100).toFixed(1), wid = ((v.f - v.s) / T * 100).toFixed(1);
     return `<div class="${cls}"><div class="track" style="left:${left}%;width:${wid}%">#${v.id} [${v.s},${v.f}]</div></div>`;
   }).join("");
-  $("timeline").innerHTML = cov + bars;
+  $("timeline").innerHTML = cov + bars + covLine;
   let ax = ""; const step = Math.max(1, Math.ceil(T / 11));
   for (let t = 0; t <= T; t += step) ax += `<span>${t}</span>`;
   $("axis").innerHTML = ax;
