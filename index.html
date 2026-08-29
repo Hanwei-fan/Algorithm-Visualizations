@@ -51,6 +51,53 @@
     border-radius: 999px; padding: 5px 14px; transition: all .18s;
   }
   .nav a:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 10px rgba(0,240,255,.3); }
+  .nav a.active { border-color: var(--cyan); background: rgba(0,240,255,.12); color: #fff; box-shadow: 0 0 10px rgba(0,240,255,.35); }
+
+  html { scroll-behavior: smooth; }
+
+  /* 右侧常驻浮动导航（任意位置快速定位） */
+  .dock {
+    position: fixed; right: 16px; top: 50%; transform: translateY(-50%);
+    z-index: 50; display: flex; flex-direction: column; gap: 6px;
+    padding: 10px 8px; border-radius: 14px;
+    background: var(--panel); border: 1px solid var(--border);
+    backdrop-filter: blur(8px); box-shadow: 0 8px 40px rgba(0,0,0,.5);
+    max-height: 88vh; overflow-y: auto;
+  }
+  .dock::-webkit-scrollbar { width: 0; }
+  .dock a {
+    position: relative; display: flex; align-items: center; justify-content: center;
+    width: 38px; height: 38px; border-radius: 10px; text-decoration: none;
+    font-size: 18px; border: 1px solid transparent; transition: all .16s; flex: none;
+  }
+  .dock a:hover { background: rgba(0,240,255,.1); border-color: var(--cyan); }
+  .dock a.active {
+    background: color-mix(in srgb, var(--cyan) 22%, var(--panel));
+    border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35);
+  }
+  .dock a::after {
+    content: attr(data-title);
+    position: absolute; right: calc(100% + 10px); top: 50%; transform: translateY(-50%);
+    white-space: nowrap; padding: 4px 10px; border-radius: 6px;
+    background: var(--panel); border: 1px solid var(--border); color: var(--text);
+    font-size: 12px; font-family: "SF Mono", Menlo, monospace; letter-spacing: .5px;
+    opacity: 0; pointer-events: none; transition: opacity .16s;
+    box-shadow: 0 4px 16px rgba(0,0,0,.4);
+  }
+  .dock a:hover::after { opacity: 1; }
+  @media (max-width: 1180px) { .dock { display: none; } }
+
+  /* 回到顶部 */
+  .totop {
+    position: fixed; left: 16px; bottom: 20px; z-index: 50;
+    width: 42px; height: 42px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--panel); border: 1px solid var(--border); color: var(--cyan);
+    cursor: pointer; font-size: 18px; backdrop-filter: blur(8px);
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .16s, box-shadow .16s;
+  }
+  .totop.show { opacity: 1; pointer-events: auto; }
+  .totop:hover { border-color: var(--cyan); box-shadow: 0 0 14px rgba(0,240,255,.45); transform: translateY(-2px); }
 
   .wrap { max-width: 1080px; margin: 0 auto; padding: 20px 40px 60px; }
 
@@ -112,8 +159,10 @@
 </header>
 
 <nav class="nav" id="nav"></nav>
+<aside class="dock" id="dock"></aside>
 <div class="wrap" id="wrap"></div>
-<footer>CYBER ALGO LAB // 持续扩充中</footer>
+<button class="totop" id="totop" title="回到顶部" aria-label="回到顶部">↑</button>
+<footer>// 持续扩充中</footer>
 
 <script>
 /*
@@ -259,7 +308,7 @@ const SECTIONS = [
   {
     id: "twopointer", icon: "👉", title: "双指针 / 滑动窗口", desc: "对撞 · 快慢 · 滑动窗口",
     items: [
-      { icon: "👉", tag: "双指针", title: "双指针扫描", file: "two-pointer.html", ready: true,
+      { icon: "👉", tag: "双指针", title: "对撞指针", file: "two-pointer.html", ready: true,
         desc: "对撞指针(相向双指针)分步演示：有序数组两两分组求最小组数(救生艇)、回文判断。l/r 指针箭头 + 格子高亮，自动播放或单步，含 C++。" },
       { icon: "🐢", tag: "快慢指针", title: "快慢指针·链表判环", file: "fast-slow.html", ready: true,
         desc: "Floyd 判环：slow 每步一格、fast 每步两格，相遇即有环。链表结点 + next 箭头 + 回环边可视化，可继续找环入口。含 C++。" },
@@ -281,14 +330,24 @@ const SECTIONS = [
 ];
 
 const nav = document.getElementById("nav");
+const dock = document.getElementById("dock");
 const wrap = document.getElementById("wrap");
 
 SECTIONS.forEach(sec => {
-  // 导航
+  // 顶部导航
   const a = document.createElement("a");
   a.href = "#sec-" + sec.id;
   a.textContent = sec.icon + " " + sec.title;
+  a.dataset.sec = sec.id;
   nav.appendChild(a);
+
+  // 右侧常驻浮动导航
+  const d = document.createElement("a");
+  d.href = "#sec-" + sec.id;
+  d.textContent = sec.icon;
+  d.dataset.sec = sec.id;
+  d.setAttribute("data-title", sec.title);
+  dock.appendChild(d);
 
   // 板块
   const section = document.createElement("section");
@@ -322,6 +381,32 @@ SECTIONS.forEach(sec => {
   section.appendChild(grid);
   wrap.appendChild(section);
 });
+
+// ===== 滚动高亮当前板块（scroll-spy）+ 回到顶部 =====
+const sections = SECTIONS.map(s => document.getElementById("sec-" + s.id));
+const navLinks = [...document.querySelectorAll("#nav a")];
+const dockLinks = [...document.querySelectorAll("#dock a")];
+const totop = document.getElementById("totop");
+
+function setActive(id) {
+  navLinks.forEach(a => a.classList.toggle("active", a.dataset.sec === id));
+  dockLinks.forEach(a => {
+    const on = a.dataset.sec === id;
+    a.classList.toggle("active", on);
+    if (on) a.scrollIntoView({ block: "nearest" });
+  });
+}
+function onScroll() {
+  // 取视口上 1/3 处所在的板块为当前
+  const line = window.scrollY + window.innerHeight * 0.3;
+  let current = sections[0];
+  for (const sec of sections) { if (sec.offsetTop <= line) current = sec; }
+  if (current) setActive(current.id.replace("sec-", ""));
+  totop.classList.toggle("show", window.scrollY > 400);
+}
+totop.onclick = () => window.scrollTo({ top: 0, behavior: "smooth" });
+window.addEventListener("scroll", onScroll, { passive: true });
+onScroll();
 </script>
 <script src="assets/theme.js"></script>
 </body>
