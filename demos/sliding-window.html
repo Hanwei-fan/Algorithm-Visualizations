@@ -291,13 +291,17 @@ function genCover(sStr, tStr) {
   for (let r = 0; r < n; r++) {
     const c = sStr[r];
     if (c in need) { win[c] = (win[c] || 0) + 1; if (win[c] === need[c]) formed++; }
-    snap(r, {}, `纳入 s[${r}]=<span class="hl">${vals[r]}</span>${c in need ? `（是目标字符，win[${c}]=${win[c]}）` : `（非目标字符）`}。已凑齐 ${formed}/${required} 种。`, false);
+    let covered = formed === required;
+    if (covered && r - l + 1 < best) { best = r - l + 1; bestL = l; bestR = r; }
+    snap(r, covered ? { [l]: "best" } : {}, `<b>R 右移</b>纳入 s[${r}]=<span class="hl">${vals[r]}</span>${c in need ? `（目标字符，win[${c}]=${win[c]}）` : `（非目标字符）`}，已凑齐 ${formed}/${required} 种${covered ? ` → <span class="good">已覆盖，记录候选长 ${r - l + 1}</span>` : `。`}`, false);
     while (formed === required) {
-      if (r - l + 1 < best) { best = r - l + 1; bestL = l; bestR = r; }
-      snap(r, { [l]: "best" }, `窗口已覆盖 t（${formed}/${required}）→ <span class="good">记录候选，长 ${r - l + 1}</span>；尝试移出左端 s[${l}]=${vals[l]} 求更短。`, false);
-      const lc = sStr[l];
+      // 单步移动 L：只移出左端一个字符
+      const oldl = l, lc = sStr[l];
       if (lc in need) { win[lc]--; if (win[lc] < need[lc]) formed--; }
       l++;
+      const still = formed === required;
+      if (still && r - l + 1 < best) { best = r - l + 1; bestL = l; bestR = r; }
+      snap(r, still ? { [l]: "best" } : {}, `<b>L 右移</b>移出 s[${oldl}]=<span class="bad">${vals[oldl]}</span> → 窗口 [${l},${r}]${still ? `，<span class="good">仍覆盖，记录候选长 ${r - l + 1}</span>` : `，不再覆盖 t，改由 R 继续右扩`}。`, false);
     }
   }
   const res = bestR >= 0 ? sStr.slice(bestL, bestR + 1) : "";
@@ -353,11 +357,16 @@ function genAtleast(arr, target) {
   snap(-1, {}, `R 右扩累加，窗口和 ≥ target=${target} 时收缩 L 求最短。`, false);
   for (let r = 0; r < n; r++) {
     sum += arr[r];
-    snap(r, {}, `纳入 a[${r}]=<span class="hl">${arr[r]}</span>，窗口和 = ${sum}${sum >= target ? `（已达标）` : `（还差 ${target - sum}）`}。`, false);
+    let ok = sum >= target;
+    if (ok && r - l + 1 < best) { best = r - l + 1; bestL = l; bestR = r; }
+    snap(r, ok ? { [l]: "best" } : {}, `<b>R 右移</b>纳入 a[${r}]=<span class="hl">${arr[r]}</span>，窗口和 = ${sum}${ok ? ` ≥ ${target} → <span class="good">达标，记录长度 ${r - l + 1}</span>` : `（还差 ${target - sum}）`}。`, false);
     while (sum >= target) {
-      if (r - l + 1 < best) { best = r - l + 1; bestL = l; bestR = r; }
-      snap(r, { [l]: "best" }, `和 ${sum} ≥ ${target} → <span class="good">记录长度 ${r - l + 1}</span>；移出左端 a[${l}]=${arr[l]} 试更短。`, false);
+      // 单步移动 L：只移出左端一个元素
+      const oldl = l;
       sum -= arr[l]; l++;
+      const still = sum >= target;
+      if (still && r - l + 1 < best) { best = r - l + 1; bestL = l; bestR = r; }
+      snap(r, still ? { [l]: "best" } : {}, `<b>L 右移</b>移出 a[${oldl}]=<span class="bad">${arr[oldl]}</span> → 窗口和 = ${sum}${still ? ` 仍 ≥ ${target}，<span class="good">记录长度 ${r - l + 1}</span>` : ` &lt; ${target}，改由 R 继续右扩`}。`, false);
     }
   }
   snap(n - 1, {}, bestR >= 0 ? `扫描结束，和≥${target} 的最短子数组长度 = <span class="good">${best}</span>。` : `扫描结束，<span class="bad">不存在</span>和≥${target} 的子数组。`, true);
