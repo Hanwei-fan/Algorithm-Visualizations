@@ -118,6 +118,13 @@
   .rtable tr.done td { color: var(--green); }
   .note { margin: 8px 30px 30px; font-size: 13px; color: var(--muted); line-height: 1.7; }
   .note code { color: var(--cyan); background: rgba(0,240,255,0.08); padding: 1px 5px; border-radius: 3px; } .note b { color: var(--yellow); }
+  /* 原数组（可点击改值）*/
+  table.orig { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 13px; margin: 4px 0 4px; }
+  table.orig td, table.orig th { border: 1px solid var(--border); width: 38px; height: 34px; text-align: center; }
+  table.orig th { color: var(--magenta); background: color-mix(in srgb, var(--magenta) 8%, var(--node-fill)); font-size: 11px; }
+  table.orig td { background: color-mix(in srgb, var(--magenta) 8%, var(--node-fill)); color: var(--text); cursor: pointer; transition: all .15s; }
+  table.orig td:hover { background: var(--yellow); color: #120e00; box-shadow: 0 0 8px rgba(255,212,0,.6) inset; }
+  .edithint { font-size: 11px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; margin: 2px 0 0; }
   /* 场景显隐 */
   body.sc-pre1 .only-pre2, body.sc-pre1 .only-diff1, body.sc-pre1 .only-diff2 { display: none !important; }
   body.sc-pre2 .only-pre1, body.sc-pre2 .only-diff1, body.sc-pre2 .only-diff2 { display: none !important; }
@@ -193,7 +200,22 @@
 <script>
 const $ = id => document.getElementById(id);
 let scene = "pre1", steps = [], idx = 0, timer = null, running = false;
+let GRID2 = [];   // 二维场景当前原数组（1-based 由渲染时 +1，这里存 0-based 行列）
 function setStatus(t) { $("status").innerHTML = t; }
+// 把行长不齐的网格补成规整矩形（缺的补 0）
+function normGrid(g) { if (!g.length) return g; const C = Math.max(...g.map(r => r.length)); return g.map(r => { const rr = r.slice(); while (rr.length < C) rr.push(0); return rr; }); }
+// 点击原数组格子改值：i,j 为 1-based
+function editCell(i, j) {
+  const cur = (GRID2[i - 1] && GRID2[i - 1][j - 1] != null) ? GRID2[i - 1][j - 1] : 0;
+  const raw = prompt(`修改原数组 (${i},${j}) 的值：`, cur);
+  if (raw === null) return;
+  const v = parseInt(raw, 10); if (!Number.isFinite(v)) return;
+  GRID2[i - 1][j - 1] = v;
+  // 写回对应输入框并重新预处理
+  const txt = GRID2.map(r => r.join(",")).join("; ");
+  $(scene === "pre2" ? "grid2" : "dgrid2").value = txt;
+  prepare();
+}
 function parseNums(s) { return (s || "").split(/[，,\s]+/).map(x => x.trim()).filter(x => x !== "").map(Number).filter(x => Number.isFinite(x)); }
 function parseGroups(s) { return (s || "").split(/[;；]/).map(g => g.trim()).filter(Boolean).map(g => g.split(/[，,\s]+/).map(Number).filter(x => Number.isFinite(x))); }
 function parseGrid(s) { return (s || "").split(/[;；]/).map(r => r.trim()).filter(Boolean).map(r => r.split(/[，,\s]+/).map(Number).filter(x => Number.isFinite(x))).filter(r => r.length); }
@@ -205,7 +227,7 @@ function genPre1(a, queries) {
   const pre = new Array(n + 1).fill(0);
   const results = queries.map(() => null);
   const snap = (mark, desc) => list.push({ a: a.slice(), pre: pre.slice(), mark: mark || {}, results: [...results], desc });
-  snap({ 0: "cur" }, `前缀和数组 pre[0]=0（边界）。pre[i] 表示前 i 个元素之和。`);
+  snap({ 0: "cur" }, `前缀和数组 sum[0]=0（边界）。sum[i] 表示前 i 个元素之和。`);
   for (let i = 1; i <= n; i++) {
     pre[i] = pre[i - 1] + a[i - 1];
     // 两色高亮：a[1..i-1]（青，凑成 pre[i-1] 的那段）+ a[i]（绿，本次新加入的元素）
@@ -214,16 +236,16 @@ function genPre1(a, queries) {
     mk[i] = "plus";                                        // a[i] 绿色
     if (i - 1 >= 1) mk["p" + (i - 1)] = "inrange";         // pre[i-1] 青色（= a[1..i-1] 之和）
     mk["p" + i] = "cur";                                   // pre[i] 黄色（结果）
-    snap(mk, `pre[${i}] = <span style="color:var(--cyan)">pre[${i - 1}]=${pre[i - 1]}</span>（<span style="color:var(--cyan)">a[1..${i - 1}]</span> 之和）+ <span class="plus">a[${i}]=${a[i - 1]}</span> = <b>${pre[i]}</b>。`);
+    snap(mk, `sum[${i}] = <span style="color:var(--cyan)">sum[${i - 1}]=${pre[i - 1]}</span>（<span style="color:var(--cyan)">a[1..${i - 1}]</span> 之和）+ <span class="plus">a[${i}]=${a[i - 1]}</span> = <b>${pre[i]}</b>。`);
   }
-  snap({}, `预处理完成。<span class="hl">区间和 [l,r] = pre[r] − pre[l−1]</span>，每次查询 O(1)。`);
+  snap({}, `预处理完成。<span class="hl">区间和 [l,r] = sum[r] − sum[l−1]</span>，每次查询 O(1)。`);
   queries.forEach(([l, r], qi) => {
     if (l < 1 || r > n || l > r) { results[qi] = "非法"; snap({}, `查询 #${qi + 1} [${l},${r}] 越界，跳过。`); return; }
     const val = pre[r] - pre[l - 1];
     results[qi] = val;
     const mk = { ["p" + r]: "plus", ["p" + (l - 1)]: "minus" };
     for (let i = l; i <= r; i++) mk[i] = "inrange";
-    snap(mk, `查询 #${qi + 1} 区间 [${l},${r}]：<span class="plus">pre[${r}]=${pre[r]}</span> − <span class="minus">pre[${l - 1}]=${pre[l - 1]}</span> = <span class="hl">${val}</span>。（减去 [1,${l - 1}] 那段）`);
+    snap(mk, `查询 #${qi + 1} 区间 [${l},${r}]：<span class="plus">sum[${r}]=${pre[r]}</span> − <span class="minus">sum[${l - 1}]=${pre[l - 1]}</span> = <span class="hl">${val}</span>。（减去 [1,${l - 1}] 那段）`);
   });
   snap({}, `<span class="hl">全部查询完成！</span>见右侧结果表。`);
   return list;
@@ -331,7 +353,7 @@ function drawPre1(s) {
   h += `<div class="col"><div class="cell" style="visibility:hidden"></div><div class="idxlab"></div></div>`;
   s.a.forEach((v, k) => { const i = k + 1; const cls = s.mark[i] || ""; h += `<div class="col"><div class="cell ${cls}">${v}</div><div class="idxlab${cls ? " on" : ""}">${i}</div></div>`; });
   h += `</div>`;
-  h += `<div class="arrlbl mt" style="margin-top:14px">前缀和 <b>pre[0..${s.a.length}]</b></div><div class="arr">`;
+  h += `<div class="arrlbl mt" style="margin-top:14px">前缀和 <b>sum[0..${s.a.length}]</b></div><div class="arr">`;
   s.pre.forEach((v, i) => { const cls = s.mark["p" + i] || ""; h += `<div class="col"><div class="cell ${cls}${i === 0 ? " zero" : ""}">${v}</div><div class="idxlab${cls ? " on" : ""}">${i}</div></div>`; });
   h += `</div>`;
   $("viewBox").innerHTML = h;
@@ -350,11 +372,28 @@ function drawDiff1(s) {
   }
   $("viewBox").innerHTML = h;
 }
+function drawOrig() {
+  // 原数组表（1-based 行列表头），每格可点击改值
+  const R = GRID2.length, C = R ? GRID2[0].length : 0;
+  let h = `<div class="arrlbl">原数组 <b>a[1..${R}][1..${C}]</b>（点格子改值）</div>`;
+  h += `<table class="orig"><tr><th></th>`;
+  for (let j = 1; j <= C; j++) h += `<th>${j}</th>`;
+  h += `</tr>`;
+  for (let i = 1; i <= R; i++) {
+    h += `<tr><th>${i}</th>`;
+    for (let j = 1; j <= C; j++) h += `<td onclick="editCell(${i},${j})">${GRID2[i - 1][j - 1]}</td>`;
+    h += `</tr>`;
+  }
+  h += `</table>`;
+  return h;
+}
 function drawMat(s, withZero) {
   const R = s.R, C = s.C, m = s.mat, mk = s.mark;
   const has = (arr, i, j) => arr && arr.some(([a, b]) => a === i && b === j);
   const lo = withZero ? 0 : 1;
-  let h = `<table class="psmat"><tr><th></th>`;
+  const matLabel = scene === "pre2" ? "二维前缀和表 S(i,j)" : "二维差分矩阵 d";
+  let h = drawOrig() + `<div class="arrlbl mt" style="margin-top:14px">${matLabel}</div>`;
+  h += `<table class="psmat"><tr><th></th>`;
   for (let j = lo; j <= C; j++) h += `<th>${j}</th>`;
   h += `</tr>`;
   for (let i = lo; i <= R; i++) {
@@ -422,30 +461,32 @@ function prepare() {
     if (!a.length) { setStatus("⚠ 请输入初始数组。"); $("viewBox").innerHTML = ""; return; }
     load(genDiff1(a, ops));
   } else if (scene === "pre2") {
-    const grid = parseGrid($("grid2").value); if (!grid.length) { setStatus("⚠ 请输入网格。"); $("viewBox").innerHTML = ""; return; }
+    const grid = normGrid(parseGrid($("grid2").value)); if (!grid.length) { setStatus("⚠ 请输入网格。"); $("viewBox").innerHTML = ""; return; }
+    GRID2 = grid;
     Q2 = parseGroups($("q2").value).filter(g => g.length >= 4).map(g => [g[0], g[1], g[2], g[3]]);
     load(genPre2(grid, Q2));
   } else {
-    const grid = parseGrid($("dgrid2").value); if (!grid.length) { setStatus("⚠ 请输入网格。"); $("viewBox").innerHTML = ""; return; }
+    const grid = normGrid(parseGrid($("dgrid2").value)); if (!grid.length) { setStatus("⚠ 请输入网格。"); $("viewBox").innerHTML = ""; return; }
+    GRID2 = grid;
     const ops = parseGroups($("dop2").value).filter(g => g.length >= 5).map(g => [g[0], g[1], g[2], g[3], g[4]]);
     load(genDiff2(grid, ops));
   }
 }
 
 const SUB = {
-  pre1: "一维前缀和：pre[i]=pre[i-1]+a[i] 预处理，区间和 [l,r]=pre[r]−pre[l-1]，查询 O(1)。",
+  pre1: "一维前缀和：sum[i]=sum[i-1]+a[i] 预处理，区间和 [l,r]=sum[r]−sum[l-1]，查询 O(1)。",
   pre2: "二维前缀和：S(i,j) 递推预处理，子矩形和用容斥四项查表 O(1)。",
   diff1: "一维差分：区间加只改两端 d[l]+=v、d[r+1]−=v，最后对 d 求前缀和还原。",
   diff2: "二维差分：子矩形加只改 4 个角，最后二维前缀和还原。差分是前缀和的逆运算。",
 };
 const FORMULA = {
-  pre1: `<b>预处理</b>：pre[0]=0，pre[i]=pre[i−1]+a[i]<br><b>区间和</b> [l,r] = <code>pre[r] − pre[l−1]</code><br>预处理 O(n)，每次查询 O(1)。`,
+  pre1: `<b>预处理</b>：sum[0]=0，sum[i]=sum[i−1]+a[i]<br><b>区间和</b> [l,r] = <code>sum[r] − sum[l−1]</code><br>预处理 O(n)，每次查询 O(1)。`,
   pre2: `<b>预处理</b>：S(i,j)=a[i][j]+S(i−1,j)+S(i,j−1)−S(i−1,j−1)<br><b>子矩形</b> (r1,c1)→(r2,c2)（容斥）：<br><code>S(r2,c2) − S(r1−1,c2) − S(r2,c1−1) + S(r1−1,c1−1)</code>`,
   diff1: `差分 <code>d[i]=a[i]−a[i−1]</code>（前缀和的逆）<br><b>区间加</b> (l,r,v)：<code>d[l]+=v; d[r+1]−=v</code>（O(1)）<br><b>还原</b>：<code>a[i]=a[i−1]+d[i]</code>（对 d 求前缀和）`,
   diff2: `二维差分：<b>子矩形加</b> (r1,c1)→(r2,c2) 各 +v 只改 4 角：<br><code>d[r1][c1]+=v; d[r2+1][c1]−=v;</code><br><code>d[r1][c2+1]−=v; d[r2+1][c2+1]+=v;</code><br><b>还原</b>：二维前缀和 a[i][j]=d[i][j]+a[i−1][j]+a[i][j−1]−a[i−1][j−1]`,
 };
 const NOTE = {
-  pre1: `前缀和把「区间求和」从每次 O(n) 降到预处理后 O(1)。核心：<code>a[l..r] = pre[r] − pre[l−1]</code>，减去的是 <code>[1,l−1]</code> 那段。用 pre[0]=0 作边界，l=1 时也统一。适合<b>静态</b>数组多次区间查询。`,
+  pre1: `前缀和把「区间求和」从每次 O(n) 降到预处理后 O(1)。核心：<code>a[l..r] = sum[r] − sum[l−1]</code>，减去的是 <code>[1,l−1]</code> 那段。用 sum[0]=0 作边界，l=1 时也统一。适合<b>静态</b>数组多次区间查询。`,
   pre2: `二维前缀和 <code>S(i,j)</code>=左上角 (1,1) 到 (i,j) 的矩形和。递推里 <code>−S(i−1,j−1)</code> 是因为上、左两块重叠加了一次要减掉。查子矩形同理用<b>容斥</b>：大矩形减去上、左两条，再加回多减的左上角。思路与<b>二维数点</b>一致。`,
   diff1: `差分是前缀和的<b>逆运算</b>：对差分数组求前缀和就得回原数组。区间加 (l,r,v) 只在 <code>d[l]</code> 加、<code>d[r+1]</code> 减——求前缀和时从 l 起每个位置都累加 +v，到 r+1 处的 −v 把它抵消。m 次区间加 O(m)，最后一次还原 O(n)。`,
   diff2: `二维差分：一次子矩形加对应改 <b>4 个角</b>（正、负、负、正），正是二维前缀和容斥公式的逆。所有操作打完标记后，对差分矩阵做一次<b>二维前缀和</b>即得最终矩阵。批量矩形修改各 O(1)，最后 O(R·C) 还原。`,
@@ -491,18 +532,18 @@ $("cppBtn").onclick = () => CppView.open("pd_" + scene);
 CppView.register({
   pd_pre1: { title: "一维前缀和 · 区间求和 — C++", code:
 [
-"// 一维前缀和：预处理 pre[i]=pre[i-1]+a[i]，区间和 [l,r]=pre[r]-pre[l-1]。",
-"// 预处理 O(n)，每次查询 O(1)。下标从 1 开始，pre[0]=0 作边界。",
+"// 一维前缀和：预处理 sum[i]=sum[i-1]+a[i]，区间和 [l,r]=sum[r]-sum[l-1]。",
+"// 预处理 O(n)，每次查询 O(1)。下标从 1 开始，sum[0]=0 作边界。",
 "#include <iostream>",
 "using namespace std;",
 "const int N = 100005;",
-"long long a[N], pre[N];",
+"long long a[N], sum[N];",
 "int main(){",
 "    int n, q; cin >> n >> q;",
-"    for(int i=1;i<=n;i++){ cin >> a[i]; pre[i] = pre[i-1] + a[i]; }",
+"    for(int i=1;i<=n;i++){ cin >> a[i]; sum[i] = sum[i-1] + a[i]; }",
 "    while(q--){",
 "        int l, r; cin >> l >> r;",
-"        cout << pre[r] - pre[l-1] << endl;   // 区间 [l,r] 的和",
+"        cout << sum[r] - sum[l-1] << endl;   // 区间 [l,r] 的和",
 "    }",
 "    return 0;",
 "}",
