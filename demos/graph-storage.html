@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>图的存储方式 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+    --node-fill: #16213e;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .subtabs { display: flex; align-items: center; gap: 10px; padding: 12px 30px 0; flex-wrap: wrap; }
+  .subtabs .sublabel { font-size: 12px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; font-family: "SF Mono", Menlo, monospace; }
+  .subtab {
+    padding: 7px 16px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.03); color: var(--cyan); font-size: 13px;
+    letter-spacing: .5px; cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .subtab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .subtab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 16px 30px 6px; }
+  .btn {
+    padding: 9px 16px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(18,15,38,0.5); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.06); box-shadow: none; }
+  .cppview-btn {
+    margin-left: auto; padding: 9px 16px; border: 1px solid var(--green); border-radius: 4px;
+    background: rgba(0,255,156,0.1); color: var(--green); font-size: 13px; letter-spacing: 1px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .cppview-btn:hover { background: var(--green); color: #05060f; box-shadow: 0 0 16px rgba(0,255,156,.5); }
+  main { padding: 8px 30px 10px; display: grid; grid-template-columns: 1.35fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .hint { font-size: 12px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; margin: 0 0 8px; }
+  .hint b { color: var(--yellow); }
+  svg#canvas { width: 100%; height: auto; display: block; background: rgba(5,4,15,0.25); border-radius: 8px; cursor: crosshair; }
+  /* 节点/边 */
+  .gnode circle { fill: var(--node-fill); stroke: var(--border); stroke-width: 2; transition: all .18s; cursor: pointer; }
+  .gnode text.lbl { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 16px; font-weight: 700; text-anchor: middle; pointer-events: none; }
+  .gnode:hover circle { stroke: var(--cyan); filter: drop-shadow(0 0 8px rgba(0,240,255,.6)); }
+  .gnode.sel circle { fill: color-mix(in srgb, var(--magenta) 30%, var(--node-fill)); stroke: var(--magenta); filter: drop-shadow(0 0 10px rgba(255,43,214,.7)); }
+  .gnode.justadded circle { animation: pop .6s ease; }
+  @keyframes pop { 0% { fill: color-mix(in srgb, var(--green) 55%, var(--node-fill)); stroke: var(--green); } 100% {} }
+  .edge { stroke: var(--muted); stroke-width: 2; fill: none; transition: stroke .18s; }
+  .edgehit { stroke: transparent; stroke-width: 14; fill: none; cursor: pointer; }
+  .edge.justadded { animation: edgepop .6s ease; }
+  @keyframes edgepop { 0% { stroke: var(--green); stroke-width: 4; } 100% {} }
+  .ew-bg { fill: var(--panel); stroke: var(--border); }
+  .ew { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; text-anchor: middle; pointer-events: none; }
+  .emptip { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 14px; text-anchor: middle; }
+  /* 存储视图 */
+  .viewwrap { min-height: 300px; }
+  .vhead { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+  .storeview { display: none; }
+  .storeview.on { display: block; }
+  /* 邻接矩阵 */
+  table.mat { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 13px; }
+  table.mat th, table.mat td { width: 30px; height: 30px; text-align: center; border: 1px solid var(--border); color: var(--text); }
+  table.mat th { color: var(--cyan); background: color-mix(in srgb, var(--cyan) 8%, var(--node-fill)); font-weight: 700; }
+  table.mat td.z { color: var(--muted); }
+  table.mat td.one { background: color-mix(in srgb, var(--green) 22%, var(--node-fill)); border-color: var(--green); color: var(--text); font-weight: 700; }
+  table.mat td.justadded { animation: cellpop .6s ease; }
+  @keyframes cellpop { 0% { background: color-mix(in srgb, var(--yellow) 55%, var(--node-fill)); } 100% {} }
+  /* 邻接表 */
+  .adjrow { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-family: "SF Mono", Menlo, monospace; font-size: 13px; flex-wrap: wrap; }
+  .adjrow .src { width: 34px; height: 30px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--cyan); border-radius: 6px; color: var(--cyan); font-weight: 700; background: color-mix(in srgb, var(--cyan) 10%, var(--node-fill)); flex: none; }
+  .adjrow .arrow { color: var(--muted); }
+  .chip { padding: 3px 10px; border-radius: 6px; border: 1px solid var(--green); background: color-mix(in srgb, var(--green) 16%, var(--node-fill)); color: var(--text); font-weight: 700; }
+  .chip.justadded { animation: chippop .6s ease; }
+  @keyframes chippop { 0% { background: color-mix(in srgb, var(--yellow) 50%, var(--node-fill)); border-color: var(--yellow); } 100% {} }
+  .adjrow .none { color: var(--muted); }
+  /* 链式前向星 */
+  .cfs-head { font-family: "SF Mono", Menlo, monospace; font-size: 13px; margin-bottom: 12px; }
+  .cfs-head .cell { display: inline-flex; flex-direction: column; align-items: center; margin-right: 4px; }
+  .cfs-head .cell .k { color: var(--cyan); font-size: 11px; }
+  .cfs-head .cell .v { width: 30px; height: 28px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 5px; color: var(--text); }
+  table.cfs { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 13px; width: 100%; }
+  table.cfs th, table.cfs td { padding: 5px 8px; border: 1px solid var(--border); text-align: center; color: var(--text); }
+  table.cfs th { color: var(--cyan); background: color-mix(in srgb, var(--cyan) 8%, var(--node-fill)); }
+  table.cfs td.nxt { color: var(--magenta); }
+  table.cfs tr.justadded td { animation: rowpop .6s ease; }
+  @keyframes rowpop { 0% { background: color-mix(in srgb, var(--yellow) 40%, var(--node-fill)); } 100% {} }
+  .status { margin: 4px 30px 0; padding: 0; font-size: 13px; color: var(--text); font-family: "SF Mono", Menlo, monospace; min-height: 20px; }
+  .status .good { color: var(--green); } .status .warn { color: var(--yellow); } .status .bad { color: var(--magenta); }
+  .note { margin: 10px 30px 30px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .note code { color: var(--cyan); background: rgba(0,240,255,0.08); padding: 1px 5px; border-radius: 3px; } .note b { color: var(--yellow); }
+</style>
+<script>
+/* 防 FOUC：body 绘制前先按已存主题设好关键 CSS 变量，避免浅色主题刷新时闪一下深色。theme.js 之后再补全。 */
+(function () {
+  try {
+    var V = {
+      cyber: { "--bg": "#07060f", "--grid": "rgba(0,240,255,0.06)", "--text": "#e6e1ff", "--panel": "rgba(18,15,38,0.72)", "--border": "#2a2350", "--muted": "#7d76a8" },
+      ocean: { "--bg": "#0e1524", "--grid": "rgba(120,170,220,0.05)", "--text": "#e8eef7", "--panel": "rgba(22,32,52,0.82)", "--border": "#2b3b57", "--muted": "#8fa2bd" },
+      sepia: { "--bg": "#f3ecde", "--grid": "rgba(150,130,95,0.06)", "--text": "#3a332a", "--panel": "rgba(255,251,242,0.86)", "--border": "#d8c9ad", "--muted": "#8a7f6c" },
+      light: { "--bg": "#f7f9fc", "--grid": "rgba(80,120,170,0.05)", "--text": "#1f2733", "--panel": "rgba(255,255,255,0.9)", "--border": "#d5dde8", "--muted": "#6b7688" }
+    };
+    var t = localStorage.getItem("algoviz-theme") || "cyber";
+    if (!V[t]) t = "cyber";
+    var d = document.documentElement, v = V[t];
+    for (var k in v) d.style.setProperty(k, v[k]);
+    d.style.setProperty("color-scheme", (t === "sepia" || t === "light") ? "light" : "dark");
+  } catch (e) {}
+})();
+</script>
+</head>
+<body>
+<header>
+  <h1>图的存储方式</h1>
+  <p>亲手建图，实时对照三种存储结构。点<b style="color:var(--cyan)">空白</b>处加节点，依次点<b style="color:var(--magenta)">两个节点</b>连边。可切换有向/无向、带权/无权。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="subtabs">
+  <span class="sublabel">图类型</span>
+  <button class="subtab active" data-type="undirected">无向图</button>
+  <button class="subtab" data-type="directed">有向图</button>
+  <span class="sublabel" style="margin-left:16px">边权</span>
+  <button class="subtab active" data-weighted="0">无权</button>
+  <button class="subtab" data-weighted="1">带权</button>
+</div>
+
+<div class="controls">
+  <button class="btn secondary" id="randBtn">随机生成</button>
+  <button class="btn secondary" id="undoBtn">撤销</button>
+  <button class="btn secondary" id="clearBtn">清空</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+<div class="status" id="status"></div>
+
+<main>
+  <section class="card">
+    <p class="plabel">图画布</p>
+    <p class="hint">点空白加点 · 点两点连边 · <b>带权模式</b>下点边可改权重</p>
+    <svg id="canvas" viewBox="0 0 640 440" preserveAspectRatio="xMidYMid meet"></svg>
+  </section>
+  <section class="card">
+    <div class="vhead">
+      <button class="subtab active" data-view="matrix">邻接矩阵</button>
+      <button class="subtab" data-view="list">邻接表</button>
+      <button class="subtab" data-view="chain">链式前向星</button>
+    </div>
+    <div class="viewwrap">
+      <div class="storeview on" id="view-matrix">
+        <p class="hint">m[u][v]：<b>带权</b>存权值、<b>无权</b>存 1，无边留空。无向图矩阵对称。</p>
+        <div id="matBox"></div>
+      </div>
+      <div class="storeview" id="view-list">
+        <p class="hint"><code>vector&lt;int&gt; adj[]</code>（带权用 <code>vector&lt;pair&gt;</code>）。每行是一个点的出边邻居。</p>
+        <div id="listBox"></div>
+      </div>
+      <div class="storeview" id="view-chain">
+        <p class="hint">头插法：<code>head[u]</code> 存该点最新一条出边的编号(-1 空)，边表按 <code>next</code> 串成链。</p>
+        <div id="chainBox"></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const R = 22;
+
+// ===== 数据模型（单一真源）=====
+let nodes = [];            // [{id, x, y}]
+let edges = [];            // [{u, v, w}]  无权 w=null；无向一条边只存一次
+let nextId = 0;
+let directed = false, weighted = false;
+let view = "matrix";
+let selected = null;       // 连边时已选中的第一个节点 id
+let history = [];          // 撤销栈：{type:'node'|'edge', ...}
+let justNodes = new Set(), justEdges = new Set();  // 本次新增，用于高亮
+
+function setStatus(html) { $("status").innerHTML = html; }
+
+// ===== 交互 =====
+function edgeExists(u, v) {
+  return edges.some(e => (e.u === u && e.v === v) || (!directed && e.u === v && e.v === u));
+}
+function addNode(x, y) {
+  if (nodes.length >= 12) { setStatus('<span class="warn">节点已达上限 12 个（保证矩阵可读）。</span>'); return; }
+  x = Math.max(R + 4, Math.min(640 - R - 4, x));
+  y = Math.max(R + 4, Math.min(440 - R - 4, y));
+  const id = nextId++;
+  nodes.push({ id, x, y });
+  history.push({ type: "node", id });
+  justNodes = new Set([id]); justEdges = new Set();
+  render();
+  setStatus(`已添加节点 <b>${id}</b>。继续点空白加点，或点两个节点连边。`);
+}
+function onNodeClick(id) {
+  if (selected === null) { selected = id; render(); setStatus(`已选中节点 <b>${id}</b>，再点一个节点与它连边（点它自己取消）。`); return; }
+  if (selected === id) { selected = null; render(); setStatus("已取消选中。"); return; }
+  const u = selected, v = id;
+  if (edgeExists(u, v)) { selected = null; render(); setStatus(`<span class="warn">边 ${u}${directed ? "→" : "—"}${v} 已存在。</span>`); return; }
+  let w = null;
+  if (weighted) {
+    const raw = prompt(`输入边 ${u}${directed ? "→" : "—"}${v} 的权重（正整数）：`, "1");
+    if (raw === null) { selected = null; render(); return; }
+    w = parseInt(raw, 10); if (!Number.isFinite(w)) w = 1;
+  }
+  edges.push({ u, v, w });
+  history.push({ type: "edge", idx: edges.length - 1 });
+  selected = null;
+  justEdges = new Set([edges.length - 1]); justNodes = new Set();
+  render();
+  setStatus(`已连边 <b>${u}${directed ? "→" : "—"}${v}</b>${weighted ? `（权 ${w}）` : ""}。`);
+}
+function onEdgeClick(idx) {
+  if (!weighted) { setStatus('<span class="warn">当前是无权图，切到「带权」后才能设权重。</span>'); return; }
+  const e = edges[idx];
+  const raw = prompt(`修改边 ${e.u}${directed ? "→" : "—"}${e.v} 的权重：`, e.w == null ? "1" : e.w);
+  if (raw === null) return;
+  let w = parseInt(raw, 10); if (!Number.isFinite(w)) w = 1;
+  e.w = w;
+  justEdges = new Set([idx]); justNodes = new Set();
+  render();
+  setStatus(`边 <b>${e.u}${directed ? "→" : "—"}${e.v}</b> 权重改为 ${w}。`);
+}
+function undo() {
+  const last = history.pop();
+  if (!last) { setStatus("没有可撤销的操作。"); return; }
+  if (last.type === "node") {
+    nodes = nodes.filter(n => n.id !== last.id);
+    edges = edges.filter(e => e.u !== last.id && e.v !== last.id);
+  } else {
+    edges.splice(last.idx, 1);
+    // 修正 history 里更晚的 edge 索引
+    history.forEach(h => { if (h.type === "edge" && h.idx > last.idx) h.idx--; });
+  }
+  selected = null; justNodes = new Set(); justEdges = new Set();
+  render(); setStatus("已撤销上一步。");
+}
+function clearAll() {
+  nodes = []; edges = []; nextId = 0; selected = null; history = [];
+  justNodes = new Set(); justEdges = new Set();
+  render(); setStatus("已清空。点空白处开始建图。");
+}
+
+// ===== 由 edges 派生出边邻居（无向双向展开）=====
+function outNeighbors() {
+  const adj = {}; nodes.forEach(n => adj[n.id] = []);
+  edges.forEach(e => {
+    adj[e.u].push({ to: e.v, w: e.w });
+    if (!directed) adj[e.v].push({ to: e.u, w: e.w });
+  });
+  for (const k in adj) adj[k].sort((a, b) => a.to - b.to);
+  return adj;
+}
+
+// ===== SVG 画布渲染 =====
+function renderCanvas() {
+  const svg = $("canvas");
+  const pos = {}; nodes.forEach(n => pos[n.id] = n);
+  let defs = `<defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L9,3 L0,6 Z" fill="var(--muted)"/></marker></defs>`;
+  if (nodes.length === 0) {
+    svg.innerHTML = defs + `<text class="emptip" x="320" y="220">点击这里的空白处添加节点</text>`;
+    return;
+  }
+  let edgeStr = "", hitStr = "", labelStr = "";
+  edges.forEach((e, i) => {
+    const a = pos[e.u], b = pos[e.v]; if (!a || !b) return;
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+    const x1 = a.x + dx / len * R, y1 = a.y + dy / len * R;
+    const x2 = b.x - dx / len * R, y2 = b.y - dy / len * R;
+    const jc = justEdges.has(i) ? " justadded" : "";
+    const marker = directed ? ` marker-end="url(#arrow)"` : "";
+    edgeStr += `<line class="edge${jc}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"${marker}/>`;
+    hitStr += `<line class="edgehit" data-eid="${i}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`;
+    if (weighted) {
+      const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+      const txt = e.w == null ? "?" : e.w;
+      labelStr += `<rect class="ew-bg" x="${mx - 10}" y="${my - 10}" width="${String(txt).length > 1 ? 24 : 20}" height="18" rx="4"/>`
+        + `<text class="ew" x="${mx + (String(txt).length > 1 ? 2 : 0)}" y="${my + 3}">${txt}</text>`;
+    }
+  });
+  let nodeStr = "";
+  nodes.forEach(n => {
+    const sel = selected === n.id ? " sel" : "";
+    const jc = justNodes.has(n.id) ? " justadded" : "";
+    nodeStr += `<g class="gnode${sel}${jc}" id="node-${n.id}" data-id="${n.id}">`
+      + `<circle cx="${n.x}" cy="${n.y}" r="${R}"/>`
+      + `<text class="lbl" x="${n.x}" y="${n.y + 6}">${n.id}</text></g>`;
+  });
+  svg.innerHTML = defs + edgeStr + hitStr + labelStr + nodeStr;
+}
+
+// ===== 画布 click 委托 =====
+$("canvas").addEventListener("click", e => {
+  const svg = $("canvas");
+  const g = e.target.closest(".gnode");
+  if (g) return onNodeClick(+g.dataset.id);
+  const ehit = e.target.closest(".edgehit");
+  if (ehit) return onEdgeClick(+ehit.dataset.eid);
+  const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
+  const loc = p.matrixTransform(svg.getScreenCTM().inverse());
+  addNode(loc.x, loc.y);
+});
+
+// ===== 邻接矩阵 =====
+function renderMatrix() {
+  const n = nodes.length;
+  if (n === 0) { $("matBox").innerHTML = '<p class="none" style="color:var(--muted)">（还没有节点）</p>'; return; }
+  const ids = nodes.map(x => x.id);
+  const m = {}; ids.forEach(u => { m[u] = {}; ids.forEach(v => m[u][v] = null); });
+  edges.forEach(e => {
+    const val = weighted ? (e.w == null ? 1 : e.w) : 1;
+    m[e.u][e.v] = val;
+    if (!directed) m[e.v][e.u] = val;
+  });
+  const justCells = new Set();
+  justEdges.forEach(i => { const e = edges[i]; if (e) { justCells.add(e.u + "," + e.v); if (!directed) justCells.add(e.v + "," + e.u); } });
+  let html = '<table class="mat"><tr><th></th>' + ids.map(v => `<th>${v}</th>`).join("") + "</tr>";
+  ids.forEach(u => {
+    html += `<tr><th>${u}</th>` + ids.map(v => {
+      const val = m[u][v];
+      const jc = justCells.has(u + "," + v) ? " justadded" : "";
+      return val == null ? `<td class="z${jc}">·</td>` : `<td class="one${jc}">${val}</td>`;
+    }).join("") + "</tr>";
+  });
+  html += "</table>";
+  $("matBox").innerHTML = html;
+}
+
+// ===== 邻接表（vector）=====
+function renderList() {
+  const n = nodes.length;
+  if (n === 0) { $("listBox").innerHTML = '<p class="none" style="color:var(--muted)">（还没有节点）</p>'; return; }
+  const adj = outNeighbors();
+  const justPairs = new Set();
+  justEdges.forEach(i => { const e = edges[i]; if (e) { justPairs.add(e.u + ">" + e.v); if (!directed) justPairs.add(e.v + ">" + e.u); } });
+  let html = "";
+  nodes.forEach(nd => {
+    const list = adj[nd.id];
+    html += `<div class="adjrow"><span class="src">${nd.id}</span><span class="arrow">:</span>`;
+    if (!list.length) html += `<span class="none">∅</span>`;
+    else html += list.map(e => {
+      const jc = justPairs.has(nd.id + ">" + e.to) ? " justadded" : "";
+      return `<span class="arrow">→</span><span class="chip${jc}">${e.to}${weighted ? `<span style="color:var(--muted)">·w${e.w == null ? "?" : e.w}</span>` : ""}</span>`;
+    }).join("");
+    html += "</div>";
+  });
+  $("listBox").innerHTML = html;
+}
+
+// ===== 链式前向星（头插法；无向每条边拆 u→v、v→u 两行，反向边=i^1）=====
+function buildChain() {
+  const idToIdx = {}; nodes.forEach((nd, i) => idToIdx[nd.id] = i);
+  const head = nodes.map(() => -1);
+  const et = [];
+  const addEdge = (u, v, w) => { et.push({ from: u, to: v, w, next: head[idToIdx[u]] }); head[idToIdx[u]] = et.length - 1; };
+  edges.forEach(e => { addEdge(e.u, e.v, e.w); if (!directed) addEdge(e.v, e.u, e.w); });
+  return { head, et };
+}
+function renderChain() {
+  const n = nodes.length;
+  if (n === 0) { $("chainBox").innerHTML = '<p class="none" style="color:var(--muted)">（还没有节点）</p>'; return; }
+  const { head, et } = buildChain();
+  const justRows = new Set();
+  if (justEdges.size) { const per = directed ? 1 : 2; for (let k = 0; k < per; k++) justRows.add(et.length - 1 - k); }
+  let html = '<div class="cfs-head"><span style="color:var(--cyan)">head[]&nbsp;</span>';
+  nodes.forEach((nd, i) => { html += `<span class="cell"><span class="k">${nd.id}</span><span class="v">${head[i]}</span></span>`; });
+  html += "</div>";
+  if (!et.length) {
+    html += '<p class="none" style="color:var(--muted)">边表为空（还没有边）。</p>';
+  } else {
+    html += '<table class="cfs"><tr><th>边#</th><th>from</th><th>to</th>' + (weighted ? "<th>w</th>" : "") + '<th>next</th></tr>';
+    et.forEach((r, i) => {
+      const jc = justRows.has(i) ? " justadded" : "";
+      html += `<tr class="${jc.trim()}"><td>${i}</td><td>${r.from}</td><td>${r.to}</td>`
+        + (weighted ? `<td>${r.w == null ? "?" : r.w}</td>` : "")
+        + `<td class="nxt">${r.next}</td></tr>`;
+    });
+    html += "</table>";
+    html += `<p class="hint" style="margin-top:10px">遍历点 u 的邻居：<code>for(i=head[u]; i!=-1; i=nxt[i]) 访问 to[i]</code>${directed ? "" : "（无向图每条边存两行）"}</p>`;
+  }
+  $("chainBox").innerHTML = html;
+}
+
+// ===== 总重绘 =====
+function render() { renderCanvas(); renderMatrix(); renderList(); renderChain(); }
+
+// ===== 视图 tab 切换 =====
+function switchView(v) {
+  view = v;
+  document.querySelectorAll(".subtab[data-view]").forEach(s => s.classList.toggle("active", s.dataset.view === v));
+  document.querySelectorAll(".storeview").forEach(el => el.classList.toggle("on", el.id === "view-" + v));
+}
+document.querySelectorAll(".subtab[data-view]").forEach(s => s.onclick = () => switchView(s.dataset.view));
+
+// ===== 有向/无向、带权/无权开关 =====
+document.querySelectorAll(".subtab[data-type]").forEach(s => s.onclick = () => {
+  directed = s.dataset.type === "directed";
+  document.querySelectorAll(".subtab[data-type]").forEach(x => x.classList.toggle("active", x === s));
+  selected = null; justNodes = new Set(); justEdges = new Set();
+  render();
+  setStatus(directed ? "切换为<b>有向图</b>：边 u→v 单向，矩阵不再对称。" : "切换为<b>无向图</b>：边 u—v 双向，矩阵对称。");
+});
+document.querySelectorAll(".subtab[data-weighted]").forEach(s => s.onclick = () => {
+  weighted = s.dataset.weighted === "1";
+  document.querySelectorAll(".subtab[data-weighted]").forEach(x => x.classList.toggle("active", x === s));
+  justNodes = new Set(); justEdges = new Set();
+  render();
+  setStatus(weighted ? "切换为<b>带权图</b>：连边时输入权重；已有边显示 ? ，点边可补权。" : "切换为<b>无权图</b>：矩阵存 1、边表不显权。");
+});
+
+// ===== 随机生成 =====
+function randomGraph() {
+  clearAll();
+  const n = 5 + Math.floor(Math.random() * 3);
+  const cx = 320, cy = 210, rad = 160;
+  for (let i = 0; i < n; i++) {
+    const ang = -Math.PI / 2 + 2 * Math.PI * i / n;
+    nodes.push({ id: i, x: Math.round(cx + rad * Math.cos(ang)), y: Math.round(cy + rad * Math.sin(ang)) });
+    history.push({ type: "node", id: i });
+  }
+  nextId = n;
+  const tryAdd = (u, v) => { if (edgeExists(u, v)) return; edges.push({ u, v, w: weighted ? 1 + Math.floor(Math.random() * 9) : null }); history.push({ type: "edge", idx: edges.length - 1 }); };
+  for (let u = 0; u < n; u++) for (let v = 0; v < n; v++) {
+    if (u === v) continue;
+    if (directed) { if (Math.random() < 0.22) tryAdd(u, v); }
+    else { if (u < v && Math.random() < 0.32) tryAdd(u, v); }
+  }
+  justNodes = new Set(); justEdges = new Set();
+  render();
+  setStatus(`随机生成 ${n} 个节点的${directed ? "有向" : "无向"}${weighted ? "带权" : "无权"}图。`);
+}
+
+$("randBtn").onclick = randomGraph;
+$("undoBtn").onclick = undo;
+$("clearBtn").onclick = clearAll;
+$("cppBtn").onclick = () => CppView.open(view);
+
+$("note").innerHTML =
+`三种存储各有取舍：<b>邻接矩阵</b> <code>m[u][v]</code> 空间 <code>O(V²)</code>、查任意两点是否有边 <code>O(1)</code>，适合<b>稠密图</b>或频繁查边；<b>邻接表</b>（vector 动态数组）空间 <code>O(V+E)</code>、遍历某点邻居高效，是<b>稀疏图</b>主流做法；<b>链式前向星</b>空间 <code>O(V+E)</code>、用 <code>head[]</code>+<code>nxt[]</code> 静态数组模拟链表，免去 vector 的动态分配开销、缓存更友好，是<b>竞赛</b>常用写法。无向图每条边在邻接表/前向星里存两次（u→v 和 v→u），在矩阵里表现为关于对角线对称。`;
+
+// ===== 初始化 =====
+render();
+setStatus("点击画布空白处添加第一个节点。");
+</script>
+<script>
+CppView.register({
+  matrix: { title: "图的存储 · 邻接矩阵 — C++", code:
+`// 邻接矩阵：g[u][v] 记录 u→v 的边（带权存权值，无权存 1/true）。
+// 空间 O(V^2)，查两点是否有边 O(1)，适合稠密图或频繁查边。
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+const int N = 1005;
+int g[N][N];          // 无权可用 bool；带权存权值，无边可初始化为 0 或 INF
+int n, m;
+
+int main() {
+    cin >> n >> m;                 // n 个点(0~n-1)、m 条边
+    // memset(g, 0x3f, sizeof g);  // 若求最短路等需要"无边=INF"，可这样初始化
+    for (int i = 0; i < m; i++) {
+        int u, v, w; cin >> u >> v >> w;   // 无权图可不读 w，直接置 1
+        g[u][v] = w;               // 有向边 u→v
+        g[v][u] = w;               // 无向图再加反向；有向图删掉这一行
+    }
+    // 遍历 u 的所有邻居：扫一整行
+    for (int u = 0; u < n; u++)
+        for (int v = 0; v < n; v++)
+            if (g[u][v]) cout << u << " -> " << v << " (w=" << g[u][v] << ")\\n";
+    return 0;
+}` },
+  list: { title: "图的存储 · 邻接表（vector 动态数组）— C++", code:
+`// 邻接表：每个点用一个动态数组存它的出边邻居。
+// 空间 O(V+E)，遍历某点邻居高效，是稀疏图的主流做法。
+#include <iostream>
+#include <vector>
+using namespace std;
+
+const int N = 100005;
+vector<pair<int,int>> adj[N];   // adj[u] = { {v, w}, ... }；无权可用 vector<int> adj[N]
+int n, m;
+
+int main() {
+    cin >> n >> m;
+    for (int i = 0; i < m; i++) {
+        int u, v, w; cin >> u >> v >> w;      // 无权图不读 w
+        adj[u].push_back({v, w});             // 有向边 u→v
+        adj[v].push_back({u, w});             // 无向图再加反向；有向图删掉这一行
+    }
+    // 遍历 u 的所有邻居
+    for (int u = 0; u < n; u++)
+        for (auto [v, w] : adj[u])
+            cout << u << " -> " << v << " (w=" << w << ")\\n";
+    return 0;
+}` },
+  chain: { title: "图的存储 · 链式前向星 — C++", code:
+`// 链式前向星：用静态数组模拟邻接表的链表。
+//   head[u] : 点 u 最新一条出边的编号（-1 表示没有）
+//   to[i]   : 第 i 条边指向的点
+//   nxt[i]  : 第 i 条边的"下一条"（同起点的上一条被插入的边）
+//   w[i]    : 第 i 条边权值（无权可省）
+// 头插法：新边挂到链头。空间 O(V+E)，无 vector 动态开销，竞赛常用。
+#include <iostream>
+#include <cstring>
+using namespace std;
+
+const int N = 100005, M = 200005;   // 无向图边数要开 2 倍
+int head[N], to[M], nxt[M], w[M], cnt = 0;
+int n, m;
+
+void addEdge(int u, int v, int ww) {
+    to[cnt] = v; w[cnt] = ww;       // 记录这条边的终点与权
+    nxt[cnt] = head[u];             // 它的 next 指向原来的链头
+    head[u] = cnt++;                // 链头更新为这条新边
+}
+
+int main() {
+    memset(head, -1, sizeof head);  // 所有链头初始化为 -1（空）
+    cin >> n >> m;
+    for (int i = 0; i < m; i++) {
+        int u, v, ww; cin >> u >> v >> ww;   // 无权图不读 ww
+        addEdge(u, v, ww);          // 有向边 u→v
+        addEdge(v, u, ww);          // 无向图再加反向；有向图删掉这一行
+    }
+    // 遍历 u 的所有邻居：从链头顺着 nxt 走到 -1
+    for (int u = 0; u < n; u++)
+        for (int i = head[u]; i != -1; i = nxt[i])
+            cout << u << " -> " << to[i] << " (w=" << w[i] << ")\\n";
+    return 0;
+}` },
+});
+</script>
+<script src="../assets/theme.js"></script>
+</body>
+</html>
