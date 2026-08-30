@@ -117,6 +117,19 @@
   table.cfs td.nxt { color: var(--magenta); }
   table.cfs tr.justadded td { animation: rowpop .6s ease; }
   @keyframes rowpop { 0% { background: color-mix(in srgb, var(--yellow) 40%, var(--node-fill)); } 100% {} }
+  /* 链式前向星：竖直 head + 每点一条链 */
+  .cfs-list { display: flex; flex-direction: column; gap: 9px; margin-bottom: 14px; }
+  .cfsrow { display: flex; align-items: center; gap: 7px; font-family: "SF Mono", Menlo, monospace; font-size: 13px; flex-wrap: wrap; }
+  .cfsrow .src { width: 32px; height: 30px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--cyan); border-radius: 6px; color: var(--cyan); font-weight: 700; background: color-mix(in srgb, var(--cyan) 10%, var(--node-fill)); flex: none; }
+  .cfsrow .hd { color: var(--muted); }
+  .cfsrow .hd b { color: var(--yellow); }
+  .cfsrow .arrow { color: var(--magenta); font-weight: 700; }
+  .cfsrow .nul { color: var(--muted); }
+  .enode { display: inline-flex; flex-direction: column; align-items: center; padding: 2px 9px; border-radius: 7px; border: 1px solid var(--green); background: color-mix(in srgb, var(--green) 16%, var(--node-fill)); }
+  .enode .eid { font-size: 10px; color: var(--magenta); line-height: 1.1; }
+  .enode .eto { color: var(--text); font-weight: 700; }
+  .enode .ew2 { color: var(--muted); font-weight: 400; }
+  .enode.justadded { animation: chippop .6s ease; }
   .status { margin: 4px 30px 0; padding: 0; font-size: 13px; color: var(--text); font-family: "SF Mono", Menlo, monospace; min-height: 20px; }
   .status .good { color: var(--green); } .status .warn { color: var(--yellow); } .status .bad { color: var(--magenta); }
   .note { margin: 10px 30px 30px; font-size: 13px; color: var(--muted); line-height: 1.7; }
@@ -396,23 +409,41 @@ function renderChain() {
   const n = nodes.length;
   if (n === 0) { $("chainBox").innerHTML = '<p class="none" style="color:var(--muted)">（还没有节点）</p>'; return; }
   const { head, et } = buildChain();
-  const justRows = new Set();
-  if (justEdges.size) { const per = directed ? 1 : 2; for (let k = 0; k < per; k++) justRows.add(et.length - 1 - k); }
-  let html = '<div class="cfs-head"><span style="color:var(--cyan)">head[]&nbsp;</span>';
-  nodes.forEach((nd, i) => { html += `<span class="cell"><span class="k">${nd.id}</span><span class="v">${head[i]}</span></span>`; });
+  const justSet = new Set();
+  if (justEdges.size) { const per = directed ? 1 : 2; for (let k = 0; k < per; k++) justSet.add(et.length - 1 - k); }
+
+  // 竖直 head[]：每个图节点一行，沿 next 把出边串成一条链，边节点标 #边号
+  let html = '<div class="cfs-list">';
+  nodes.forEach((nd, i) => {
+    html += `<div class="cfsrow"><span class="src">${nd.id}</span>`
+      + `<span class="hd">head[${nd.id}]=<b>${head[i]}</b></span>`;
+    let cur = head[i], guard = 0;
+    while (cur !== -1 && guard++ < et.length + 2) {
+      const r = et[cur];
+      const jc = justSet.has(cur) ? " justadded" : "";
+      html += `<span class="arrow">→</span>`
+        + `<span class="enode${jc}"><span class="eid">#${cur}</span>`
+        + `<span class="eto">${r.to}${weighted ? `<span class="ew2"> w${r.w == null ? "?" : r.w}</span>` : ""}</span></span>`;
+      cur = r.next;
+    }
+    html += `<span class="arrow">→</span><span class="nul">-1</span></div>`;
+  });
   html += "</div>";
-  if (!et.length) {
-    html += '<p class="none" style="color:var(--muted)">边表为空（还没有边）。</p>';
-  } else {
-    html += '<table class="cfs"><tr><th>边#</th><th>from</th><th>to</th>' + (weighted ? "<th>w</th>" : "") + '<th>next</th></tr>';
+
+  // 物理存储：to[]/nxt[]/w[] 数组表
+  if (et.length) {
+    html += '<p class="hint">物理存储（边表数组，<b>头插</b>：新边挂链头，故编号逆序出现在链上）：</p>';
+    html += '<table class="cfs"><tr><th>边#</th><th>from</th><th>to</th>' + (weighted ? "<th>w</th>" : "") + '<th>nxt</th></tr>';
     et.forEach((r, i) => {
-      const jc = justRows.has(i) ? " justadded" : "";
+      const jc = justSet.has(i) ? " justadded" : "";
       html += `<tr class="${jc.trim()}"><td>${i}</td><td>${r.from}</td><td>${r.to}</td>`
         + (weighted ? `<td>${r.w == null ? "?" : r.w}</td>` : "")
         + `<td class="nxt">${r.next}</td></tr>`;
     });
     html += "</table>";
-    html += `<p class="hint" style="margin-top:10px">遍历点 u 的邻居：<code>for(i=head[u]; i!=-1; i=nxt[i]) 访问 to[i]</code>${directed ? "" : "（无向图每条边存两行）"}</p>`;
+    html += `<p class="hint" style="margin-top:10px">遍历点 u 的邻居：<code>for(i=head[u]; i!=-1; i=nxt[i]) 访问 to[i]</code>${directed ? "" : "（无向图每条边存两次）"}</p>`;
+  } else {
+    html += '<p class="none" style="color:var(--muted)">边表为空（还没有边）。</p>';
   }
   $("chainBox").innerHTML = html;
 }
