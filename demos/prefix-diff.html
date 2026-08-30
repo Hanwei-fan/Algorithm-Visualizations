@@ -208,7 +208,13 @@ function genPre1(a, queries) {
   snap({ 0: "cur" }, `前缀和数组 pre[0]=0（边界）。pre[i] 表示前 i 个元素之和。`);
   for (let i = 1; i <= n; i++) {
     pre[i] = pre[i - 1] + a[i - 1];
-    snap({ ["p" + i]: "cur" }, `pre[${i}] = pre[${i - 1}](${pre[i - 1]}) + a[${i}](${a[i - 1]}) = <b>${pre[i]}</b>。`);
+    // 两色高亮：a[1..i-1]（青，凑成 pre[i-1] 的那段）+ a[i]（绿，本次新加入的元素）
+    const mk = {};
+    for (let j = 1; j <= i - 1; j++) mk[j] = "inrange";   // a[1..i-1] 青色
+    mk[i] = "plus";                                        // a[i] 绿色
+    if (i - 1 >= 1) mk["p" + (i - 1)] = "inrange";         // pre[i-1] 青色（= a[1..i-1] 之和）
+    mk["p" + i] = "cur";                                   // pre[i] 黄色（结果）
+    snap(mk, `pre[${i}] = <span style="color:var(--cyan)">pre[${i - 1}]=${pre[i - 1]}</span>（<span style="color:var(--cyan)">a[1..${i - 1}]</span> 之和）+ <span class="plus">a[${i}]=${a[i - 1]}</span> = <b>${pre[i]}</b>。`);
   }
   snap({}, `预处理完成。<span class="hl">区间和 [l,r] = pre[r] − pre[l−1]</span>，每次查询 O(1)。`);
   queries.forEach(([l, r], qi) => {
