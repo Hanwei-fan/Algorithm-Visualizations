@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>前缀和与差分 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+    --node-fill: #16213e;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 20px 30px 4px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 10px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 8px; padding: 12px 30px 0; flex-wrap: wrap; }
+  .tab {
+    padding: 9px 16px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 13px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .tab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .tab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 14px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 13px; background: rgba(5,4,15,0.8); color: var(--text); font-family: "SF Mono", Menlo, monospace;
+  }
+  .field input.wide { width: 240px; } .field input.mid { width: 170px; }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 110px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(18,15,38,0.5); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  .cppview-btn {
+    margin-left: auto; padding: 9px 15px; border: 1px solid var(--green); border-radius: 4px;
+    background: rgba(0,255,156,0.1); color: var(--green); font-size: 13px; letter-spacing: 1px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .cppview-btn:hover { background: var(--green); color: #05060f; box-shadow: 0 0 16px rgba(0,255,156,.5); }
+  main { padding: 8px 30px 12px; display: grid; grid-template-columns: 1.4fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 940px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); overflow-x: auto; }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 10px; }
+  .plabel.mt { margin-top: 18px; }
+  /* 一维格子条 */
+  .arr { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+  .arrlbl { font-size: 11px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; margin: 4px 0 3px; letter-spacing: .5px; }
+  .arrlbl b { color: var(--cyan); }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .cell {
+    width: 46px; height: 46px; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; border-radius: 8px; color: var(--text);
+    background: color-mix(in srgb, var(--cyan) 7%, var(--node-fill)); border: 1px solid var(--border); transition: all .18s;
+  }
+  .cell.cur { background: var(--yellow); color: #120e00; border-color: var(--yellow); box-shadow: 0 0 10px rgba(255,212,0,.55); }
+  .cell.plus { background: color-mix(in srgb, var(--green) 30%, var(--node-fill)); border-color: var(--green); }
+  .cell.minus { background: color-mix(in srgb, var(--magenta) 28%, var(--node-fill)); border-color: var(--magenta); }
+  .cell.inrange { background: color-mix(in srgb, var(--cyan) 24%, var(--node-fill)); border-color: var(--cyan); }
+  .cell.zero { border-style: dashed; opacity: .75; }
+  .idxlab { font-family: "SF Mono", Menlo, monospace; font-size: 10px; color: var(--muted); }
+  .idxlab.on { color: var(--cyan); }
+  /* 二维网格表（复用 points2d psmat 风格）*/
+  table.psmat { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 13px; margin: 4px 0 10px; }
+  table.psmat td, table.psmat th { border: 1px solid var(--border); width: 38px; height: 34px; text-align: center; }
+  table.psmat th { color: var(--cyan); background: color-mix(in srgb, var(--cyan) 8%, var(--node-fill)); font-size: 11px; }
+  table.psmat td.cell2 { background: var(--node-fill); color: var(--text); transition: all .15s; }
+  table.psmat td.cur { background: var(--yellow); color: #120e00; box-shadow: 0 0 8px rgba(255,212,0,.6) inset; }
+  table.psmat td.plus { background: color-mix(in srgb, var(--green) 30%, var(--node-fill)); color: var(--text); border-color: var(--green); }
+  table.psmat td.minus { background: color-mix(in srgb, var(--magenta) 26%, var(--node-fill)); color: var(--text); border-color: var(--magenta); }
+  table.psmat td.inbox { background: color-mix(in srgb, var(--cyan) 22%, var(--node-fill)); border-color: var(--cyan); }
+  table.psmat td.zero { opacity: .7; border-style: dashed; }
+  .formula { background: rgba(3,2,12,0.55); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: var(--muted); margin: 0 0 12px; line-height: 1.75; }
+  .formula b { color: var(--yellow); } .formula code { color: var(--cyan); }
+  .status { margin-top: 6px; font-size: 13.5px; min-height: 54px; color: var(--text); font-family: "SF Mono", Menlo, monospace; line-height: 1.65; }
+  .status .hl { color: var(--green); font-weight: 700; } .status .plus { color: var(--green); font-weight: 700; } .status .minus { color: var(--magenta); font-weight: 700; }
+  .rtable { font-family: "SF Mono", Menlo, monospace; font-size: 12.5px; border-collapse: collapse; margin-top: 8px; }
+  .rtable td, .rtable th { border: 1px solid var(--border); padding: 4px 10px; text-align: center; color: var(--text); }
+  .rtable th { color: var(--cyan); background: color-mix(in srgb, var(--cyan) 8%, var(--node-fill)); }
+  .rtable tr.done td { color: var(--green); }
+  .note { margin: 8px 30px 30px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .note code { color: var(--cyan); background: rgba(0,240,255,0.08); padding: 1px 5px; border-radius: 3px; } .note b { color: var(--yellow); }
+  /* 场景显隐 */
+  body.sc-pre1 .only-pre2, body.sc-pre1 .only-diff1, body.sc-pre1 .only-diff2 { display: none !important; }
+  body.sc-pre2 .only-pre1, body.sc-pre2 .only-diff1, body.sc-pre2 .only-diff2 { display: none !important; }
+  body.sc-diff1 .only-pre1, body.sc-diff1 .only-pre2, body.sc-diff1 .only-diff2 { display: none !important; }
+  body.sc-diff2 .only-pre1, body.sc-diff2 .only-pre2, body.sc-diff2 .only-diff1 { display: none !important; }
+</style>
+<script>
+/* 防 FOUC：body 绘制前先按已存主题设好关键 CSS 变量，避免浅色主题刷新时闪一下深色。theme.js 之后再补全。 */
+(function () {
+  try {
+    var V = {
+      cyber: { "--bg": "#07060f", "--grid": "rgba(0,240,255,0.06)", "--text": "#e6e1ff", "--panel": "rgba(18,15,38,0.72)", "--border": "#2a2350", "--muted": "#7d76a8" },
+      ocean: { "--bg": "#0e1524", "--grid": "rgba(120,170,220,0.05)", "--text": "#e8eef7", "--panel": "rgba(22,32,52,0.82)", "--border": "#2b3b57", "--muted": "#8fa2bd" },
+      sepia: { "--bg": "#f3ecde", "--grid": "rgba(150,130,95,0.06)", "--text": "#3a332a", "--panel": "rgba(255,251,242,0.86)", "--border": "#d8c9ad", "--muted": "#8a7f6c" },
+      light: { "--bg": "#f7f9fc", "--grid": "rgba(80,120,170,0.05)", "--text": "#1f2733", "--panel": "rgba(255,255,255,0.9)", "--border": "#d5dde8", "--muted": "#6b7688" }
+    };
+    var t = localStorage.getItem("algoviz-theme") || "cyber";
+    if (!V[t]) t = "cyber";
+    var d = document.documentElement, v = V[t];
+    for (var k in v) d.style.setProperty(k, v[k]);
+    d.style.setProperty("color-scheme", (t === "sepia" || t === "light") ? "light" : "dark");
+  } catch (e) {}
+})();
+</script>
+</head>
+<body>
+<header>
+  <h1>前缀和与差分</h1>
+  <p id="subtitle"></p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="tabs" id="sceneTabs">
+  <div class="tab active" data-scene="pre1">一维前缀和</div>
+  <div class="tab" data-scene="pre2">二维前缀和</div>
+  <div class="tab" data-scene="diff1">一维差分</div>
+  <div class="tab" data-scene="diff2">二维差分</div>
+</div>
+
+<div class="controls">
+  <div class="field only-pre1"><label>数组 a[1..n]（逗号分隔）</label><input id="arr1" class="wide" type="text" value="3,1,4,1,5,9,2"></div>
+  <div class="field only-pre1"><label>区间查询 [l,r]（分号分隔多组）</label><input id="q1" class="mid" type="text" value="2,4; 1,7; 3,6"></div>
+  <div class="field only-diff1"><label>初始数组 a[1..n]</label><input id="darr1" class="wide" type="text" value="0,0,0,0,0,0,0"></div>
+  <div class="field only-diff1"><label>区间加 (l,r,v)（分号分隔）</label><input id="dop1" class="mid" type="text" value="2,4,3; 1,3,1; 5,7,2"></div>
+  <div class="field only-pre2"><label>网格（行内逗号、行间分号）</label><input id="grid2" class="wide" type="text" value="1,2,3; 4,5,6; 7,8,9"></div>
+  <div class="field only-pre2"><label>子矩形 (r1,c1,r2,c2)</label><input id="q2" class="mid" type="text" value="1,1,2,2; 2,2,3,3"></div>
+  <div class="field only-diff2"><label>网格（行内逗号、行间分号）</label><input id="dgrid2" class="wide" type="text" value="0,0,0,0; 0,0,0,0; 0,0,0,0; 0,0,0,0"></div>
+  <div class="field only-diff2"><label>子矩形加 (r1,c1,r2,c2,v)</label><input id="dop2" class="mid" type="text" value="1,1,2,2,5; 2,3,4,4,2"></div>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1300" value="650" step="50"></div>
+  <button class="btn cy" id="runBtn">开始</button>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="btn secondary" id="randBtn">随机</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="plabel" id="viewLabel">演示</div>
+    <div id="viewBox"></div>
+  </section>
+  <section class="card">
+    <div class="plabel">算法</div>
+    <div class="formula" id="formula"></div>
+    <div class="status" id="status"></div>
+    <div id="resultBox"></div>
+  </section>
+</main>
+
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let scene = "pre1", steps = [], idx = 0, timer = null, running = false;
+function setStatus(t) { $("status").innerHTML = t; }
+function parseNums(s) { return (s || "").split(/[，,\s]+/).map(x => x.trim()).filter(x => x !== "").map(Number).filter(x => Number.isFinite(x)); }
+function parseGroups(s) { return (s || "").split(/[;；]/).map(g => g.trim()).filter(Boolean).map(g => g.split(/[，,\s]+/).map(Number).filter(x => Number.isFinite(x))); }
+function parseGrid(s) { return (s || "").split(/[;；]/).map(r => r.trim()).filter(Boolean).map(r => r.split(/[，,\s]+/).map(Number).filter(x => Number.isFinite(x))).filter(r => r.length); }
+
+// ===== 场景①：一维前缀和 =====
+// step: { a[], pre[], mark:{idx:cls}, results:[], desc }
+function genPre1(a, queries) {
+  const n = a.length, list = [];
+  const pre = new Array(n + 1).fill(0);
+  const results = queries.map(() => null);
+  const snap = (mark, desc) => list.push({ a: a.slice(), pre: pre.slice(), mark: mark || {}, results: [...results], desc });
+  snap({ 0: "cur" }, `前缀和数组 pre[0]=0（边界）。pre[i] 表示前 i 个元素之和。`);
+  for (let i = 1; i <= n; i++) {
+    pre[i] = pre[i - 1] + a[i - 1];
+    snap({ ["p" + i]: "cur" }, `pre[${i}] = pre[${i - 1}](${pre[i - 1]}) + a[${i}](${a[i - 1]}) = <b>${pre[i]}</b>。`);
+  }
+  snap({}, `预处理完成。<span class="hl">区间和 [l,r] = pre[r] − pre[l−1]</span>，每次查询 O(1)。`);
+  queries.forEach(([l, r], qi) => {
+    if (l < 1 || r > n || l > r) { results[qi] = "非法"; snap({}, `查询 #${qi + 1} [${l},${r}] 越界，跳过。`); return; }
+    const val = pre[r] - pre[l - 1];
+    results[qi] = val;
+    const mk = { ["p" + r]: "plus", ["p" + (l - 1)]: "minus" };
+    for (let i = l; i <= r; i++) mk[i] = "inrange";
+    snap(mk, `查询 #${qi + 1} 区间 [${l},${r}]：<span class="plus">pre[${r}]=${pre[r]}</span> − <span class="minus">pre[${l - 1}]=${pre[l - 1]}</span> = <span class="hl">${val}</span>。（减去 [1,${l - 1}] 那段）`);
+  });
+  snap({}, `<span class="hl">全部查询完成！</span>见右侧结果表。`);
+  return list;
+}
+
+// ===== 场景③：一维差分 =====
+// step: { a[], d[], res[], phase, mark, desc }
+function genDiff1(a, ops) {
+  const n = a.length, list = [];
+  const d = new Array(n + 2).fill(0);
+  for (let i = 1; i <= n; i++) d[i] = a[i - 1] - (i >= 2 ? a[i - 2] : 0);
+  const snap = (phase, mark, desc, res) => list.push({ a: a.slice(), d: d.slice(), res: res ? res.slice() : null, phase, mark: mark || {}, desc });
+  snap("build", {}, `差分数组 d[i]=a[i]−a[i−1]（前缀和的逆）。区间加只改两端，最后前缀和还原。`);
+  ops.forEach(([l, r, v], oi) => {
+    if (l < 1 || r > n || l > r) { snap("op", {}, `操作 #${oi + 1} (${l},${r},${v}) 越界，跳过。`); return; }
+    d[l] += v; d[r + 1] -= v;
+    snap("op", { ["d" + l]: "plus", ["d" + (r + 1)]: "minus" }, `操作 #${oi + 1}：区间 [${l},${r}] 各 +${v} → 只改两端 <span class="plus">d[${l}]+=${v}</span>、<span class="minus">d[${r + 1}]−=${v}</span>。O(1)！`);
+  });
+  snap("op", {}, `所有区间加已打成差分标记。<span class="hl">现在对 d 求前缀和还原结果数组。</span>`);
+  const res = new Array(n + 1).fill(0);
+  for (let i = 1; i <= n; i++) {
+    res[i] = res[i - 1] + d[i];
+    snap("restore", { ["r" + i]: "cur" }, `还原 res[${i}] = res[${i - 1}](${res[i - 1]}) + d[${i}](${d[i]}) = <b>${res[i]}</b>。`, res);
+  }
+  snap("done", {}, `<span class="hl">还原完成！</span>最终数组见下方 res[]。`, res);
+  return list;
+}
+
+// ===== 场景②：二维前缀和 =====
+// step: { S(二维,含0行0列), mark:{cur:[i,j], plus:[[i,j]], minus:[[i,j]], inbox:[[i,j]]}, results, desc, R, C }
+function genPre2(grid, queries) {
+  const R = grid.length, C = Math.max(...grid.map(r => r.length));
+  const a = Array.from({ length: R + 1 }, () => new Array(C + 1).fill(0));
+  for (let i = 1; i <= R; i++) for (let j = 1; j <= C; j++) a[i][j] = grid[i - 1][j - 1] || 0;
+  const S = Array.from({ length: R + 1 }, () => new Array(C + 1).fill(0));
+  const list = [], results = queries.map(() => null);
+  const clone = () => S.map(r => [...r]);
+  const snap = (mark, desc) => list.push({ mat: clone(), mark: mark || {}, results: [...results], R, C, desc });
+  snap({}, `二维前缀和 S(i,j)=左上角 (1,1) 到 (i,j) 的矩形和。含第 0 行/列作边界（全 0）。`);
+  for (let i = 1; i <= R; i++) for (let j = 1; j <= C; j++) {
+    S[i][j] = a[i][j] + S[i - 1][j] + S[i][j - 1] - S[i - 1][j - 1];
+    snap({ cur: [i, j] }, `S(${i},${j}) = a(${a[i][j]}) + S(${i - 1},${j}) + S(${i},${j - 1}) − S(${i - 1},${j - 1}) = <b>${S[i][j]}</b>。`);
+  }
+  snap({}, `S 表预处理完成。<span class="hl">子矩形和用容斥四项查表。</span>`);
+  queries.forEach(([r1, c1, r2, c2], qi) => {
+    if (r1 < 1 || c1 < 1 || r2 > R || c2 > C || r1 > r2 || c1 > c2) { results[qi] = "非法"; snap({}, `查询 #${qi + 1} 越界，跳过。`); return; }
+    const val = S[r2][c2] - S[r1 - 1][c2] - S[r2][c1 - 1] + S[r1 - 1][c1 - 1];
+    results[qi] = val;
+    const inbox = []; for (let i = r1; i <= r2; i++) for (let j = c1; j <= c2; j++) inbox.push([i, j]);
+    snap({ plus: [[r2, c2], [r1 - 1, c1 - 1]], minus: [[r1 - 1, c2], [r2, c1 - 1]], inbox },
+      `查询 #${qi + 1} 子矩形 (${r1},${c1})→(${r2},${c2})：<span class="plus">S(${r2},${c2})=${S[r2][c2]}</span> − <span class="minus">S(${r1 - 1},${c2})=${S[r1 - 1][c2]}</span> − <span class="minus">S(${r2},${c1 - 1})=${S[r2][c1 - 1]}</span> + <span class="plus">S(${r1 - 1},${c1 - 1})=${S[r1 - 1][c1 - 1]}</span> = <span class="hl">${val}</span>。`);
+  });
+  snap({}, `<span class="hl">全部查询完成！</span>见右侧结果表。`);
+  return list;
+}
+
+// ===== 场景④：二维差分 =====
+// step: { mat(差分 或 还原中), mark, phase, results, R, C, desc }
+function genDiff2(grid, ops) {
+  const R = grid.length, C = Math.max(...grid.map(r => r.length));
+  const a = Array.from({ length: R + 2 }, () => new Array(C + 2).fill(0));
+  for (let i = 1; i <= R; i++) for (let j = 1; j <= C; j++) a[i][j] = grid[i - 1][j - 1] || 0;
+  // 差分矩阵：由初始 a 反推（对全 0 初始即全 0）
+  const d = Array.from({ length: R + 2 }, () => new Array(C + 2).fill(0));
+  for (let i = 1; i <= R; i++) for (let j = 1; j <= C; j++)
+    d[i][j] = a[i][j] - a[i - 1][j] - a[i][j - 1] + a[i - 1][j - 1];
+  const list = [];
+  const cloneD = () => d.slice(0, R + 1).map(r => r.slice(0, C + 1));
+  const snap = (mat, mark, phase, desc) => list.push({ mat, mark: mark || {}, phase, R, C, desc });
+  snap(cloneD(), {}, "diff", `二维差分矩阵 d（初始由网格反推）。子矩形加只改 4 个角，最后二维前缀和还原。`);
+  ops.forEach(([r1, c1, r2, c2, v], oi) => {
+    if (r1 < 1 || c1 < 1 || r2 > R || c2 > C || r1 > r2 || c1 > c2) { snap(cloneD(), {}, "diff", `操作 #${oi + 1} 越界，跳过。`); return; }
+    d[r1][c1] += v; d[r2 + 1][c1] -= v; d[r1][c2 + 1] -= v; d[r2 + 1][c2 + 1] += v;
+    const mk = { plus: [], minus: [] };
+    mk.plus.push([r1, c1]); if (r2 + 1 <= R && c2 + 1 <= C) mk.plus.push([r2 + 1, c2 + 1]);
+    if (r2 + 1 <= R) mk.minus.push([r2 + 1, c1]); if (c2 + 1 <= C) mk.minus.push([r1, c2 + 1]);
+    snap(cloneD(), mk, "diff", `操作 #${oi + 1}：子矩形 (${r1},${c1})→(${r2},${c2}) 各 +${v} → 改 4 角 <span class="plus">d[${r1}][${c1}]+=${v}</span>、<span class="minus">d[${r2 + 1}][${c1}]−=${v}</span>、<span class="minus">d[${r1}][${c2 + 1}]−=${v}</span>、<span class="plus">d[${r2 + 1}][${c2 + 1}]+=${v}</span>。（超出边界的角落在虚拟行/列，不显示）`);
+  });
+  snap(cloneD(), {}, "diff", `所有矩形加已打成 4 角标记。<span class="hl">现在对 d 做二维前缀和还原最终矩阵。</span>`);
+  // 还原：二维前缀和
+  const res = Array.from({ length: R + 1 }, () => new Array(C + 1).fill(0));
+  const cloneRes = () => res.map(r => [...r]);
+  for (let i = 1; i <= R; i++) for (let j = 1; j <= C; j++) {
+    res[i][j] = d[i][j] + res[i - 1][j] + res[i][j - 1] - res[i - 1][j - 1];
+    snap(cloneRes(), { cur: [i, j] }, "restore", `还原 a(${i},${j}) = d(${d[i][j]}) + a(${i - 1},${j}) + a(${i},${j - 1}) − a(${i - 1},${j - 1}) = <b>${res[i][j]}</b>。`);
+  }
+  snap(cloneRes(), {}, "done", `<span class="hl">还原完成！</span>最终矩阵如上。`);
+  return list;
+}
+
+// ================= 渲染 =================
+function cellRow(label, arr, from, mark, prefix) {
+  // 横向格子条：arr 从下标 from 起（前缀/差分含 0），mark 键为 prefix+i
+  let h = `<div class="arrlbl">${label}</div><div class="arr">`;
+  for (let i = from; i < arr.length; i++) {
+    const cls = mark[(prefix || "") + i] || (prefix === "" && mark[i]) || "";
+    h += `<div class="col"><div class="cell ${cls}${i === 0 && prefix ? " zero" : ""}">${arr[i]}</div><div class="idxlab${cls ? " on" : ""}">${i}</div></div>`;
+  }
+  return h + `</div>`;
+}
+function drawPre1(s) {
+  // a[] 用下标 1..n，mark 键是数字 i(inrange)；pre[] 用键 "p"+i
+  let h = `<div class="arrlbl">数组 <b>a[1..${s.a.length}]</b></div><div class="arr">`;
+  s.a.forEach((v, k) => { const i = k + 1; const cls = s.mark[i] || ""; h += `<div class="col"><div class="cell ${cls}">${v}</div><div class="idxlab${cls ? " on" : ""}">${i}</div></div>`; });
+  h += `</div>`;
+  h += `<div class="arrlbl mt" style="margin-top:14px">前缀和 <b>pre[0..${s.a.length}]</b></div><div class="arr">`;
+  s.pre.forEach((v, i) => { const cls = s.mark["p" + i] || ""; h += `<div class="col"><div class="cell ${cls}${i === 0 ? " zero" : ""}">${v}</div><div class="idxlab${cls ? " on" : ""}">${i}</div></div>`; });
+  h += `</div>`;
+  $("viewBox").innerHTML = h;
+}
+function drawDiff1(s) {
+  let h = `<div class="arrlbl">初始数组 <b>a[1..${s.a.length}]</b></div><div class="arr">`;
+  s.a.forEach((v, k) => { h += `<div class="col"><div class="cell">${v}</div><div class="idxlab">${k + 1}</div></div>`; });
+  h += `</div>`;
+  h += `<div class="arrlbl" style="margin-top:14px">差分 <b>d[1..${s.a.length + 1}]</b></div><div class="arr">`;
+  for (let i = 1; i < s.d.length; i++) { const cls = s.mark["d" + i] || ""; h += `<div class="col"><div class="cell ${cls}">${s.d[i]}</div><div class="idxlab${cls ? " on" : ""}">${i}</div></div>`; }
+  h += `</div>`;
+  if (s.res) {
+    h += `<div class="arrlbl" style="margin-top:14px">还原结果 <b>res[1..${s.a.length}]</b></div><div class="arr">`;
+    for (let i = 1; i < s.res.length; i++) { const cls = s.mark["r" + i] || ""; h += `<div class="col"><div class="cell ${cls}">${s.res[i]}</div><div class="idxlab${cls ? " on" : ""}">${i}</div></div>`; }
+    h += `</div>`;
+  }
+  $("viewBox").innerHTML = h;
+}
+function drawMat(s, withZero) {
+  const R = s.R, C = s.C, m = s.mat, mk = s.mark;
+  const has = (arr, i, j) => arr && arr.some(([a, b]) => a === i && b === j);
+  const lo = withZero ? 0 : 1;
+  let h = `<table class="psmat"><tr><th></th>`;
+  for (let j = lo; j <= C; j++) h += `<th>${j}</th>`;
+  h += `</tr>`;
+  for (let i = lo; i <= R; i++) {
+    h += `<tr><th>${i}</th>`;
+    for (let j = lo; j <= C; j++) {
+      let cls = "cell2";
+      if (mk.cur && mk.cur[0] === i && mk.cur[1] === j) cls += " cur";
+      if (has(mk.plus, i, j)) cls += " plus";
+      if (has(mk.minus, i, j)) cls += " minus";
+      if (has(mk.inbox, i, j)) cls += " inbox";
+      if ((i === 0 || j === 0)) cls += " zero";
+      h += `<td class="${cls}">${(m[i] && m[i][j] != null) ? m[i][j] : 0}</td>`;
+    }
+    h += `</tr>`;
+  }
+  h += `</table>`;
+  $("viewBox").innerHTML = h;
+}
+
+function drawResult(s) {
+  if (scene === "pre1" && Q1.length) {
+    let h = `<div class="plabel mt">查询结果</div><table class="rtable"><tr><th>区间 [l,r]</th><th>和</th></tr>`;
+    Q1.forEach(([l, r], qi) => { const v = s.results ? s.results[qi] : null; h += `<tr class="${v != null ? "done" : ""}"><td>[${l},${r}]</td><td>${v == null ? "—" : v}</td></tr>`; });
+    $("resultBox").innerHTML = h + `</table>`;
+  } else if (scene === "pre2" && Q2.length) {
+    let h = `<div class="plabel mt">查询结果</div><table class="rtable"><tr><th>子矩形 (r1,c1)→(r2,c2)</th><th>和</th></tr>`;
+    Q2.forEach(([r1, c1, r2, c2], qi) => { const v = s.results ? s.results[qi] : null; h += `<tr class="${v != null ? "done" : ""}"><td>(${r1},${c1})→(${r2},${c2})</td><td>${v == null ? "—" : v}</td></tr>`; });
+    $("resultBox").innerHTML = h + `</table>`;
+  } else $("resultBox").innerHTML = "";
+}
+
+function draw(k) {
+  const s = steps[k];
+  if (scene === "pre1") drawPre1(s);
+  else if (scene === "diff1") drawDiff1(s);
+  else if (scene === "pre2") drawMat(s, true);
+  else drawMat(s, false);
+  drawResult(s);
+  setStatus(s.desc);
+}
+
+// ================= 引擎 =================
+let Q1 = [], Q2 = [];
+function load(list) {
+  steps = list; idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  draw(0);
+  if (steps.length <= 1) endRun();
+}
+function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(idx); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 1420 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+function prepare() {
+  stopTimer(); running = false;
+  if (scene === "pre1") {
+    const a = parseNums($("arr1").value).slice(0, 12);
+    Q1 = parseGroups($("q1").value).filter(g => g.length >= 2).map(g => [g[0], g[1]]);
+    if (!a.length) { setStatus("⚠ 请输入数组。"); $("viewBox").innerHTML = ""; return; }
+    load(genPre1(a, Q1));
+  } else if (scene === "diff1") {
+    const a = parseNums($("darr1").value).slice(0, 12);
+    const ops = parseGroups($("dop1").value).filter(g => g.length >= 3).map(g => [g[0], g[1], g[2]]);
+    if (!a.length) { setStatus("⚠ 请输入初始数组。"); $("viewBox").innerHTML = ""; return; }
+    load(genDiff1(a, ops));
+  } else if (scene === "pre2") {
+    const grid = parseGrid($("grid2").value); if (!grid.length) { setStatus("⚠ 请输入网格。"); $("viewBox").innerHTML = ""; return; }
+    Q2 = parseGroups($("q2").value).filter(g => g.length >= 4).map(g => [g[0], g[1], g[2], g[3]]);
+    load(genPre2(grid, Q2));
+  } else {
+    const grid = parseGrid($("dgrid2").value); if (!grid.length) { setStatus("⚠ 请输入网格。"); $("viewBox").innerHTML = ""; return; }
+    const ops = parseGroups($("dop2").value).filter(g => g.length >= 5).map(g => [g[0], g[1], g[2], g[3], g[4]]);
+    load(genDiff2(grid, ops));
+  }
+}
+
+const SUB = {
+  pre1: "一维前缀和：pre[i]=pre[i-1]+a[i] 预处理，区间和 [l,r]=pre[r]−pre[l-1]，查询 O(1)。",
+  pre2: "二维前缀和：S(i,j) 递推预处理，子矩形和用容斥四项查表 O(1)。",
+  diff1: "一维差分：区间加只改两端 d[l]+=v、d[r+1]−=v，最后对 d 求前缀和还原。",
+  diff2: "二维差分：子矩形加只改 4 个角，最后二维前缀和还原。差分是前缀和的逆运算。",
+};
+const FORMULA = {
+  pre1: `<b>预处理</b>：pre[0]=0，pre[i]=pre[i−1]+a[i]<br><b>区间和</b> [l,r] = <code>pre[r] − pre[l−1]</code><br>预处理 O(n)，每次查询 O(1)。`,
+  pre2: `<b>预处理</b>：S(i,j)=a[i][j]+S(i−1,j)+S(i,j−1)−S(i−1,j−1)<br><b>子矩形</b> (r1,c1)→(r2,c2)（容斥）：<br><code>S(r2,c2) − S(r1−1,c2) − S(r2,c1−1) + S(r1−1,c1−1)</code>`,
+  diff1: `差分 <code>d[i]=a[i]−a[i−1]</code>（前缀和的逆）<br><b>区间加</b> (l,r,v)：<code>d[l]+=v; d[r+1]−=v</code>（O(1)）<br><b>还原</b>：<code>a[i]=a[i−1]+d[i]</code>（对 d 求前缀和）`,
+  diff2: `二维差分：<b>子矩形加</b> (r1,c1)→(r2,c2) 各 +v 只改 4 角：<br><code>d[r1][c1]+=v; d[r2+1][c1]−=v;</code><br><code>d[r1][c2+1]−=v; d[r2+1][c2+1]+=v;</code><br><b>还原</b>：二维前缀和 a[i][j]=d[i][j]+a[i−1][j]+a[i][j−1]−a[i−1][j−1]`,
+};
+const NOTE = {
+  pre1: `前缀和把「区间求和」从每次 O(n) 降到预处理后 O(1)。核心：<code>a[l..r] = pre[r] − pre[l−1]</code>，减去的是 <code>[1,l−1]</code> 那段。用 pre[0]=0 作边界，l=1 时也统一。适合<b>静态</b>数组多次区间查询。`,
+  pre2: `二维前缀和 <code>S(i,j)</code>=左上角 (1,1) 到 (i,j) 的矩形和。递推里 <code>−S(i−1,j−1)</code> 是因为上、左两块重叠加了一次要减掉。查子矩形同理用<b>容斥</b>：大矩形减去上、左两条，再加回多减的左上角。思路与<b>二维数点</b>一致。`,
+  diff1: `差分是前缀和的<b>逆运算</b>：对差分数组求前缀和就得回原数组。区间加 (l,r,v) 只在 <code>d[l]</code> 加、<code>d[r+1]</code> 减——求前缀和时从 l 起每个位置都累加 +v，到 r+1 处的 −v 把它抵消。m 次区间加 O(m)，最后一次还原 O(n)。`,
+  diff2: `二维差分：一次子矩形加对应改 <b>4 个角</b>（正、负、负、正），正是二维前缀和容斥公式的逆。所有操作打完标记后，对差分矩阵做一次<b>二维前缀和</b>即得最终矩阵。批量矩形修改各 O(1)，最后 O(R·C) 还原。`,
+};
+
+function applyScene(sc) {
+  scene = sc;
+  document.querySelectorAll("#sceneTabs .tab").forEach(t => t.classList.toggle("active", t.dataset.scene === sc));
+  ["pre1", "pre2", "diff1", "diff2"].forEach(x => document.body.classList.toggle("sc-" + x, x === sc));
+  $("subtitle").textContent = SUB[sc];
+  $("viewLabel").textContent = { pre1: "一维前缀和", pre2: "二维前缀和表", diff1: "一维差分", diff2: "二维差分矩阵" }[sc];
+  $("formula").innerHTML = FORMULA[sc];
+  $("note").innerHTML = NOTE[sc];
+  prepare();
+}
+
+document.querySelectorAll("#sceneTabs .tab").forEach(t => t.onclick = () => applyScene(t.dataset.scene));
+$("runBtn").onclick = prepare;
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) prepare(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+["arr1", "q1", "darr1", "dop1", "grid2", "q2", "dgrid2", "dop2"].forEach(id => $(id).addEventListener("keydown", e => { if (e.key === "Enter") prepare(); }));
+$("randBtn").onclick = () => {
+  const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  if (scene === "pre1") {
+    const n = rint(5, 8); $("arr1").value = [...Array(n)].map(() => rint(1, 9)).join(",");
+    $("q1").value = [...Array(3)].map(() => { let l = rint(1, n), r = rint(1, n); if (l > r)[l, r] = [r, l]; return `${l},${r}`; }).join("; ");
+  } else if (scene === "diff1") {
+    const n = rint(5, 8); $("darr1").value = new Array(n).fill(0).join(",");
+    $("dop1").value = [...Array(3)].map(() => { let l = rint(1, n), r = rint(1, n); if (l > r)[l, r] = [r, l]; return `${l},${r},${rint(1, 5)}`; }).join("; ");
+  } else if (scene === "pre2") {
+    const R = rint(3, 4), C = rint(3, 4);
+    $("grid2").value = [...Array(R)].map(() => [...Array(C)].map(() => rint(1, 9)).join(",")).join("; ");
+    $("q2").value = [...Array(2)].map(() => { let r1 = rint(1, R), r2 = rint(1, R), c1 = rint(1, C), c2 = rint(1, C); if (r1 > r2)[r1, r2] = [r2, r1]; if (c1 > c2)[c1, c2] = [c2, c1]; return `${r1},${c1},${r2},${c2}`; }).join("; ");
+  } else {
+    const R = rint(3, 4), C = rint(3, 4);
+    $("dgrid2").value = [...Array(R)].map(() => new Array(C).fill(0).join(",")).join("; ");
+    $("dop2").value = [...Array(2)].map(() => { let r1 = rint(1, R), r2 = rint(1, R), c1 = rint(1, C), c2 = rint(1, C); if (r1 > r2)[r1, r2] = [r2, r1]; if (c1 > c2)[c1, c2] = [c2, c1]; return `${r1},${c1},${r2},${c2},${rint(1, 5)}`; }).join("; ");
+  }
+  prepare();
+};
+$("cppBtn").onclick = () => CppView.open("pd_" + scene);
+
+CppView.register({
+  pd_pre1: { title: "一维前缀和 · 区间求和 — C++", code:
+[
+"// 一维前缀和：预处理 pre[i]=pre[i-1]+a[i]，区间和 [l,r]=pre[r]-pre[l-1]。",
+"// 预处理 O(n)，每次查询 O(1)。下标从 1 开始，pre[0]=0 作边界。",
+"#include <iostream>",
+"using namespace std;",
+"const int N = 100005;",
+"long long a[N], pre[N];",
+"int main(){",
+"    int n, q; cin >> n >> q;",
+"    for(int i=1;i<=n;i++){ cin >> a[i]; pre[i] = pre[i-1] + a[i]; }",
+"    while(q--){",
+"        int l, r; cin >> l >> r;",
+"        cout << pre[r] - pre[l-1] << endl;   // 区间 [l,r] 的和",
+"    }",
+"    return 0;",
+"}",
+].join("\n") },
+  pd_diff1: { title: "一维差分 · 区间批量加 — C++", code:
+[
+"// 一维差分：区间加 (l,r,v) 只改两端 d[l]+=v、d[r+1]-=v（各 O(1)），",
+"// 最后对 d 求前缀和即得修改后的数组。差分是前缀和的逆运算。",
+"#include <iostream>",
+"using namespace std;",
+"const int N = 100005;",
+"long long a[N], d[N];",
+"int main(){",
+"    int n, m; cin >> n >> m;",
+"    for(int i=1;i<=n;i++) cin >> a[i];",
+"    for(int i=1;i<=n;i++) d[i] = a[i] - a[i-1];   // 建差分",
+"    while(m--){",
+"        int l, r; long long v; cin >> l >> r >> v;",
+"        d[l] += v; d[r+1] -= v;                    // 区间 [l,r] 各 +v",
+"    }",
+"    for(int i=1;i<=n;i++){",
+"        d[i] += d[i-1];               // 对差分求前缀和 => 还原数组",
+"        cout << d[i] << \" \\n\"[i==n];",
+"    }",
+"    return 0;",
+"}",
+].join("\n") },
+  pd_pre2: { title: "二维前缀和 · 子矩形求和 — C++", code:
+[
+"// 二维前缀和：S(i,j)=a[i][j]+S(i-1,j)+S(i,j-1)-S(i-1,j-1)。",
+"// 子矩形 (r1,c1)->(r2,c2) 的和 = 容斥四项（下式）。预处理 O(R*C)，查询 O(1)。",
+"#include <iostream>",
+"using namespace std;",
+"const int N = 1005;",
+"long long a[N][N], S[N][N];",
+"int main(){",
+"    int R, C, q; cin >> R >> C >> q;",
+"    for(int i=1;i<=R;i++)",
+"        for(int j=1;j<=C;j++){",
+"            cin >> a[i][j];",
+"            S[i][j] = a[i][j] + S[i-1][j] + S[i][j-1] - S[i-1][j-1];",
+"        }",
+"    while(q--){",
+"        int r1,c1,r2,c2; cin >> r1 >> c1 >> r2 >> c2;",
+"        cout << S[r2][c2] - S[r1-1][c2] - S[r2][c1-1] + S[r1-1][c1-1] << endl;",
+"    }",
+"    return 0;",
+"}",
+].join("\n") },
+  pd_diff2: { title: "二维差分 · 子矩形批量加 — C++", code:
+[
+"// 二维差分：子矩形 (r1,c1)->(r2,c2) 各 +v 只改 4 个角（O(1)）：",
+"//   d[r1][c1]+=v; d[r2+1][c1]-=v; d[r1][c2+1]-=v; d[r2+1][c2+1]+=v;",
+"// 正是二维前缀和容斥公式的逆。最后对 d 做二维前缀和即得最终矩阵。",
+"#include <iostream>",
+"using namespace std;",
+"const int N = 1005;",
+"long long a[N][N], d[N][N];",
+"int main(){",
+"    int R, C, m; cin >> R >> C >> m;",
+"    for(int i=1;i<=R;i++)",
+"        for(int j=1;j<=C;j++){",
+"            cin >> a[i][j];",
+"            d[i][j] += a[i][j]; d[i+1][j] -= a[i][j];   // 也可逐格当作 1x1 矩形加",
+"            d[i][j+1] -= a[i][j]; d[i+1][j+1] += a[i][j];",
+"        }",
+"    while(m--){",
+"        int r1,c1,r2,c2; long long v; cin >> r1 >> c1 >> r2 >> c2 >> v;",
+"        d[r1][c1]     += v; d[r2+1][c1]   -= v;   // 子矩形 +v：改 4 角",
+"        d[r1][c2+1]   -= v; d[r2+1][c2+1] += v;",
+"    }",
+"    for(int i=1;i<=R;i++){",
+"        for(int j=1;j<=C;j++){",
+"            d[i][j] += d[i-1][j] + d[i][j-1] - d[i-1][j-1];   // 二维前缀和还原",
+"            cout << d[i][j] << \" \\n\"[j==C];",
+"        }",
+"    }",
+"    return 0;",
+"}",
+].join("\n") },
+});
+
+applyScene("pre1");
+</script>
+<script src="../assets/theme.js"></script>
+</body>
+</html>
