@@ -224,6 +224,56 @@ const SECTIONS = [
     ],
   },
   {
+    id: "hash", icon: "🗂️", title: "哈希", desc: "哈希表 · 冲突处理",
+    items: [
+      { icon: "🗂️", tag: "哈希", title: "哈希表 Hash Table", file: "hash-table.html", ready: true,
+        desc: "链地址法 / 开放寻址(线性探测)可切换，插入/查找/删除，展示哈希函数、冲突处理与墓碑，单步/自动。" },
+    ],
+  },
+  {
+    id: "twopointer", icon: "👉", title: "双指针 / 滑动窗口", desc: "对撞 · 快慢 · 滑动窗口",
+    items: [
+      { icon: "👉", tag: "双指针", title: "对撞指针", file: "two-pointer.html", ready: true,
+        desc: "对撞指针(相向双指针)分步演示：有序数组两两分组求最小组数(救生艇)、回文判断。l/r 指针箭头 + 格子高亮，自动播放或单步，含 C++。" },
+      { icon: "🐢", tag: "快慢指针", title: "快慢指针·链表判环", file: "fast-slow.html", ready: true,
+        desc: "Floyd 判环：slow 每步一格、fast 每步两格，相遇即有环。链表结点 + next 箭头 + 回环边可视化，可继续找环入口。含 C++。" },
+      { icon: "🪟", tag: "滑动窗口", title: "滑动窗口", file: "sliding-window.html", ready: true,
+        desc: "变长/定长窗口四场景：最长无重复子串、最短覆盖子串、定长 k 窗口最大和、和≥target 最短子数组。L/R 指针 + 窗口高亮，含 C++。" },
+    ],
+  },
+  {
+    id: "string", icon: "🔤", title: "字符串", desc: "KMP · 字典树 · 回文",
+    items: [
+      { icon: "🔤", tag: "字符串", title: "KMP 字符串匹配", file: "kmp.html", ready: true,
+        desc: "先为模式串构建 next 数组（最长相同前后缀），匹配失配时只回退模式串指针 j=next[j-1]，主串指针 i 不回退，O(n+m)。字符格子高亮比较/命中，含 C++。" },
+      { icon: "🌲", tag: "字符串", title: "字典树 Trie", file: "trie.html", ready: true,
+        desc: "前缀树：单词按字符逐层存入，公共前缀共享路径。插入/查找整词/前缀统计逐步动画，路径高亮、词尾标记、子树统计，每步 O(单词长度)，含 C++。" },
+      { icon: "🪞", tag: "字符串", title: "马拉车 Manacher", file: "manacher.html", ready: true,
+        desc: "O(n) 求最长回文子串。插 # 统一奇偶回文，分步演示对称半径 p[i]=min(p[镜像j], R−i) 如何借助中心 C/右边界 R/镜像位置复用已知信息，再中心扩展、更新 C/R，含 C++。" },
+    ],
+  },
+  {
+    id: "math", icon: "🔢", title: "数论 / 数学", desc: "质数筛法 · 质因数分解",
+    items: [
+      { icon: "🔢", tag: "高精度", title: "高精度计算", file: "bignum.html", ready: true,
+        desc: "大整数超出 long long，用数组按位模拟竖式。加/减/乘/除四种运算逐列演示进位、借位、部分积累加、试商长除法，自动播放或单步。含 C++。" },
+      { icon: "🔢", tag: "数论", title: "质数筛法", file: "sieve.html", ready: true,
+        desc: "埃氏筛 / 线性筛(欧拉筛)可切换。数字网格逐个标记合数，展示线性筛“每个合数只被最小质因子筛一次”，可调 n。" },
+      { icon: "🧮", tag: "数论", title: "质因数分解", file: "factorize.html", ready: true,
+        desc: "试除法分解 n = p₁·p₂·…·pₘ。从最小质数试除，整除即记录并 n/=p；完整分解式随过程把已约掉的因子置灰，剩余高亮相乘 = 当前 n。含 C++。" }
+
+    ],
+  },
+  {
+    id: "greedy", icon: "🪙", title: "贪心算法", desc: "分数背包 · 区间类贪心",
+    items: [
+      { icon: "🎒", tag: "贪心", title: "分数背包", file: "greedy.html", ready: true,
+        desc: "物品可切分，按性价比（价值/重量）从高到低装入，最后切一块填满背包求最大价值。物品条 + 容量条可视化，逐步演示装入/切分，含 C++。" },
+      { icon: "📏", tag: "贪心·区间", title: "区间类贪心", file: "interval-greedy.html", ready: true,
+        desc: "两类经典区间贪心可切换：① 最大不相交区间数量（含活动选择，按右端点排序贪心选取）；② 最少区间覆盖（按左端点排序，每次选能接上且伸最远的区间）。时间轴可视化，含 C++。" },
+    ],
+  },
+  {
     id: "tree", icon: "🌲", title: "树结构", desc: "二叉树 · BST · 堆 · 并查集",
     items: [
       { icon: "🌲", tag: "树", title: "二叉树遍历", file: "binary-tree.html", ready: true,
@@ -236,6 +286,18 @@ const SECTIONS = [
         desc: "森林结构：合并/查找/同集合判断，路径压缩 + 按秩合并（可对比朴素），树 + parent 数组双视图。" },
       { icon: "🌿", tag: "贪心·树", title: "Huffman 编码", file: "huffman.html", ready: true,
         desc: "按字符频率建最小堆，反复取两个最小频率合并成新节点，自底向上建 Huffman 树；左0右1回溯得最优前缀编码。树形+频率/编码表，含 C++。" },
+    ],
+  },
+  {
+    id: "range", icon: "📊", title: "区间数据结构", desc: "线段树 · 树状数组",
+    items: [
+      { icon: "➕", tag: "前缀和·差分", title: "前缀和与差分", file: "prefix-diff.html", ready: true,
+        desc: "一维/二维前缀和(区间求和)与差分(区间批量修改)四场景：递推预处理、容斥查子矩形、差分打标记再前缀和还原，分步动画，含四份 C++。" },
+      { icon: "🌲", tag: "树状数组", title: "树状数组 Fenwick", file: "fenwick.html", ready: true,
+        desc: "用 lowbit 维护前缀和：每个 c[i] 管辖区间 [i−lowbit+1, i]。update 沿 i+=lowbit 向上跳、query 沿 i−=lowbit 向下跳，逐步高亮跳跃路径与管辖区间，O(log n)，含 C++。" },
+      { icon: "📊", tag: "线段树", title: "线段树 Segment Tree", file: "segment-tree.html", ready: true,
+        desc: "区间和线段树：建树 / 单点修改 / 区间修改(懒标记) / 区间查询。树形+数组双视图，递归路径与懒标记高亮，单步/自动。" }
+
     ],
   },
   {
@@ -277,72 +339,12 @@ const SECTIONS = [
     ],
   },
   {
-    id: "hash", icon: "🗂️", title: "哈希", desc: "哈希表 · 冲突处理",
-    items: [
-      { icon: "🗂️", tag: "哈希", title: "哈希表 Hash Table", file: "hash-table.html", ready: true,
-        desc: "链地址法 / 开放寻址(线性探测)可切换，插入/查找/删除，展示哈希函数、冲突处理与墓碑，单步/自动。" },
-    ],
-  },
-  {
-    id: "range", icon: "📊", title: "区间数据结构", desc: "线段树 · 树状数组",
-    items: [
-      { icon: "📊", tag: "线段树", title: "线段树 Segment Tree", file: "segment-tree.html", ready: true,
-        desc: "区间和线段树：建树 / 单点修改 / 区间修改(懒标记) / 区间查询。树形+数组双视图，递归路径与懒标记高亮，单步/自动。" },
-      { icon: "🌲", tag: "树状数组", title: "树状数组 Fenwick", file: "fenwick.html", ready: true,
-        desc: "用 lowbit 维护前缀和：每个 c[i] 管辖区间 [i−lowbit+1, i]。update 沿 i+=lowbit 向上跳、query 沿 i−=lowbit 向下跳，逐步高亮跳跃路径与管辖区间，O(log n)，含 C++。" },
-      { icon: "➕", tag: "前缀和·差分", title: "前缀和与差分", file: "prefix-diff.html", ready: true,
-        desc: "一维/二维前缀和(区间求和)与差分(区间批量修改)四场景：递推预处理、容斥查子矩形、差分打标记再前缀和还原，分步动画，含四份 C++。" },
-    ],
-  },
-  {
     id: "geo", icon: "📐", title: "几何 / 扫描线", desc: "矩形面积并 · 周长并 · 二维数点",
     items: [
       { icon: "📐", tag: "扫描线", title: "扫描线", file: "scanline.html", ready: true,
         desc: "竖直扫描线求矩形面积并 / 周长并，可切换。展示覆盖区间、事件表与逐段累加，随机矩形，单步/自动。" },
       { icon: "🎯", tag: "扫描线", title: "二维数点 / 二维偏序", file: "points2d.html", ready: true,
         desc: "矩形(左下(x1,y1)→右上(x2,y2))内点数三种解法可切换：①二维前缀和(小值域,预处理S表+4次查表容斥O(1))②扫描线求单次前缀 S(a,b)=(1,1)→(a,b)③扫描线+容斥求任意矩形(4次S(a,b))，②③可选树状数组/线段树(各含非离散化/离散化)。平面散点+扫描线+结构/矩阵联动，各含 C++。" },
-    ],
-  },
-  {
-    id: "math", icon: "🔢", title: "数论 / 数学", desc: "质数筛法 · 质因数分解",
-    items: [
-      { icon: "🔢", tag: "数论", title: "质数筛法", file: "sieve.html", ready: true,
-        desc: "埃氏筛 / 线性筛(欧拉筛)可切换。数字网格逐个标记合数，展示线性筛“每个合数只被最小质因子筛一次”，可调 n。" },
-      { icon: "🧮", tag: "数论", title: "质因数分解", file: "factorize.html", ready: true,
-        desc: "试除法分解 n = p₁·p₂·…·pₘ。从最小质数试除，整除即记录并 n/=p；完整分解式随过程把已约掉的因子置灰，剩余高亮相乘 = 当前 n。含 C++。" },
-      { icon: "🔢", tag: "高精度", title: "高精度计算", file: "bignum.html", ready: true,
-        desc: "大整数超出 long long，用数组按位模拟竖式。加/减/乘/除四种运算逐列演示进位、借位、部分积累加、试商长除法，自动播放或单步。含 C++。" },
-    ],
-  },
-  {
-    id: "greedy", icon: "🪙", title: "贪心算法", desc: "分数背包 · 区间类贪心",
-    items: [
-      { icon: "🎒", tag: "贪心", title: "分数背包", file: "greedy.html", ready: true,
-        desc: "物品可切分，按性价比（价值/重量）从高到低装入，最后切一块填满背包求最大价值。物品条 + 容量条可视化，逐步演示装入/切分，含 C++。" },
-      { icon: "📏", tag: "贪心·区间", title: "区间类贪心", file: "interval-greedy.html", ready: true,
-        desc: "两类经典区间贪心可切换：① 最大不相交区间数量（含活动选择，按右端点排序贪心选取）；② 最少区间覆盖（按左端点排序，每次选能接上且伸最远的区间）。时间轴可视化，含 C++。" },
-    ],
-  },
-  {
-    id: "string", icon: "🔤", title: "字符串", desc: "KMP · 字典树 · 回文",
-    items: [
-      { icon: "🔤", tag: "字符串", title: "KMP 字符串匹配", file: "kmp.html", ready: true,
-        desc: "先为模式串构建 next 数组（最长相同前后缀），匹配失配时只回退模式串指针 j=next[j-1]，主串指针 i 不回退，O(n+m)。字符格子高亮比较/命中，含 C++。" },
-      { icon: "🌲", tag: "字符串", title: "字典树 Trie", file: "trie.html", ready: true,
-        desc: "前缀树：单词按字符逐层存入，公共前缀共享路径。插入/查找整词/前缀统计逐步动画，路径高亮、词尾标记、子树统计，每步 O(单词长度)，含 C++。" },
-      { icon: "🪞", tag: "字符串", title: "马拉车 Manacher", file: "manacher.html", ready: true,
-        desc: "O(n) 求最长回文子串。插 # 统一奇偶回文，分步演示对称半径 p[i]=min(p[镜像j], R−i) 如何借助中心 C/右边界 R/镜像位置复用已知信息，再中心扩展、更新 C/R，含 C++。" },
-    ],
-  },
-  {
-    id: "twopointer", icon: "👉", title: "双指针 / 滑动窗口", desc: "对撞 · 快慢 · 滑动窗口",
-    items: [
-      { icon: "👉", tag: "双指针", title: "对撞指针", file: "two-pointer.html", ready: true,
-        desc: "对撞指针(相向双指针)分步演示：有序数组两两分组求最小组数(救生艇)、回文判断。l/r 指针箭头 + 格子高亮，自动播放或单步，含 C++。" },
-      { icon: "🐢", tag: "快慢指针", title: "快慢指针·链表判环", file: "fast-slow.html", ready: true,
-        desc: "Floyd 判环：slow 每步一格、fast 每步两格，相遇即有环。链表结点 + next 箭头 + 回环边可视化，可继续找环入口。含 C++。" },
-      { icon: "🪟", tag: "滑动窗口", title: "滑动窗口", file: "sliding-window.html", ready: true,
-        desc: "变长/定长窗口四场景：最长无重复子串、最短覆盖子串、定长 k 窗口最大和、和≥target 最短子数组。L/R 指针 + 窗口高亮，含 C++。" },
     ],
   },
   {
@@ -355,7 +357,8 @@ const SECTIONS = [
       { icon: "🚣", tag: "贪心·经典", title: "过河问题", file: "river-crossing.html", ready: true,
         desc: "N 人过河，船限 2 人、每趟耗时取较慢者、需有人划回。自定义人数与每人时间，点选乘船手动挑战，程序验证是否用了最短时间；另有最优解贪心逐趟演示。含 C++。" },
     ],
-  },
+  }
+
 ];
 
 const nav = document.getElementById("nav");

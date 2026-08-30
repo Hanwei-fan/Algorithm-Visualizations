@@ -77,12 +77,24 @@ $("cppBtn").onclick = () => CppView.open("算法id");   // 多场景可传当前
 按钮 HTML：`<button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>`。
 
 ### 7. 门户注册（index.html）
-在 `index.html` 的 `SECTIONS` 数组里对应板块的 `items` 追加一项（板块不存在则新增板块对象）：
+在 `index.html` 的 `SECTIONS` 数组里对应板块的 `items` 加一项（板块不存在则新增板块对象）：
 ```js
 { icon:"🔢", tag:"分类标签", title:"卡片标题", file:"xxx.html", ready:true,
   desc:"一句话介绍……含 C++。" }
 ```
-现有板块 id：search, sort, linear, tree, graph, advanced, hash, range, geo, math, greedy, string, twopointer, interactive。
+
+**排序规则（务必遵守，新增项也按此排）**：门户按**知识点难度 / 拓扑依赖**从易到难排列，分两层：
+1. **板块之间**：SECTIONS 数组顺序 = 学习路径。当前基准顺序（新增板块按难度梯度插入合适位置，别直接追加到末尾）：
+   `search → sort → linear → hash → twopointer → string → math → greedy → tree → range → graph → advanced → geo → interactive`
+   （基础查找/排序/线性结构 → 基础技巧 → 需要更多前置的树/区间/图 → 高级范式 DP → 综合几何/真题）
+2. **板块内部**：`items` 从易到难、有前置关系的排前面。例如：
+   - range：前缀和差分 → 树状数组 → 线段树
+   - math：高精度 → 质数筛法 → 质因数分解
+   - tree：二叉树遍历 → BST → 堆 → 并查集 → Huffman（Huffman 依赖堆）
+   - graph：图的存储 → 遍历 → 迷宫/洪水填充 → 拓扑 → 欧拉 → 最短路 → Floyd → MST
+   - advanced(DP)：序列 → 背包 → 二维 → 区间 → 状压
+
+新增演示时，先判断它的难度与前置知识，插到板块内正确位置；新增板块同理插到 SECTIONS 正确位置——**不要**图省事直接加到末尾。
 
 ## 现有演示清单（demos/，40 个）
 
