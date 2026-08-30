@@ -327,6 +327,8 @@ function cellRow(label, arr, from, mark, prefix) {
 function drawPre1(s) {
   // a[] 用下标 1..n，mark 键是数字 i(inrange)；pre[] 用键 "p"+i
   let h = `<div class="arrlbl">数组 <b>a[1..${s.a.length}]</b></div><div class="arr">`;
+  // 开头补一个占位空格，对齐下方 pre[0]，使 a[i] 正对 pre[i]
+  h += `<div class="col"><div class="cell" style="visibility:hidden"></div><div class="idxlab"></div></div>`;
   s.a.forEach((v, k) => { const i = k + 1; const cls = s.mark[i] || ""; h += `<div class="col"><div class="cell ${cls}">${v}</div><div class="idxlab${cls ? " on" : ""}">${i}</div></div>`; });
   h += `</div>`;
   h += `<div class="arrlbl mt" style="margin-top:14px">前缀和 <b>pre[0..${s.a.length}]</b></div><div class="arr">`;
