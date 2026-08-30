@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ST 表 · 稀疏表 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+    --node-fill: #16213e;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 20px 30px 4px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 10px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 8px; padding: 12px 30px 0; flex-wrap: wrap; }
+  .tab {
+    padding: 9px 16px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 13px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .tab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .tab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 14px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 13px; background: rgba(5,4,15,0.8); color: var(--text); font-family: "SF Mono", Menlo, monospace;
+  }
+  .field input.wide { width: 300px; } .field input.mid { width: 150px; }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 110px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(18,15,38,0.5); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  .cppview-btn {
+    margin-left: auto; padding: 9px 15px; border: 1px solid var(--green); border-radius: 4px;
+    background: rgba(0,255,156,0.1); color: var(--green); font-size: 13px; letter-spacing: 1px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .cppview-btn:hover { background: var(--green); color: #05060f; box-shadow: 0 0 16px rgba(0,255,156,.5); }
+  main { padding: 8px 30px 12px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 940px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); overflow-x: auto; }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 10px; }
+  .plabel.mt { margin-top: 16px; }
+  /* 原数组格子条 */
+  .arrwrap { overflow-x: auto; padding: 6px 2px; }
+  .arr { display: inline-flex; gap: 5px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .cell {
+    width: 42px; height: 42px; display: flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 700; border-radius: 8px; color: var(--text);
+    background: color-mix(in srgb, var(--cyan) 6%, var(--node-fill)); border: 1px solid var(--border); transition: all .18s;
+  }
+  /* 三色高亮：整区间(黄) / 左子(青) / 右子(洋红)；左右重叠格用叠加边框区分 */
+  .cell.whole { background: color-mix(in srgb, var(--yellow) 26%, var(--node-fill)); border-color: var(--yellow); }
+  .cell.left { background: color-mix(in srgb, var(--cyan) 32%, var(--node-fill)); border-color: var(--cyan); box-shadow: inset 0 0 0 2px var(--cyan); }
+  .cell.right { background: color-mix(in srgb, var(--magenta) 30%, var(--node-fill)); border-color: var(--magenta); box-shadow: inset 0 0 0 2px var(--magenta); }
+  .cell.qres { background: color-mix(in srgb, var(--green) 30%, var(--node-fill)); border-color: var(--green); }
+  .idxlab { font-family: "SF Mono", Menlo, monospace; font-size: 10px; color: var(--muted); }
+  .idxlab.on { color: var(--cyan); }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; margin: 8px 0 2px; font-family: "SF Mono", Menlo, monospace; font-size: 11.5px; color: var(--muted); }
+  .legend .item { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .sw { width: 13px; height: 13px; border-radius: 3px; border: 1px solid var(--border); }
+  .legend .sw.whole { background: color-mix(in srgb, var(--yellow) 40%, var(--node-fill)); border-color: var(--yellow); }
+  .legend .sw.left { background: color-mix(in srgb, var(--cyan) 45%, var(--node-fill)); border-color: var(--cyan); }
+  .legend .sw.right { background: color-mix(in srgb, var(--magenta) 42%, var(--node-fill)); border-color: var(--magenta); }
+  /* ST 表 */
+  table.st { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 12.5px; margin: 4px 0; }
+  table.st td, table.st th { border: 1px solid var(--border); min-width: 40px; height: 30px; text-align: center; padding: 0 4px; }
+  table.st th { color: var(--cyan); background: color-mix(in srgb, var(--cyan) 8%, var(--node-fill)); font-size: 11px; }
+  table.st td.cell2 { background: var(--node-fill); color: var(--text); transition: all .15s; }
+  table.st td.empty { color: var(--muted); opacity: .4; }
+  table.st td.cur { background: var(--yellow); color: #120e00; box-shadow: 0 0 8px rgba(255,212,0,.6) inset; font-weight: 700; }
+  table.st td.srcL { background: color-mix(in srgb, var(--cyan) 30%, var(--node-fill)); border-color: var(--cyan); }
+  table.st td.srcR { background: color-mix(in srgb, var(--magenta) 28%, var(--node-fill)); border-color: var(--magenta); }
+  .formula { background: rgba(3,2,12,0.55); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: var(--muted); margin: 0 0 12px; line-height: 1.75; }
+  .formula b { color: var(--yellow); } .formula code { color: var(--cyan); }
+  .status { margin-top: 6px; font-size: 13.5px; min-height: 54px; color: var(--text); font-family: "SF Mono", Menlo, monospace; line-height: 1.65; }
+  .status .hl { color: var(--green); font-weight: 700; } .status .cyan { color: var(--cyan); font-weight: 700; } .status .mag { color: var(--magenta); font-weight: 700; } .status .yel { color: var(--yellow); font-weight: 700; }
+  .rtable { font-family: "SF Mono", Menlo, monospace; font-size: 12.5px; border-collapse: collapse; margin-top: 8px; }
+  .rtable td, .rtable th { border: 1px solid var(--border); padding: 4px 10px; text-align: center; color: var(--text); }
+  .rtable th { color: var(--cyan); background: color-mix(in srgb, var(--cyan) 8%, var(--node-fill)); }
+  .rtable tr.done td { color: var(--green); }
+  .note { margin: 8px 30px 30px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .note code { color: var(--cyan); background: rgba(0,240,255,0.08); padding: 1px 5px; border-radius: 3px; } .note b { color: var(--yellow); }
+</style>
+<script>
+/* 防 FOUC：body 绘制前先按已存主题设好关键 CSS 变量，避免浅色主题刷新时闪一下深色。theme.js 之后再补全。 */
+(function () {
+  try {
+    var V = {
+      cyber: { "--bg": "#07060f", "--grid": "rgba(0,240,255,0.06)", "--text": "#e6e1ff", "--panel": "rgba(18,15,38,0.72)", "--border": "#2a2350", "--muted": "#7d76a8" },
+      ocean: { "--bg": "#0e1524", "--grid": "rgba(120,170,220,0.05)", "--text": "#e8eef7", "--panel": "rgba(22,32,52,0.82)", "--border": "#2b3b57", "--muted": "#8fa2bd" },
+      sepia: { "--bg": "#f3ecde", "--grid": "rgba(150,130,95,0.06)", "--text": "#3a332a", "--panel": "rgba(255,251,242,0.86)", "--border": "#d8c9ad", "--muted": "#8a7f6c" },
+      light: { "--bg": "#f7f9fc", "--grid": "rgba(80,120,170,0.05)", "--text": "#1f2733", "--panel": "rgba(255,255,255,0.9)", "--border": "#d5dde8", "--muted": "#6b7688" }
+    };
+    var t = localStorage.getItem("algoviz-theme") || "cyber";
+    if (!V[t]) t = "cyber";
+    var d = document.documentElement, v = V[t];
+    for (var k in v) d.style.setProperty(k, v[k]);
+    d.style.setProperty("color-scheme", (t === "sepia" || t === "light") ? "light" : "dark");
+  } catch (e) {}
+})();
+</script>
+</head>
+<body>
+<header>
+  <h1>ST 表 · 稀疏表</h1>
+  <p id="subtitle"></p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="tabs" id="opTabs">
+  <div class="tab active" data-op="min">区间最小值</div>
+  <div class="tab" data-op="max">区间最大值</div>
+  <div class="tab" data-op="gcd">区间 GCD</div>
+</div>
+
+<div class="controls">
+  <div class="field"><label>数组 a[1..n]（逗号分隔）</label><input id="arr" class="wide" type="text" value="2,6,3,8,1,9,4,7"></div>
+  <div class="field"><label>区间查询 [l,r]（分号分隔多组）</label><input id="q" class="mid" type="text" value="2,5; 1,8; 4,7"></div>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1300" value="720" step="50"></div>
+  <button class="btn cy" id="buildBtn">建表</button>
+  <button class="btn cy" id="queryBtn">查询</button>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="btn secondary" id="randBtn">随机</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="plabel">原数组（<span style="color:var(--yellow)">黄=当前维护区间</span>、<span style="color:var(--cyan)">青=左子区间</span>、<span style="color:var(--magenta)">洋红=右子区间</span>）</div>
+    <div class="arrwrap"><div class="arr" id="arrBox"></div></div>
+    <div class="legend">
+      <span class="item"><span class="sw whole"></span>当前维护区间 [i, i+2^j−1]</span>
+      <span class="item"><span class="sw left"></span>左子区间 dp[i][j−1]</span>
+      <span class="item"><span class="sw right"></span>右子区间 dp[i+2^(j−1)][j−1]</span>
+    </div>
+    <div class="plabel mt">ST 表 dp[i][j]（行 i = 起点，列 j = 区间长 2^j）</div>
+    <div class="arrwrap"><div id="stBox"></div></div>
+  </section>
+  <section class="card">
+    <div class="plabel">算法</div>
+    <div class="formula" id="formula"></div>
+    <div class="status" id="status"></div>
+    <div id="resultBox"></div>
+  </section>
+</main>
+
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let op = "min", steps = [], idx = 0, timer = null, running = false;
+let A = [], QS = [];
+function setStatus(t) { $("status").innerHTML = t; }
+function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { [a, b] = [b, a % b]; } return a; }
+// 整数 log2：⌊log₂x⌋，用位移避免浮点误差（Math.log2 对 2 的整次幂可能返回略小值导致 floor 少 1）
+function ilog2(x) { let k = 0; while ((1 << (k + 1)) <= x) k++; return k; }
+const MERGE = { min: (x, y) => Math.min(x, y), max: (x, y) => Math.max(x, y), gcd: (x, y) => gcd(x, y) };
+const OPSYM = { min: "min", max: "max", gcd: "gcd" };
+
+// ===== 分步生成 =====
+// step 字段：
+//   dp（二维快照，1-based i、0-based j），K（最大 j）
+//   arrHi: {whole:[l,r], left:[l,r], right:[l,r], qres:[l,r]}  原数组区间高亮（含端点，1-based）
+//   stHi:  {cur:[i,j], srcL:[i,j], srcR:[i,j]}                 ST 表格高亮
+//   results（查询答案数组）, desc, phase
+// —— 建表：只演示填表；返回 { list（分步）, dp（成品表）, K, n } ——
+function genBuildSteps() {
+  const n = A.length, list = [];
+  const K = ilog2(n) + 1;              // j = 0..K-1
+  const dp = Array.from({ length: n + 1 }, () => new Array(K).fill(null));
+  const merge = MERGE[op], sym = OPSYM[op];
+  const clone = () => dp.map(r => [...r]);
+  const snap = (o) => list.push(Object.assign({ dp: clone(), K, n, arrHi: {}, stHi: {}, results: null, phase: "build" }, o));
+
+  for (let i = 1; i <= n; i++) dp[i][0] = A[i - 1];
+  snap({ desc: `第 0 列：<b>dp[i][0] = a[i]</b>，即长度 2⁰=1 的区间就是元素本身。` });
+
+  for (let j = 1; j < K; j++) {
+    const len = 1 << j, half = 1 << (j - 1);
+    for (let i = 1; i + len - 1 <= n; i++) {
+      const L = dp[i][j - 1], R = dp[i + half][j - 1];
+      dp[i][j] = merge(L, R);
+      const whole = [i, i + len - 1], left = [i, i + half - 1], right = [i + half, i + len - 1];
+      snap({
+        arrHi: { whole, left, right },
+        stHi: { cur: [i, j], srcL: [i, j - 1], srcR: [i + half, j - 1] },
+        desc: `dp[${i}][${j}] 维护区间 <span class="yel">[${whole[0]},${whole[1]}]</span>（长 ${len}）= ${sym}( 左子 <span class="cyan">[${left[0]},${left[1]}]</span> dp[${i}][${j - 1}]=${L} , 右子 <span class="mag">[${right[0]},${right[1]}]</span> dp[${i + half}][${j - 1}]=${R} ) = <b>${dp[i][j]}</b>。`
+      });
+    }
+  }
+  snap({ done: true, desc: `<span class="hl">ST 表预处理完成！</span>O(n log n)。表已建好，点「查询」可反复查区间，<b>无需重建表</b>。` });
+  return { list, dp, K, n };
+}
+
+// —— 查询：基于已建好的 dp 表，只演示查询；不重填表 ——
+function genQuerySteps(dp, K, n) {
+  const list = [], merge = MERGE[op], sym = OPSYM[op];
+  const clone = () => dp.map(r => [...r]);
+  const results = QS.map(() => null);
+  const snap = (o) => list.push(Object.assign({ dp: clone(), K, n, arrHi: {}, stHi: {}, results: [...results], phase: "query" }, o));
+
+  snap({ desc: `表已就绪。逐个查询拆成两个长 2ᵏ 的区间，${sym} 幂等可重叠，O(1) 出答案。` });
+  QS.forEach(([l, r], qi) => {
+    if (l < 1 || r > n || l > r) { results[qi] = "非法"; snap({ desc: `查询 #${qi + 1} [${l},${r}] 越界，跳过。` }); return; }
+    const len = r - l + 1, k = ilog2(len), blk = 1 << k;
+    const L = dp[l][k], R = dp[r - blk + 1][k];
+    const val = merge(L, R);
+    results[qi] = val;
+    snap({
+      arrHi: { left: [l, l + blk - 1], right: [r - blk + 1, r], qres: [l, r] },
+      stHi: { srcL: [l, k], srcR: [r - blk + 1, k] },
+      desc: `查询 #${qi + 1} [${l},${r}]（长 ${len}）：k=⌊log₂${len}⌋=${k}，拆成两个长 ${blk} 的区间 <span class="cyan">[${l},${l + blk - 1}]</span> dp[${l}][${k}]=${L} 与 <span class="mag">[${r - blk + 1},${r}]</span> dp[${r - blk + 1}][${k}]=${R}（可重叠）→ ${sym} = <span class="hl">${val}</span>。`
+    });
+  });
+  snap({ done: true, desc: `<span class="hl">全部查询完成！</span>见右侧结果表。表保持不变，可改查询再查。` });
+  return list;
+}
+
+// ===== 渲染 =====
+function inSpan(sp, i) { return sp && i >= sp[0] && i <= sp[1]; }
+function drawArr(s) {
+  const hi = s.arrHi || {};
+  let h = "";
+  for (let i = 1; i <= s.n; i++) {
+    let cls = "cell";
+    // 优先级：查询结果段(绿) < 整区间(黄) < 左/右子(青/洋红，覆盖在黄上更醒目)
+    if (inSpan(hi.qres, i)) cls += " qres";
+    if (inSpan(hi.whole, i)) cls += " whole";
+    if (inSpan(hi.left, i)) cls += " left";
+    if (inSpan(hi.right, i)) cls += " right";
+    const on = cls !== "cell";
+    h += `<div class="col"><div class="${cls}">${A[i - 1]}</div><div class="idxlab${on ? " on" : ""}">${i}</div></div>`;
+  }
+  $("arrBox").innerHTML = h;
+}
+function drawST(s) {
+  const dp = s.dp, K = s.K, n = s.n, hi = s.stHi || {};
+  const eq = (p, i, j) => p && p[0] === i && p[1] === j;
+  let h = `<table class="st"><tr><th>i \\ j</th>`;
+  for (let j = 0; j < K; j++) h += `<th>${j}<br><span style="font-weight:400">(2^${j}=${1 << j})</span></th>`;
+  h += `</tr>`;
+  for (let i = 1; i <= n; i++) {
+    h += `<tr><th>${i}</th>`;
+    for (let j = 0; j < K; j++) {
+      const v = dp[i][j];
+      let cls = v == null ? "empty" : "cell2";
+      if (eq(hi.cur, i, j)) cls += " cur";
+      if (eq(hi.srcL, i, j)) cls += " srcL";
+      if (eq(hi.srcR, i, j)) cls += " srcR";
+      h += `<td class="${cls}">${v == null ? "·" : v}</td>`;
+    }
+    h += `</tr>`;
+  }
+  $("stBox").innerHTML = h + `</table>`;
+}
+function drawResult(s) {
+  if (!QS.length) { $("resultBox").innerHTML = ""; return; }
+  let h = `<div class="plabel mt">查询结果</div><table class="rtable"><tr><th>区间 [l,r]</th><th>${OPSYM[op]}</th></tr>`;
+  QS.forEach(([l, r], qi) => { const v = s.results ? s.results[qi] : null; h += `<tr class="${v != null ? "done" : ""}"><td>[${l},${r}]</td><td>${v == null ? "—" : v}</td></tr>`; });
+  $("resultBox").innerHTML = h + `</table>`;
+}
+function draw(k) {
+  const s = steps[k];
+  drawArr(s); drawST(s); drawResult(s);
+  setStatus(s.desc);
+}
+
+// ===== 引擎 =====
+function load(list) {
+  steps = list; idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  draw(0);
+  if (steps.length <= 1) endRun();
+}
+function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(idx); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 1420 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+function parseNums(s) { return (s || "").split(/[，,\s]+/).map(x => x.trim()).filter(x => x !== "").map(Number).filter(x => Number.isFinite(x)); }
+function parseGroups(s) { return (s || "").split(/[;；]/).map(g => g.trim()).filter(Boolean).map(g => g.split(/[，,\s]+/).map(Number).filter(x => Number.isFinite(x))); }
+
+// 已建好的表缓存：{ dp, K, n, sig }。sig=op+数组，变化即失效需重建。
+let TABLE = null;
+function tableSig() { return op + "|" + A.join(","); }
+function readArr() { A = parseNums($("arr").value).slice(0, 14); return A.length > 0; }
+
+// 建表：读数组 → 演示填表，并把成品表存入 TABLE 缓存
+function doBuild() {
+  stopTimer(); running = false;
+  if (!readArr()) { setStatus("⚠ 请输入数组。"); $("arrBox").innerHTML = ""; $("stBox").innerHTML = ""; return; }
+  const r = genBuildSteps();
+  TABLE = { dp: r.dp, K: r.K, n: r.n, sig: tableSig() };
+  QS = [];                 // 建表阶段不显示查询结果
+  load(r.list);
+}
+
+// 查询：基于缓存表演示查询；若数组/运算变了(表失效)则先静默重建再查
+function doQuery() {
+  stopTimer(); running = false;
+  if (!readArr()) { setStatus("⚠ 请输入数组。"); return; }
+  QS = parseGroups($("q").value).filter(g => g.length >= 2).map(g => [g[0], g[1]]);
+  if (!QS.length) { setStatus("⚠ 请输入至少一组查询 [l,r]。"); return; }
+  if (!TABLE || TABLE.sig !== tableSig()) {
+    // 数组或运算已变，静默重建表（不演示填表），再演示查询
+    const r = genBuildSteps();
+    TABLE = { dp: r.dp, K: r.K, n: r.n, sig: tableSig() };
+    setStatus(`（数组/运算已变，已静默重建 ST 表）`);
+  }
+  load(genQuerySteps(TABLE.dp, TABLE.K, TABLE.n));
+}
+
+const SUB = {
+  min: "ST 表（稀疏表）：倍增预处理静态区间最小值，O(n log n) 建表、O(1) 查询。",
+  max: "ST 表（稀疏表）：倍增预处理静态区间最大值，O(n log n) 建表、O(1) 查询。",
+  gcd: "ST 表（稀疏表）：倍增预处理静态区间 GCD，O(n log n) 建表、O(1) 查询。",
+};
+function FORMULA_HTML() {
+  const sym = OPSYM[op];
+  return `<b>建表</b>：dp[i][j] = 区间 [i, i+2ʲ−1] 的 ${sym}<br>`
+    + `&nbsp;&nbsp;dp[i][0] = a[i]<br>`
+    + `&nbsp;&nbsp;dp[i][j] = ${sym}( <span style="color:var(--cyan)">dp[i][j−1]</span> , <span style="color:var(--magenta)">dp[i+2ʲ⁻¹][j−1]</span> )<br>`
+    + `<b>查询</b> [l,r]：k=⌊log₂(r−l+1)⌋<br>`
+    + `&nbsp;&nbsp;ans = ${sym}( <span style="color:var(--cyan)">dp[l][k]</span> , <span style="color:var(--magenta)">dp[r−2ᵏ+1][k]</span> )<br>`
+    + `两段长都是 2ᵏ、可重叠——因 ${sym} <b>幂等</b>（重复计入不影响结果）。`;
+}
+function NOTE_HTML() {
+  const sym = OPSYM[op];
+  return `ST 表用<b>倍增</b>思想：dp[i][j] 覆盖从 i 开始、长 <code>2ʲ</code> 的区间，由两个长 <code>2ʲ⁻¹</code> 的子区间合并而来（上方原数组里<span style="color:var(--cyan)">青</span>、<span style="color:var(--magenta)">洋红</span>两段拼成<span style="color:var(--yellow)">黄</span>段）。查询 [l,r] 拆成 <code>dp[l][k]</code> 与 <code>dp[r−2ᵏ+1][k]</code> 两段（k=⌊log₂ 长度⌋），它们可能<b>重叠</b>但不影响结果——因为 <code>${sym}</code> 满足<b>幂等律</b> ${sym}(x,x)=x。适用<b>静态</b>数组（建表后不改元素）的可重复贡献查询：区间最值、GCD、按位与/或等。带修改请用线段树。`;
+}
+function applyOp(o) {
+  op = o;
+  document.querySelectorAll("#opTabs .tab").forEach(t => t.classList.toggle("active", t.dataset.op === o));
+  $("subtitle").textContent = SUB[o];
+  $("formula").innerHTML = FORMULA_HTML();
+  $("note").innerHTML = NOTE_HTML();
+  TABLE = null;            // 换运算，旧表失效
+  doBuild();               // 切运算后先演示新表的建表
+}
+
+document.querySelectorAll("#opTabs .tab").forEach(t => t.onclick = () => applyOp(t.dataset.op));
+$("buildBtn").onclick = doBuild;
+$("queryBtn").onclick = doQuery;
+$("playBtn").onclick = () => { playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("arr").addEventListener("keydown", e => { if (e.key === "Enter") doBuild(); });
+$("q").addEventListener("keydown", e => { if (e.key === "Enter") doQuery(); });
+$("randBtn").onclick = () => {
+  const rint = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+  const n = rint(6, 10);
+  if (op === "gcd") $("arr").value = [...Array(n)].map(() => rint(1, 6) * rint(1, 8)).join(",");
+  else $("arr").value = [...Array(n)].map(() => rint(1, 20)).join(",");
+  $("q").value = [...Array(3)].map(() => { let l = rint(1, n), r = rint(1, n); if (l > r)[l, r] = [r, l]; return `${l},${r}`; }).join("; ");
+  doBuild();
+};
+$("cppBtn").onclick = () => CppView.open("st_" + op);
+
+CppView.register({
+  st_min: { title: "ST 表 · 区间最小值 (RMQ) — C++", code:
+[
+"// ST 表(稀疏表)：倍增预处理静态区间最小值。建表 O(n log n)，查询 O(1)。",
+"// dp[i][j] = 区间 [i, i+2^j-1] 的最小值。",
+"#include <iostream>",
+"#include <cmath>",
+"using namespace std;",
+"const int N = 100005, LOG = 17;",
+"int dp[N][LOG], LG[N];",
+"int main(){",
+"    int n, q; cin >> n >> q;",
+"    for(int i=1;i<=n;i++) cin >> dp[i][0];        // dp[i][0]=a[i]",
+"    for(int i=2;i<=n;i++) LG[i] = LG[i/2] + 1;    // 预处理 log2",
+"    for(int j=1;(1<<j)<=n;j++)                     // 区间长 2^j",
+"        for(int i=1;i+(1<<j)-1<=n;i++)             // 起点 i",
+"            dp[i][j] = min(dp[i][j-1], dp[i+(1<<(j-1))][j-1]);",
+"    while(q--){",
+"        int l, r; cin >> l >> r;",
+"        int k = LG[r-l+1];                         // k=floor(log2(len))",
+"        cout << min(dp[l][k], dp[r-(1<<k)+1][k]) << endl;  // 两段可重叠",
+"    }",
+"    return 0;",
+"}",
+].join("\n") },
+  st_max: { title: "ST 表 · 区间最大值 — C++", code:
+[
+"// ST 表：倍增预处理静态区间最大值。建表 O(n log n)，查询 O(1)。",
+"#include <iostream>",
+"using namespace std;",
+"const int N = 100005, LOG = 17;",
+"int dp[N][LOG], LG[N];",
+"int main(){",
+"    int n, q; cin >> n >> q;",
+"    for(int i=1;i<=n;i++) cin >> dp[i][0];",
+"    for(int i=2;i<=n;i++) LG[i] = LG[i/2] + 1;",
+"    for(int j=1;(1<<j)<=n;j++)",
+"        for(int i=1;i+(1<<j)-1<=n;i++)",
+"            dp[i][j] = max(dp[i][j-1], dp[i+(1<<(j-1))][j-1]);",
+"    while(q--){",
+"        int l, r; cin >> l >> r;",
+"        int k = LG[r-l+1];",
+"        cout << max(dp[l][k], dp[r-(1<<k)+1][k]) << endl;",
+"    }",
+"    return 0;",
+"}",
+].join("\n") },
+  st_gcd: { title: "ST 表 · 区间 GCD — C++", code:
+[
+"// ST 表：倍增预处理静态区间最大公约数。gcd 满足幂等律 gcd(x,x)=x，",
+"// 故查询两段可重叠。建表 O(n log n · log V)，查询 O(log V)。",
+"#include <iostream>",
+"using namespace std;",
+"const int N = 100005, LOG = 17;",
+"int dp[N][LOG], LG[N];",
+"int gcd(int a, int b){ return b ? gcd(b, a % b) : a; }",
+"int main(){",
+"    int n, q; cin >> n >> q;",
+"    for(int i=1;i<=n;i++) cin >> dp[i][0];",
+"    for(int i=2;i<=n;i++) LG[i] = LG[i/2] + 1;",
+"    for(int j=1;(1<<j)<=n;j++)",
+"        for(int i=1;i+(1<<j)-1<=n;i++)",
+"            dp[i][j] = gcd(dp[i][j-1], dp[i+(1<<(j-1))][j-1]);",
+"    while(q--){",
+"        int l, r; cin >> l >> r;",
+"        int k = LG[r-l+1];",
+"        cout << gcd(dp[l][k], dp[r-(1<<k)+1][k]) << endl;",
+"    }",
+"    return 0;",
+"}",
+].join("\n") },
+});
+
+applyOp("min");
+</script>
+<script src="../assets/theme.js"></script>
+</body>
+</html>
+
