@@ -131,6 +131,24 @@
   .status { margin-top: 6px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
   .note { padding: 6px 30px 30px; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
 </style>
+<script>
+/* 防 FOUC：body 绘制前先按已存主题设好关键 CSS 变量，避免浅色主题刷新时闪一下深色。theme.js 之后再补全。 */
+(function () {
+  try {
+    var V = {
+      cyber: { "--bg": "#07060f", "--grid": "rgba(0,240,255,0.06)", "--text": "#e6e1ff", "--panel": "rgba(18,15,38,0.72)", "--border": "#2a2350", "--muted": "#7d76a8" },
+      ocean: { "--bg": "#0e1524", "--grid": "rgba(120,170,220,0.05)", "--text": "#e8eef7", "--panel": "rgba(22,32,52,0.82)", "--border": "#2b3b57", "--muted": "#8fa2bd" },
+      sepia: { "--bg": "#f3ecde", "--grid": "rgba(150,130,95,0.06)", "--text": "#3a332a", "--panel": "rgba(255,251,242,0.86)", "--border": "#d8c9ad", "--muted": "#8a7f6c" },
+      light: { "--bg": "#f7f9fc", "--grid": "rgba(80,120,170,0.05)", "--text": "#1f2733", "--panel": "rgba(255,255,255,0.9)", "--border": "#d5dde8", "--muted": "#6b7688" }
+    };
+    var t = localStorage.getItem("algoviz-theme") || "cyber";
+    if (!V[t]) t = "cyber";
+    var d = document.documentElement, v = V[t];
+    for (var k in v) d.style.setProperty(k, v[k]);
+    d.style.setProperty("color-scheme", (t === "sepia" || t === "light") ? "light" : "dark");
+  } catch (e) {}
+})();
+</script>
 </head>
 <body>
 <header>
