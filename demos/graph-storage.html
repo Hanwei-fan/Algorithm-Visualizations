@@ -79,10 +79,10 @@
   .gnode.justadded circle { animation: pop .6s ease; }
   @keyframes pop { 0% { fill: color-mix(in srgb, var(--green) 55%, var(--node-fill)); stroke: var(--green); } 100% {} }
   .edge { stroke: var(--muted); stroke-width: 2; fill: none; transition: stroke .18s; }
-  .edgehit { stroke: transparent; stroke-width: 14; fill: none; cursor: pointer; }
+  .edgehit { stroke: transparent; stroke-width: 16; fill: none; cursor: pointer; pointer-events: stroke; }
   .edge.justadded { animation: edgepop .6s ease; }
   @keyframes edgepop { 0% { stroke: var(--green); stroke-width: 4; } 100% {} }
-  .ew-bg { fill: var(--panel); stroke: var(--border); }
+  .ew-bg { fill: var(--panel); stroke: var(--border); pointer-events: none; }
   .ew { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; text-anchor: middle; pointer-events: none; }
   .emptip { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 14px; text-anchor: middle; }
   /* 存储视图 */
