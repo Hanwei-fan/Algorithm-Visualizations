@@ -85,8 +85,9 @@ $("cppBtn").onclick = () => CppView.open("算法id");   // 多场景可传当前
 
 **排序规则（务必遵守，新增项也按此排）**：门户按**知识点难度 / 拓扑依赖**从易到难排列，分两层：
 1. **板块之间**：SECTIONS 数组顺序 = 学习路径。当前基准顺序（新增板块按难度梯度插入合适位置，别直接追加到末尾）：
-   `search → sort → linear → hash → twopointer → string → math → greedy → tree → range → graph → advanced → geo → interactive`
-   （基础查找/排序/线性结构 → 基础技巧 → 需要更多前置的树/区间/图 → 高级范式 DP → 综合几何/真题）
+   `search(查找与排序) → linear → hash → twopointer → string → math → greedy → tree → range → graph → advanced → geo → interactive`
+   （基础查找排序/线性结构 → 基础技巧 → 需要更多前置的树/区间/图 → 高级范式 DP → 综合几何/真题）
+   注：查找与排序已合并为一个板块 id="search"（含顺序/二分查找 + 排序算法），原独立的 sort 板块已并入。
 2. **板块内部**：`items` 从易到难、有前置关系的排前面。例如：
    - range：前缀和差分 → 树状数组 → 线段树
    - math：高精度 → 质数筛法 → 质因数分解
