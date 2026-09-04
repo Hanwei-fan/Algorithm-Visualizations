@@ -333,6 +333,8 @@ const SECTIONS = [
         desc: "两大模型：①取球最大价值（点+区间，两端取球第 k 个价值 k·a[i]）②合并石子最小代价（区间+区间，枚举分割点）。按区间长度对角线填 dp[i][j] 三角表，转移来源高亮，含 C++。" },
       { icon: "🔢", tag: "DP", title: "状态压缩 DP", file: "state-dp.html", ready: true,
         desc: "传递游戏（最短哈密顿路径）：用整数二进制位表示“哪些人已拿过物品”的集合。突出「集合⇔二进制⇔整数」的压缩过程，dp[mask][holder] 逐步转移、位高亮、代价矩阵，含 C++。" },
+      { icon: "🧳", tag: "DP", title: "旅行商问题 TSP", file: "tsp.html", ready: true,
+        desc: "求经过每城恰好一次并回到起点的最短闭合回路。全排列暴力 O(n!) 与状压 DP·Held-Karp O(2ⁿn²) 两解法可切换：点画布建城、完全图淡边+回路高亮，DP 展示 dp[mask][i]、集合⇔二进制⇔整数与代价矩阵，含两份 C++。" },
     ],
   },
   {
