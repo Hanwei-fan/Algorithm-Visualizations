@@ -80,6 +80,9 @@
   .edge { stroke: color-mix(in srgb, var(--muted) 45%, transparent); stroke-width: 1; transition: all .18s; }
   .edge.onpath { stroke: var(--cyan); stroke-width: 3; filter: drop-shadow(0 0 5px rgba(0,240,255,.6)); }
   .edge.best { stroke: var(--green); stroke-width: 3.2; filter: drop-shadow(0 0 6px rgba(0,255,156,.7)); }
+  .arrow.onpath { fill: var(--cyan); filter: drop-shadow(0 0 4px rgba(0,240,255,.7)); }
+  .arrow.best { fill: var(--green); filter: drop-shadow(0 0 4px rgba(0,255,156,.8)); }
+  .seq { fill: #05060f; font-family: "SF Mono", Menlo, monospace; font-size: 10px; font-weight: 700; text-anchor: middle; pointer-events: none; }
   .ew { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 10px; text-anchor: middle; pointer-events: none; }
   .gnode circle { fill: var(--node-fill); stroke: var(--border); stroke-width: 2; transition: all .18s; cursor: pointer; }
   .gnode text.lbl { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; text-anchor: middle; pointer-events: none; }
@@ -184,6 +187,7 @@
       <span class="item"><span class="sw start"></span>起点 0</span>
       <span class="item"><span class="sw onpath"></span>路径中间点</span>
       <span class="item"><span class="sw tail"></span>当前路径终点</span>
+      <span class="item">▷ 箭头=走向，边上 <b style="color:var(--cyan)">①②③</b>=第几步</span>
     </div>
   </section>
   <section class="card">
@@ -194,10 +198,10 @@
       <div class="plabel mt">集合 ⇔ 二进制 ⇔ 整数（mask）</div>
       <div id="maskview"></div>
       <div class="maskeq" id="maskeq"></div>
+      <div class="plabel mt">代价矩阵 a[i][j]（欧氏距离）—— 转移时高亮正在取用的 <span style="color:var(--magenta)">a[i][j]</span></div>
+      <div id="matBox" style="overflow-x:auto"></div>
       <div class="plabel mt">DP 表　dp[mask][i]（行=已访问集合 mask，列=当前所在点 i）</div>
       <div id="dpBox" style="overflow-x:auto"></div>
-      <div class="plabel mt">代价矩阵 a[i][j]（欧氏距离）</div>
-      <div id="matBox" style="overflow-x:auto"></div>
     </div>
     <!-- 暴力专属：排列结果表 -->
     <div class="subview on" id="view-brute">
@@ -291,11 +295,24 @@ function renderCanvas(hi) {
     if (pathEdge.has(key)) continue;   // 路径边后画（在上层）
     edges += `<line class="edge" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`;
   }
-  // 再画高亮路径边
+  // 再画高亮路径边（有向：线 + 中点箭头 + 步序号，清楚显示走向 pn[k] → pn[k+1]）
+  const arrCls = hi.best ? "arrow best" : "arrow onpath";
   let pedges = "";
   for (let k = 0; k + 1 < pn.length; k++) {
     const a = pos[pn[k]], b = pos[pn[k + 1]]; if (!a || !b) continue;
     pedges += `<line class="${edgeCls}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`;
+    // 箭头：段中点，沿 a→b 方向的三角形
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len, px = -uy, py = ux;   // 单位方向 + 法向
+    const mx = a.x + dx * 0.5, my = a.y + dy * 0.5, s = 9;
+    const tipx = mx + ux * s, tipy = my + uy * s;
+    const bx = mx - ux * s, by = my - uy * s;
+    const lx = bx + px * s * 0.62, ly = by + py * s * 0.62;
+    const rx = bx - px * s * 0.62, ry = by - py * s * 0.62;
+    pedges += `<polygon class="${arrCls}" points="${tipx},${tipy} ${lx},${ly} ${rx},${ry}"/>`;
+    // 步序号：法向偏移一点，避免压在线上
+    const sx = mx + px * 15, sy = my + py * 15;
+    pedges += `<circle cx="${sx}" cy="${sy}" r="8" class="${arrCls}" opacity="0.9"/><text class="seq" x="${sx}" y="${sy + 3.5}">${k + 1}</text>`;
   }
   // 节点
   const pathSet = new Set(pn);
