@@ -136,6 +136,8 @@
         /* tab 类按钮(部分页面用 .tab)：激活态实心，非激活浅底 */
         .tab { background: #ffffff !important; }
         .tab.active { background: var(--cyan) !important; color: #fff !important; }
+        /* subtab 激活态(12 个页面用 .subtab)：浅色主题下原深色文字与实心底纹撞色，改白字保证对比 */
+        .subtab.active { color: #fff !important; }
         /* 汉诺塔：柱子/底座深紫渐变 → 中性灰；编号去霓虹发光 */
         .rod { background: linear-gradient(180deg, #b8b3c8, #9891b0) !important; }
         .base { background: linear-gradient(180deg, #9891b0, #6f6a86) !important; }
