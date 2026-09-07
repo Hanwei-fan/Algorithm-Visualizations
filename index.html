@@ -318,6 +318,10 @@ const SECTIONS = [
         desc: "Floyd-Warshall 三重循环 dp[i][j]=min(dp[i][j], dp[i][k]+dp[k][j])。距离矩阵随中转点 k 动态更新，高亮被松弛的格子，O(n³)，含 C++。" },
       { icon: "🌉", tag: "图", title: "最小生成树", file: "mst.html", ready: true,
         desc: "Prim(加点) / Kruskal(加边+并查集) 可切换，展示选边过程与权值和，随机带权图，单步/自动。" },
+      { icon: "🧳", tag: "图·DP", title: "旅行商问题 TSP", file: "tsp.html", ready: true,
+        desc: "求经过每城恰好一次并回到起点的最短闭合回路。全排列暴力 O(n!) 与状压 DP·Held-Karp O(2ⁿn²) 两解法可切换：点画布建城、完全图淡边+回路高亮，DP 展示 dp[mask][i]、集合⇔二进制⇔整数与代价矩阵，含两份 C++。" },
+      { icon: "🔗", tag: "图·DP", title: "哈密顿路径 / 回路", file: "hamilton.html", ready: true,
+        desc: "经过每个点恰好一次的路径/回路是否存在（NP 完全），以及完全图上最短哈密顿路径。三问题(路径判定/回路判定/最短路)×两解法(回溯 O(n!) / 状压 DP 判定 O(2ⁿn²))可切换：一般图点两点连边、有向路径高亮、DP 表 ✓/✗ 可达或距离、邻接表，含两份 C++。" },
     ],
   },
   {
@@ -333,10 +337,6 @@ const SECTIONS = [
         desc: "两大模型：①取球最大价值（点+区间，两端取球第 k 个价值 k·a[i]）②合并石子最小代价（区间+区间，枚举分割点）。按区间长度对角线填 dp[i][j] 三角表，转移来源高亮，含 C++。" },
       { icon: "🔢", tag: "DP", title: "状态压缩 DP", file: "state-dp.html", ready: true,
         desc: "传递游戏（最短哈密顿路径）：用整数二进制位表示“哪些人已拿过物品”的集合。突出「集合⇔二进制⇔整数」的压缩过程，dp[mask][holder] 逐步转移、位高亮、代价矩阵，含 C++。" },
-      { icon: "🧳", tag: "DP", title: "旅行商问题 TSP", file: "tsp.html", ready: true,
-        desc: "求经过每城恰好一次并回到起点的最短闭合回路。全排列暴力 O(n!) 与状压 DP·Held-Karp O(2ⁿn²) 两解法可切换：点画布建城、完全图淡边+回路高亮，DP 展示 dp[mask][i]、集合⇔二进制⇔整数与代价矩阵，含两份 C++。" },
-      { icon: "🔗", tag: "DP", title: "哈密顿路径 / 回路", file: "hamilton.html", ready: true,
-        desc: "经过每个点恰好一次的路径/回路是否存在（NP 完全），以及完全图上最短哈密顿路径。三问题(路径判定/回路判定/最短路)×两解法(回溯 O(n!) / 状压 DP 判定 O(2ⁿn²))可切换：一般图点两点连边、有向路径高亮、DP 表 ✓/✗ 可达或距离、邻接表，含两份 C++。" },
     ],
   },
   {
