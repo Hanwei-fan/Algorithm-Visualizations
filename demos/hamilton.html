@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>哈密顿路径 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+    --node-fill: #16213e; --red: #ff4d6d;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 20px 30px 4px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 10px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 8px; padding: 12px 30px 0; flex-wrap: wrap; }
+  .tabs.sub { padding-top: 8px; }
+  .tab {
+    padding: 9px 16px; border: 1px solid var(--border); border-radius: 999px;
+    background: rgba(0,240,255,0.05); color: var(--cyan); font-size: 13px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .tab:hover { border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.35); }
+  .tab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; box-shadow: 0 0 12px rgba(0,240,255,.5); }
+  .tab.solver { background: rgba(255,43,214,0.06); color: var(--magenta); border-color: color-mix(in srgb, var(--magenta) 40%, var(--border)); }
+  .tab.solver:hover { border-color: var(--magenta); box-shadow: 0 0 10px rgba(255,43,214,.35); }
+  .tab.solver.active { background: var(--magenta); color: #05060f; border-color: var(--magenta); box-shadow: 0 0 12px rgba(255,43,214,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 14px 30px; }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 110px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.cy { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); }
+  .btn.cy:hover:not(:disabled) { background: var(--cyan); color: #05060f; box-shadow: 0 0 16px rgba(0,240,255,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(18,15,38,0.5); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); }
+  main { padding: 8px 30px 12px; display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 18px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); overflow-x: auto; }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 10px; }
+  .plabel.mt { margin-top: 16px; }
+  .hint { font-size: 12px; color: var(--muted); font-family: "SF Mono", Menlo, monospace; margin: 0 0 8px; }
+  .hint b { color: var(--yellow); }
+  svg#canvas { width: 100%; height: auto; display: block; background: rgba(5,4,15,0.25); border-radius: 8px; cursor: crosshair; }
+  .edge { stroke: color-mix(in srgb, var(--muted) 45%, transparent); stroke-width: 1.5; transition: all .18s; }
+  .edge.onpath { stroke: var(--cyan); stroke-width: 3; filter: drop-shadow(0 0 5px rgba(0,240,255,.6)); }
+  .edge.best { stroke: var(--green); stroke-width: 3.2; filter: drop-shadow(0 0 6px rgba(0,255,156,.7)); }
+  .edge.pick { stroke: var(--yellow); stroke-width: 2.4; }               /* 编辑态待连的第一个端点提示 */
+  .arrow.onpath { fill: var(--cyan); filter: drop-shadow(0 0 4px rgba(0,240,255,.7)); }
+  .arrow.best { fill: var(--green); filter: drop-shadow(0 0 4px rgba(0,255,156,.8)); }
+  .seq { fill: #05060f; font-family: "SF Mono", Menlo, monospace; font-size: 10px; font-weight: 700; text-anchor: middle; pointer-events: none; }
+  .ew { fill: color-mix(in srgb, var(--muted) 35%, var(--text)); font-family: "SF Mono", Menlo, monospace; font-size: 11px; font-weight: 600; text-anchor: middle; pointer-events: none; }
+  .ew.onpath { fill: var(--cyan); font-weight: 700; } .ew.best { fill: var(--green); font-weight: 700; } .ew.custom { fill: var(--yellow); }
+  .ewbg { fill: color-mix(in srgb, var(--node-fill) 78%, transparent); stroke: var(--border); rx: 4; }
+  .editable .ewbg { cursor: pointer; stroke: color-mix(in srgb, var(--yellow) 50%, var(--border)); }
+  .editable .ewbg:hover { stroke: var(--yellow); fill: color-mix(in srgb, var(--yellow) 16%, var(--node-fill)); }
+  .ewedit { width: 46px; height: 22px; border: 1px solid var(--yellow); border-radius: 4px; background: #0d0b1a; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; font-size: 12px; text-align: center; outline: none; }
+  .gnode circle { fill: var(--node-fill); stroke: var(--border); stroke-width: 2; transition: all .18s; cursor: pointer; }
+  .gnode text.lbl { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; text-anchor: middle; pointer-events: none; }
+  .gnode:hover circle { stroke: var(--cyan); }
+  .gnode.start circle { fill: color-mix(in srgb, var(--green) 30%, var(--node-fill)); stroke: var(--green); }
+  .gnode.onpath circle { fill: color-mix(in srgb, var(--cyan) 34%, var(--node-fill)); stroke: var(--cyan); }
+  .gnode.tail circle { fill: var(--yellow); stroke: var(--yellow); filter: drop-shadow(0 0 8px rgba(255,212,0,.7)); }
+  .gnode.tail text.lbl { fill: #120e00; }
+  .gnode.pick circle { stroke: var(--yellow); stroke-width: 3; filter: drop-shadow(0 0 8px rgba(255,212,0,.6)); }
+  .emptip { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 14px; text-anchor: middle; }
+  .clegend { display: flex; gap: 14px; flex-wrap: wrap; margin: 8px 0 2px; font-family: "SF Mono", Menlo, monospace; font-size: 11.5px; color: var(--muted); }
+  .clegend .item { display: inline-flex; align-items: center; gap: 6px; }
+  .clegend .sw { width: 13px; height: 13px; border-radius: 50%; border: 1px solid var(--border); }
+  .clegend .sw.start { background: color-mix(in srgb, var(--green) 45%, var(--node-fill)); border-color: var(--green); }
+  .clegend .sw.onpath { background: color-mix(in srgb, var(--cyan) 45%, var(--node-fill)); border-color: var(--cyan); }
+  .clegend .sw.tail { background: var(--yellow); border-color: var(--yellow); }
+  .lockhint { font-size: 12px; font-family: "SF Mono", Menlo, monospace; margin: 6px 0 0; }
+  .lockhint.edit { color: var(--yellow); } .lockhint.locked { color: var(--muted); }
+  .lockhint b { color: var(--cyan); }
+  /* DP 表 */
+  table.dp { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 12px; }
+  table.dp td, table.dp th { border: 1px solid var(--border); min-width: 32px; height: 26px; text-align: center; padding: 0 4px; }
+  table.dp th { color: var(--cyan); background: color-mix(in srgb, var(--cyan) 8%, var(--node-fill)); font-size: 11px; }
+  table.dp td.rh { color: var(--cyan); text-align: right; white-space: nowrap; }
+  table.dp td.rh .bin { color: var(--muted); font-size: 10px; }
+  table.dp tr.currow td.rh { background: color-mix(in srgb, var(--yellow) 20%, var(--node-fill)); color: var(--yellow); }
+  table.dp td.cell { color: var(--text); transition: all .12s; }
+  table.dp td.cell.inf { color: var(--muted); }
+  table.dp td.cell.t { color: var(--green); font-weight: 700; }       /* 可达=真 */
+  table.dp td.cell.f { color: var(--muted); }                          /* 不可达=假 */
+  table.dp td.cell.cur { background: var(--yellow); color: #120e00; font-weight: 700; box-shadow: 0 0 6px rgba(255,212,0,.6) inset; }
+  table.dp td.cell.src { background: color-mix(in srgb, var(--magenta) 28%, var(--node-fill)); border-color: var(--magenta); }
+  table.dp td.cell.best { background: color-mix(in srgb, var(--green) 30%, var(--node-fill)); border-color: var(--green); }
+  /* 集合⇔二进制⇔整数 */
+  .bits { display: flex; gap: 5px; flex-wrap: wrap; margin: 2px 0 6px; }
+  .bit { display: flex; flex-direction: column; align-items: center; border: 1px solid var(--border); border-radius: 6px; padding: 3px 7px; background: var(--node-fill); min-width: 40px; }
+  .bit .who { font-size: 9px; color: var(--muted); } .bit .b { font-size: 15px; font-weight: 700; color: var(--muted); } .bit .pw { font-size: 8px; color: var(--muted); }
+  .bit.on { background: color-mix(in srgb, var(--green) 22%, var(--node-fill)); border-color: var(--green); }
+  .bit.on .b { color: var(--green); }
+  .bit.holder { background: color-mix(in srgb, var(--yellow) 30%, var(--node-fill)); border-color: var(--yellow); }
+  .bit.holder .b { color: #120e00; }
+  .maskeq { font-family: "SF Mono", Menlo, monospace; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .maskeq b { color: var(--cyan); } .maskeq .dec { color: var(--yellow); font-weight: 700; }
+  /* 回溯栈 / 邻接表 */
+  table.adj { border-collapse: collapse; font-family: "SF Mono", Menlo, monospace; font-size: 12px; margin-top: 4px; }
+  table.adj td, table.adj th { border: 1px solid var(--border); min-width: 28px; height: 24px; text-align: center; padding: 0 6px; }
+  table.adj th { color: var(--cyan); background: color-mix(in srgb, var(--cyan) 8%, var(--node-fill)); }
+  table.adj td.nb { color: var(--text); text-align: left; }
+  .bt { font-family: "SF Mono", Menlo, monospace; font-size: 13px; }
+  .bt .frame { display: inline-block; padding: 3px 9px; margin: 2px 3px; border: 1px solid var(--border); border-radius: 6px; background: var(--node-fill); }
+  .bt .frame.tail { background: color-mix(in srgb, var(--yellow) 26%, var(--node-fill)); border-color: var(--yellow); color: #120e00; font-weight: 700; }
+  .formula { background: rgba(3,2,12,0.55); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: var(--muted); margin: 0 0 12px; line-height: 1.7; }
+  .formula b { color: var(--yellow); } .formula code { color: var(--cyan); }
+  .status { margin-top: 6px; font-size: 13px; min-height: 48px; color: var(--text); font-family: "SF Mono", Menlo, monospace; line-height: 1.6; }
+  .status .hl { color: var(--green); font-weight: 700; } .status .cyan { color: var(--cyan); } .status .yel { color: var(--yellow); font-weight: 700; } .status .no { color: var(--red); font-weight: 700; }
+  .bigans { font-family: "SF Mono", Menlo, monospace; font-size: 14px; margin-top: 8px; }
+  .bigans b { color: var(--green); font-size: 17px; } .bigans b.no { color: var(--red); }
+  .note { margin: 8px 30px 30px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .note code { color: var(--cyan); background: rgba(0,240,255,0.08); padding: 1px 5px; border-radius: 3px; } .note b { color: var(--yellow); }
+  .subview { display: none; } .subview.on { display: block; }
+</style>
+<script>
+/* 防 FOUC：body 绘制前先按已存主题设好关键 CSS 变量 */
+(function () {
+  try {
+    var V = {
+      cyber: { "--bg": "#07060f", "--grid": "rgba(0,240,255,0.06)", "--text": "#e6e1ff", "--panel": "rgba(18,15,38,0.72)", "--border": "#2a2350", "--muted": "#7d76a8" },
+      ocean: { "--bg": "#0e1524", "--grid": "rgba(120,170,220,0.05)", "--text": "#e8eef7", "--panel": "rgba(22,32,52,0.82)", "--border": "#2b3b57", "--muted": "#8fa2bd" },
+      sepia: { "--bg": "#f3ecde", "--grid": "rgba(150,130,95,0.06)", "--text": "#3a332a", "--panel": "rgba(255,251,242,0.86)", "--border": "#d8c9ad", "--muted": "#8a7f6c" },
+      light: { "--bg": "#f7f9fc", "--grid": "rgba(80,120,170,0.05)", "--text": "#1f2733", "--panel": "rgba(255,255,255,0.9)", "--border": "#d5dde8", "--muted": "#6b7688" }
+    };
+    var t = localStorage.getItem("algoviz-theme") || "cyber";
+    if (!V[t]) t = "cyber";
+    var d = document.documentElement, v = V[t];
+    for (var k in v) d.style.setProperty(k, v[k]);
+    d.style.setProperty("color-scheme", (t === "sepia" || t === "light") ? "light" : "dark");
+  } catch (e) {}
+})();
+</script>
+</head>
+<body>
+<header>
+  <h1>哈密顿路径 / 回路</h1>
+  <p id="subtitle"></p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="tabs" id="probTabs">
+  <div class="tab active" data-prob="path">一般图·哈密顿路径判定</div>
+  <div class="tab" data-prob="cycle">一般图·哈密顿回路判定</div>
+  <div class="tab" data-prob="short">完全图·最短哈密顿路径</div>
+</div>
+<div class="tabs sub" id="solverTabs">
+  <div class="tab solver active" data-solver="bt">回溯暴力 O(n!)</div>
+  <div class="tab solver" data-solver="dp">状压 DP O(2ⁿn²)</div>
+</div>
+
+<div class="controls">
+  <button class="btn secondary" id="randBtn">随机生成</button>
+  <button class="btn secondary" id="undoBtn">撤销</button>
+  <button class="btn secondary" id="clearBtn">清空</button>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1300" value="720" step="50"></div>
+  <button class="btn cy" id="runBtn">开始/重演</button>
+  <button class="btn" id="playBtn" disabled>自动播放</button>
+  <button class="btn secondary" id="stepBtn" disabled>单步 ▶</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <p class="plabel" id="canvasLabel"></p>
+    <p class="hint" id="canvasHint"></p>
+    <svg id="canvas" viewBox="0 0 640 440" preserveAspectRatio="xMidYMid meet"></svg>
+    <div class="clegend">
+      <span class="item"><span class="sw start"></span>起点</span>
+      <span class="item"><span class="sw onpath"></span>路径中间点</span>
+      <span class="item"><span class="sw tail"></span>当前末点</span>
+      <span class="item">▷ 箭头=走向，边上 <b style="color:var(--cyan)">①②③</b>=第几步</span>
+    </div>
+    <p class="lockhint edit" id="lockHint"></p>
+  </section>
+  <section class="card">
+    <div class="plabel">算法</div>
+    <div class="formula" id="formula"></div>
+    <!-- 状压 DP 专属 -->
+    <div class="subview" id="view-dp">
+      <div class="plabel mt">集合 ⇔ 二进制 ⇔ 整数（mask）</div>
+      <div id="maskview"></div>
+      <div class="maskeq" id="maskeq"></div>
+      <div class="plabel mt" id="dpLabel"></div>
+      <div id="dpBox" style="overflow-x:auto"></div>
+    </div>
+    <!-- 回溯专属 -->
+    <div class="subview on" id="view-bt">
+      <div class="plabel mt">当前路径（回溯栈）</div>
+      <div id="btBox" class="bt"></div>
+    </div>
+    <div class="plabel mt">邻接表（点→可直达邻居）</div>
+    <div id="adjBox" style="overflow-x:auto"></div>
+    <div class="status" id="status"></div>
+    <div class="bigans" id="bigans"></div>
+  </section>
+</main>
+
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const R = 20;
+let prob = "path";                  // path | cycle | short
+let solver = "bt";                  // bt | dp
+let nodes = [];                     // [{id,x,y}]
+let edges = new Set();              // 一般图：无向边 "min-max"(下标) 集合
+let customW = {};                   // short 模式：用户改过的边长 "min-max" -> 正整数
+let nextId = 0;
+let steps = [], idx = 0, timer = null, running = false;
+let locked = false, editingEdge = null, pickNode = null;   // pickNode: 连边时已选的第一个端点
+let curHi = { pathNodes: [], tail: null, best: false };
+function setStatus(t) { $("status").innerHTML = t; }
+function isShort() { return prob === "short"; }
+function capOf() { return solver === "bt" ? (isShort() ? 6 : 7) : 10; }   // 回溯 n! 上限更小
+
+// ---- 边模型 ----
+function ekey(i, j) { return Math.min(i, j) + "-" + Math.max(i, j); }
+function hasEdge(i, j) { return isShort() ? true : edges.has(ekey(i, j)); }   // 完全图恒有边
+function adjList() {
+  const n = nodes.length, L = Array.from({ length: n }, () => []);
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j && hasEdge(i, j)) L[i].push(j);
+  return L;
+}
+// ---- 距离（仅 short 用；缩放到 1~2 位数）----
+function dist(p, q) { return Math.max(1, Math.round(Math.hypot(p.x - q.x, p.y - q.y) / 8)); }
+function edgeLen(i, j) { const k = ekey(i, j); return (k in customW) ? customW[k] : dist(nodes[i], nodes[j]); }
+function isCustom(i, j) { return ekey(i, j) in customW; }
+function costMatrix() {
+  const n = nodes.length, a = Array.from({ length: n }, () => new Array(n).fill(0));
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j) a[i][j] = edgeLen(i, j);
+  return a;
+}
+// ===== 画布交互 =====
+function lockGuard() { if (locked) { setStatus('<span class="yel">演示已锁定。要改图，请点「开始/重演」回到编辑态。</span>'); return true; } return false; }
+function reindex() {
+  // 删点后保持 id===下标：重建 edges/customW 的下标键
+  const old2new = {}; nodes.forEach((nd, i) => { old2new[nd.id] = i; });
+  const ne = new Set(), nc = {};
+  edges.forEach(k => { const [u, v] = k.split("-").map(Number); if (u in old2new && v in old2new) ne.add(ekey(old2new[u], old2new[v])); });
+  Object.keys(customW).forEach(k => { const [u, v] = k.split("-").map(Number); if (u in old2new && v in old2new) nc[ekey(old2new[u], old2new[v])] = customW[k]; });
+  nodes.forEach((nd, i) => nd.id = i); nextId = nodes.length; edges = ne; customW = nc;
+}
+function addNode(x, y) {
+  if (lockGuard()) return;
+  const cap = capOf();
+  if (nodes.length >= cap) { setStatus(`<span class="yel">已达上限 ${cap} 个点（${solver === "bt" ? "回溯" : "状压DP"}模式）。</span>`); return; }
+  x = Math.max(R + 4, Math.min(640 - R - 4, x));
+  y = Math.max(R + 4, Math.min(440 - R - 4, y));
+  nodes.push({ id: nextId++, x, y });
+  pickNode = null; resetRun(); renderCanvas();
+  setStatus(isShort()
+    ? `已添加点 <b>${nodes.length - 1}</b>（共 ${nodes.length}）。完全图自动连边，可点边上数字改边长。`
+    : `已添加点 <b>${nodes.length - 1}</b>（共 ${nodes.length}）。点<b>两个点</b >可连/删边。`);
+}
+function toggleEdge(i, j) {
+  if (i === j) return;
+  const k = ekey(i, j);
+  if (edges.has(k)) { edges.delete(k); setStatus(`删除边 <b>${i}-${j}</b>。`); }
+  else { edges.add(k); setStatus(`连接边 <b>${i}-${j}</b>。`); }
+  resetRun(); renderCanvas();
+}
+function undo() {
+  if (lockGuard() || !nodes.length) return;
+  nodes.pop(); pickNode = null; editingEdge = null; reindex();
+  resetRun(); renderCanvas();
+  setStatus(nodes.length ? `已撤销，剩 ${nodes.length} 个点。` : "已清空。点击画布空白处添加点。");
+}
+function clearAll() {
+  if (lockGuard()) return;
+  nodes = []; edges = new Set(); customW = {}; nextId = 0; pickNode = null; editingEdge = null;
+  resetRun(); renderCanvas(); setStatus("已清空。点击画布空白处添加点。");
+}
+function randomGraph() {
+  if (lockGuard()) return;
+  nodes = []; edges = new Set(); customW = {}; nextId = 0; pickNode = null; editingEdge = null;
+  const cap = capOf(), n = Math.min(cap, isShort() ? 6 : 6);
+  const cx = 320, cy = 210, rad = 155;
+  for (let i = 0; i < n; i++) {
+    const ang = -Math.PI / 2 + 2 * Math.PI * i / n, rr = rad - 30 + Math.random() * 60;
+    nodes.push({ id: i, x: Math.round(cx + rr * Math.cos(ang)), y: Math.round(cy + rr * Math.sin(ang)) });
+  }
+  nextId = n;
+  if (!isShort()) {
+    // 先铺一条随机哈密顿路径，保证 path 有解；cycle 有一半概率闭合；再撒些随机边
+    const perm = [...Array(n).keys()]; for (let i = n - 1; i > 0; i--) { const r = Math.floor(Math.random() * (i + 1));[perm[i], perm[r]] = [perm[r], perm[i]]; }
+    for (let k = 0; k + 1 < n; k++) edges.add(ekey(perm[k], perm[k + 1]));
+    if (prob === "cycle" || Math.random() < 0.5) edges.add(ekey(perm[n - 1], perm[0]));
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) if (Math.random() < 0.28) edges.add(ekey(i, j));
+  }
+  resetRun(); renderCanvas();
+  setStatus(`随机生成 ${n} 个点${isShort() ? "（完全图带权）" : "（含一条哈密顿路径）"}。点「开始/重演」。`);
+}
+
+function startEditEdge(i, j) { editingEdge = { i, j }; renderCanvas(); }
+function commitEdge(save) {
+  if (!editingEdge) return;
+  const inp = $("ewInput");
+  if (save && inp) { const v = Math.round(Number(inp.value)); if (Number.isFinite(v) && v >= 1) customW[ekey(editingEdge.i, editingEdge.j)] = v; }
+  editingEdge = null; renderCanvas();
+}
+$("canvas").addEventListener("click", e => {
+  const svg = $("canvas");
+  if (e.target.closest("foreignObject")) return;
+  if (editingEdge) { commitEdge(true); return; }
+  if (locked) { setStatus('<span class="yel">演示已锁定。要改图，请点「开始/重演」回到编辑态。</span>'); return; }
+  if (isShort()) {   // short：完全图，点边数字改权
+    const eg = e.target.closest(".ewg");
+    if (eg) { startEditEdge(+eg.dataset.i, +eg.dataset.j); return; }
+  }
+  const g = e.target.closest(".gnode");
+  if (g) {           // 点节点：一般图连边（选两个点）
+    if (isShort()) return;
+    const id = +g.dataset.id;
+    if (pickNode === null) { pickNode = id; renderCanvas(); setStatus(`已选起点 <b>${id}</b>，再点一个点连/删边（点自己取消）。`); }
+    else if (pickNode === id) { pickNode = null; renderCanvas(); setStatus("取消选择。"); }
+    else { const a = pickNode; pickNode = null; toggleEdge(a, id); }
+    return;
+  }
+  const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
+  const loc = p.matrixTransform(svg.getScreenCTM().inverse());
+  addNode(loc.x, loc.y);
+});
+$("canvas").addEventListener("keydown", e => {
+  if (!editingEdge) return;
+  if (e.key === "Enter") { e.preventDefault(); commitEdge(true); }
+  else if (e.key === "Escape") { e.preventDefault(); commitEdge(false); }
+});
+$("canvas").addEventListener("focusout", e => { if (editingEdge && e.target.id === "ewInput") setTimeout(() => { if (editingEdge) commitEdge(true); }, 0); });
+
+// ===== 解法①：回溯 DFS（三问题通用；记录进入/回溯/成功步）=====
+const MAXSTEPS = 4000;
+function genBtSteps() {
+  const n = nodes.length, L = adjList(), a = costMatrix(), list = [];
+  if (n === 0) return list;
+  let truncated = false;
+  const visited = new Array(n).fill(false);
+  let found = false, foundPath = null, bestLen = Infinity, bestPath = null;
+  const push = (o) => { if (list.length < MAXSTEPS) list.push(Object.assign({ solver: "bt", prob }, o)); else truncated = true; };
+  const pushForce = (o) => list.push(Object.assign({ solver: "bt", prob }, o));   // 收尾步不受步数上限约束
+  const starts = (prob === "cycle") ? [0] : [...Array(n).keys()];   // 回路固定起点 0；其余枚举所有起点
+
+  function dfs(path) {
+    if (found && prob !== "short") return;                          // 判定类找到即停
+    const cur = path[path.length - 1];
+    if (path.length === n) {                                        // 覆盖全部点
+      if (prob === "cycle") {
+        if (hasEdge(cur, 0)) { found = true; foundPath = [...path, 0];
+          push({ pathNodes: [...path, 0], tail: null, done: true, ok: true, desc: `<span class="hl">找到哈密顿回路！</span> ${path.join("→")}→0（末点 ${cur} 与起点 0 有边）。` });
+        } else push({ pathNodes: [...path], tail: cur, desc: `覆盖全部点但末点 <b>${cur}</b> 与起点 0 <span class="no">无边</span>，回溯。` });
+      } else if (prob === "path") {
+        found = true; foundPath = [...path];
+        push({ pathNodes: [...path], tail: cur, done: true, ok: true, desc: `<span class="hl">找到哈密顿路径！</span> ${path.join(" → ")}（已覆盖全部 ${n} 点）。` });
+      } else {                                                      // short：算长度更新最优
+        let len = 0; for (let k = 0; k + 1 < path.length; k++) len += a[path[k]][path[k + 1]];
+        const better = len < bestLen; if (better) { bestLen = len; bestPath = [...path]; }
+        push({ pathNodes: [...path], tail: cur, curLen: len, bestLen, bestPath: bestPath ? [...bestPath] : null,
+          desc: `完整路径 ${path.join(" → ")}，长度 = <b>${len}</b>。${better ? '<span class="hl">刷新最优！</span>' : `（当前最优 ${bestLen}）`}` });
+      }
+      return;
+    }
+    for (let j = 0; j < n; j++) {
+      if (found && prob !== "short") break;          // 判定类找到即停；步数上限只停"记录"不停"搜索"，保证结论正确
+      if (visited[j] || !hasEdge(cur, j)) continue;
+      visited[j] = true; path.push(j);
+      push({ pathNodes: [...path], tail: j, desc: `从 <b>${cur}</b> 走到 <b>${j}</b>（有边、未访问），路径 ${path.join(" → ")}。` });
+      dfs(path);
+      path.pop(); visited[j] = false;
+      if (!found || prob === "short") push({ pathNodes: [...path], tail: cur, back: true, desc: `回溯：从 <b>${j}</b> 退回 <b>${cur}</b>，尝试其他分支。` });
+    }
+  }
+  for (const s of starts) {
+    if (found && prob !== "short") break;
+    visited.fill(false); visited[s] = true;
+    push({ pathNodes: [s], tail: s, desc: `以 <b>${s}</b> 为起点开始搜索。` });
+    dfs([s]);
+  }
+  // 收尾步（永远记录，保证结论可显示，即使中途步数被截断）
+  if (prob === "short") {
+    pushForce({ pathNodes: bestPath, tail: null, best: true, done: true, ok: bestPath != null, bestLen, bestPath,
+      desc: bestPath ? `<span class="hl">枚举完成！</span>最短哈密顿路径 ${bestPath.join(" → ")}，长度 = <b>${bestLen}</b>。` : `<span class="no">无哈密顿路径</span>。` });
+  } else {
+    pushForce({ pathNodes: found ? foundPath : [], tail: null, best: found, done: true, ok: found,
+      desc: found
+        ? `<span class="hl">存在哈密顿${prob === "cycle" ? "回路" : "路径"}！</span> ${foundPath.join(prob === "cycle" ? "→" : " → ")}。`
+        : `<span class="no">不存在哈密顿${prob === "cycle" ? "回路" : "路径"}</span>：已穷尽所有分支仍无解。` });
+  }
+  if (truncated) list.push({ solver: "bt", prob, pathNodes: [], tail: null, note: true, desc: `<span class="yel">（步骤过多，展示已截断在 ${MAXSTEPS} 步；结论仍为完整搜索结果。）</span>` });
+  return list;
+}
+// ===== 解法②：状压 DP（path/cycle 判定=布尔可达；short=最短距离 Held-Karp）=====
+function genDpSteps() {
+  const n = nodes.length, a = costMatrix(), list = [];
+  if (n === 0) return list;
+  const FULL = (1 << n) - 1, INF = Infinity;
+  const isShort = prob === "short";
+  // dp：short 存距离；path/cycle 存布尔
+  const dp = Array.from({ length: 1 << n }, () => new Array(n).fill(isShort ? INF : false));
+  const par = Array.from({ length: 1 << n }, () => new Array(n).fill(null));
+  const snap = (o) => list.push(Object.assign({ solver: "dp", prob, dp: dp.map(r => [...r]), n, FULL, isShort }, o));
+  const recon = (mask, i) => { const p = []; let m = mask, c = i; while (c !== null && c !== undefined) { p.push(c); const q = par[m][c]; m ^= (1 << c); c = q; } return p.reverse(); };
+  const val = (mask, i) => isShort ? (dp[mask][i] !== INF) : dp[mask][i];
+
+  // 初始化：cycle 固定起点 0；path/short 每个点都可作起点
+  if (prob === "cycle") { dp[1][0] = isShort ? 0 : true; snap({ mask: 1, holder: 0, cur: [1, 0], src: null, hotIJ: null, pathNodes: [0], tail: 0, desc: `初始化（回路固定起点 0）：dp[1][0]=可达。` }); }
+  else { for (let i = 0; i < n; i++) dp[1 << i][i] = isShort ? 0 : true; snap({ mask: null, initAll: true, holder: null, cur: null, src: null, hotIJ: null, pathNodes: [], tail: null, desc: `初始化：每个点单独可作起点，dp[1&lt;&lt;i][i]=${isShort ? "0" : "可达"}。` }); }
+
+  for (let mask = 1; mask <= FULL; mask++) {
+    if (prob === "cycle" && !(mask & 1)) continue;                 // 回路集合须含起点 0
+    for (let i = 0; i < n; i++) {
+      if (!(mask & (1 << i)) || !val(mask, i)) continue;
+      for (let j = 0; j < n; j++) {
+        if (mask & (1 << j)) continue;
+        if (!isShort && !hasEdge(i, j)) continue;                  // 一般图：只能走有边
+        const nm = mask | (1 << j);
+        if (isShort) {
+          const cand = dp[mask][i] + a[i][j], better = cand < dp[nm][j];
+          if (better) { dp[nm][j] = cand; par[nm][j] = i; }
+          snap({ mask: nm, holder: j, cur: [nm, j], src: [mask, i], hotIJ: [i, j], pathNodes: recon(mask, i).concat(j), tail: j,
+            desc: `dp[${mask}][${i}]=${dp[mask][i]} → ${j}：cand=${dp[mask][i]}+a[${i}][${j}](${a[i][j]})=${cand}${better ? ` <span class="hl">更新 dp[${nm}][${j}]=${cand}</span>` : `，不优于 ${dp[nm][j]}`}。` });
+        } else {
+          const was = dp[nm][j]; if (!was) { dp[nm][j] = true; par[nm][j] = i; }
+          snap({ mask: nm, holder: j, cur: [nm, j], src: [mask, i], hotIJ: [i, j], pathNodes: recon(mask, i).concat(j), tail: j,
+            desc: `dp[${mask}][${i}]=可达 且 <b>${i}-${j}</b> 有边 → <span class="hl">dp[${nm}][${j}]=可达</span>${was ? "（已可达）" : ""}。` });
+        }
+      }
+    }
+  }
+  // 收尾
+  if (isShort) {
+    let best = INF, bi = -1; for (let i = 0; i < n; i++) if (dp[FULL][i] < best) { best = dp[FULL][i]; bi = i; }
+    const path = bi >= 0 ? recon(FULL, bi) : null;
+    snap({ mask: FULL, holder: bi, cur: [FULL, bi], best: bi >= 0 ? [FULL, bi] : null, src: null, hotIJ: null, ans: best, pathNodes: path, tail: null, done: true, ok: bi >= 0,
+      desc: `全部点已覆盖。最短哈密顿路径 = min<sub>i</sub> dp[${FULL}][i] = <b>${best}</b>（末点 ${bi}）：${path.join(" → ")}。` });
+  } else if (prob === "path") {
+    let bi = -1; for (let i = 0; i < n; i++) if (dp[FULL][i]) { bi = i; break; }
+    const path = bi >= 0 ? recon(FULL, bi) : null;
+    snap({ mask: FULL, holder: bi, cur: bi >= 0 ? [FULL, bi] : null, best: bi >= 0 ? [FULL, bi] : null, src: null, hotIJ: null, done: true, ok: bi >= 0, pathNodes: path || [], tail: null,
+      desc: bi >= 0 ? `<span class="hl">存在哈密顿路径！</span> dp[${FULL}][${bi}]=可达：${path.join(" → ")}。` : `<span class="no">不存在哈密顿路径</span>：dp[${FULL}][*] 全不可达。` });
+  } else {  // cycle：dp[FULL][i] 可达 且 i-0 有边
+    let bi = -1; for (let i = 0; i < n; i++) if (dp[FULL][i] && hasEdge(i, 0)) { bi = i; break; }
+    const path = bi >= 0 ? recon(FULL, bi).concat(0) : null;
+    snap({ mask: FULL, holder: bi, cur: bi >= 0 ? [FULL, bi] : null, best: bi >= 0 ? [FULL, bi] : null, src: null, hotIJ: bi >= 0 ? [bi, 0] : null, done: true, ok: bi >= 0, pathNodes: path || [], tail: null,
+      desc: bi >= 0 ? `<span class="hl">存在哈密顿回路！</span> dp[${FULL}][${bi}]=可达 且 ${bi}-0 有边：${path.join("→")}。` : `<span class="no">不存在哈密顿回路</span>：无 i 满足 dp[${FULL}][i] 可达且 i-0 有边。` });
+  }
+  return list;
+}
+// ===== 画布渲染：边（一般图=edges 集合 / short=完全图）+ 有向路径 + 边权(short) + 节点 =====
+function renderCanvas(hi) {
+  const svg = $("canvas");
+  const n = nodes.length;
+  if (n === 0) { svg.innerHTML = `<text class="emptip" x="320" y="220">点击这里的空白处添加点</text>`; return; }
+  hi = hi || curHi;
+  const pos = {}; nodes.forEach(nd => pos[nd.id] = nd);
+  const pn = hi.pathNodes || [];
+  const pathEdge = new Set();
+  for (let k = 0; k + 1 < pn.length; k++) pathEdge.add(ekey(pn[k], pn[k + 1]));
+  const edgeCls = hi.best ? "edge best" : "edge onpath";
+  // 底层边：short=完全图所有对；一般图=edges 集合
+  let baseEdges = "";
+  const drawEdge = (i, j) => {
+    const a = nodes[i], b = nodes[j], key = ekey(a.id, b.id);
+    if (pathEdge.has(key)) return;
+    baseEdges += `<line class="edge" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`;
+  };
+  if (isShort()) { for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) drawEdge(i, j); }
+  else edges.forEach(k => { const [u, v] = k.split("-").map(Number); if (pos[u] && pos[v]) drawEdge(u, v); });
+  // 高亮路径：线在下、箭头+序号在上
+  const arrCls = hi.best ? "arrow best" : "arrow onpath";
+  let plines = "", pmarks = "";
+  for (let k = 0; k + 1 < pn.length; k++) {
+    const a = pos[pn[k]], b = pos[pn[k + 1]]; if (!a || !b) continue;
+    plines += `<line class="${edgeCls}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`;
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len, uy = dy / len, px = -uy, py = ux;
+    const mx = a.x + dx * 0.5, my = a.y + dy * 0.5, s = 9;
+    const tipx = mx + ux * s, tipy = my + uy * s, bx = mx - ux * s, by = my - uy * s;
+    const lx = bx + px * s * 0.62, ly = by + py * s * 0.62, rx = bx - px * s * 0.62, ry = by - py * s * 0.62;
+    pmarks += `<polygon class="${arrCls}" points="${tipx},${tipy} ${lx},${ly} ${rx},${ry}"/>`;
+    const sx = a.x + dx * 0.3 + px * 11, sy = a.y + dy * 0.3 + py * 11;
+    pmarks += `<circle cx="${sx}" cy="${sy}" r="8" class="${arrCls}" opacity="0.92"/><text class="seq" x="${sx}" y="${sy + 3.5}">${k + 1}</text>`;
+  }
+  // 边权标签（仅 short）
+  let labels = "";
+  if (isShort()) {
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const a = nodes[i], b = nodes[j], onP = pathEdge.has(ekey(a.id, b.id));
+      const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1, px = -dy / len, py = dx / len;
+      const off = onP ? 16 : 0, mx = (a.x + b.x) / 2 + px * off, my = (a.y + b.y) / 2 + py * off;
+      let cls = "ew"; if (hi.best && onP) cls += " best"; else if (onP) cls += " onpath"; if (isCustom(a.id, b.id)) cls += " custom";
+      const txt = edgeLen(a.id, b.id);
+      if (editingEdge && !locked && editingEdge.i === a.id && editingEdge.j === b.id) {
+        labels += `<foreignObject x="${mx - 23}" y="${my - 11}" width="46" height="22"><input xmlns="http://www.w3.org/1999/xhtml" class="ewedit" id="ewInput" type="number" min="1" value="${txt}"/></foreignObject>`;
+      } else {
+        const tw = String(txt).length * 7 + 8;
+        labels += `<g class="ewg" data-i="${a.id}" data-j="${b.id}"><rect class="ewbg" x="${mx - tw / 2}" y="${my - 9}" width="${tw}" height="18"/><text class="${cls}" x="${mx}" y="${my + 4}">${txt}</text></g>`;
+      }
+    }
+  }
+  // 节点
+  const pathSet = new Set(pn);
+  let nstr = "";
+  nodes.forEach(nd => {
+    let cls = "gnode";
+    if (hi.tail === nd.id) cls += " tail";
+    else if (pathSet.has(nd.id)) cls += " onpath";
+    else if ((prob === "cycle") && nd.id === 0) cls += " start";
+    if (pickNode === nd.id) cls += " pick";
+    nstr += `<g class="${cls}" data-id="${nd.id}"><circle cx="${nd.x}" cy="${nd.y}" r="${R}"/><text class="lbl" x="${nd.x}" y="${nd.y + 5}">${nd.id}</text></g>`;
+  });
+  svg.classList.toggle("editable", !locked);
+  svg.innerHTML = baseEdges + plines + labels + pmarks + nstr;
+  if (editingEdge && !locked) { const inp = $("ewInput"); if (inp) { inp.focus(); inp.select(); } }
+  if (!steps.length) renderAdj(null);   // 编辑态也显示邻接表（演示时由 draw 带高亮刷新）
+}
+// ===== 主绘制 =====
+function draw(step) {
+  if (!step) { renderCanvas({ pathNodes: [], tail: null, best: false }); $("bigans").innerHTML = ""; renderAdj(null); return; }
+  renderCanvas({ pathNodes: step.pathNodes || [], tail: step.tail, best: !!(step.best || step.done && step.ok) });
+  if (step.solver === "dp") { renderMask(step); renderDP(step); }
+  else renderBt(step);
+  renderAdj(step);
+  // 大答案条
+  let ans = "";
+  if (step.done) {
+    if (isShort()) ans = step.ok ? `最短哈密顿路径长度： <b>${step.bestLen ?? step.ans}</b>` : `<b class="no">无解</b>`;
+    else ans = step.ok ? `<b>存在</b>哈密顿${prob === "cycle" ? "回路" : "路径"}` : `<b class="no">不存在</b>哈密顿${prob === "cycle" ? "回路" : "路径"}`;
+  }
+  $("bigans").innerHTML = ans;
+}
+// ---- 位可视化 ----
+function renderMask(step) {
+  if (step.mask == null) { $("maskview").innerHTML = ""; $("maskeq").innerHTML = step.initAll ? `初始化：每个 dp[1&lt;&lt;i][i] 置位。` : ""; return; }
+  const n = step.n, mask = step.mask, holder = step.holder;
+  let html = "";
+  for (let b = n - 1; b >= 0; b--) {
+    const on = (mask >> b) & 1; let cls = "bit"; if (on) cls += " on"; if (b === holder) cls += " holder";
+    html += `<div class="${cls}"><span class="who">点${b}</span><span class="b">${on}</span><span class="pw">2^${b}</span></div>`;
+  }
+  $("maskview").innerHTML = `<div class="bits">${html}</div>`;
+  const members = []; for (let b = 0; b < n; b++) if ((mask >> b) & 1) members.push(b);
+  $("maskeq").innerHTML = `已访问集合 <b>{${members.join(",")}}</b> ⇔ 二进制 <b>${mask.toString(2).padStart(n, "0")}</b> ⇔ mask = <span class="dec">${mask}</span>`;
+}
+// ---- DP 表 ----
+function renderDP(step) {
+  const n = step.n, dp = step.dp, cur = step.cur, src = step.src, best = step.best, isS = step.isShort;
+  const rowFilter = (prob === "cycle") ? (m => m & 1) : (() => true);
+  let h = "<table class='dp'><tr><td class='rh'>mask ＼ i</td>";
+  for (let i = 0; i < n; i++) h += `<th>${i}</th>`;
+  h += "</tr>";
+  for (let mask = 1; mask <= step.FULL; mask++) {
+    if (!rowFilter(mask)) continue;
+    const isCurRow = cur && cur[0] === mask;
+    h += `<tr class="${isCurRow ? "currow" : ""}"><td class="rh">${mask}<span class="bin"> (${mask.toString(2).padStart(n, "0")})</span></td>`;
+    for (let i = 0; i < n; i++) {
+      const reachable = (mask >> i) & 1, v = dp[mask][i];
+      let cls = "cell";
+      if (!reachable) cls += " inf";
+      else if (isS) { if (v === Infinity) cls += " inf"; }
+      else cls += v ? " t" : " f";
+      if (cur && cur[0] === mask && cur[1] === i) cls += " cur";
+      else if (src && src[0] === mask && src[1] === i) cls += " src";
+      else if (best && best[0] === mask && best[1] === i) cls += " best";
+      let txt;
+      if (!reachable) txt = "·";
+      else if (isS) txt = (v === Infinity ? "∞" : v);
+      else txt = v ? "✓" : "✗";
+      h += `<td class="${cls}">${txt}</td>`;
+    }
+    h += "</tr>";
+  }
+  $("dpBox").innerHTML = h + "</table>";
+}
+// ---- 邻接表 ----
+function renderAdj(step) {
+  const n = nodes.length; if (n === 0) { $("adjBox").innerHTML = ""; return; }
+  const L = adjList();
+  const hi = step && step.hotIJ ? step.hotIJ : null;
+  let h = "<table class='adj'><tr><th>点</th><th>邻居</th></tr>";
+  for (let i = 0; i < n; i++) {
+    const row = L[i].map(j => (hi && ((hi[0] === i && hi[1] === j) || (hi[0] === j && hi[1] === i))) ? `<b style="color:var(--magenta)">${j}</b>` : j).join(", ");
+    h += `<tr><th>${i}</th><td class="nb">${row || "—"}</td></tr>`;
+  }
+  $("adjBox").innerHTML = h + "</table>";
+}
+// ---- 回溯栈 ----
+function renderBt(step) {
+  const pn = step.pathNodes || [];
+  let h = "";
+  pn.forEach((v, k) => { h += `<span class="frame${k === pn.length - 1 && step.tail === v ? " tail" : ""}">${v}</span>${k < pn.length - 1 ? "→" : ""}`; });
+  if (!pn.length) h = `<span style="color:var(--muted)">（空）</span>`;
+  let extra = "";
+  if (isShort() && step.bestLen != null && step.bestLen !== Infinity) extra = `<div class="maskeq" style="margin-top:8px">当前最优长度：<span class="dec">${step.bestLen}</span>${step.bestPath ? "　" + step.bestPath.join(" → ") : ""}</div>`;
+  $("btBox").innerHTML = h + extra;
+}
+// ===== 引擎 =====
+function stopTimer() { if (timer) { clearTimeout(timer); timer = null; } }
+function updateLockHint() {
+  const el = $("lockHint");
+  if (locked) { el.className = "lockhint locked"; el.innerHTML = `已锁定演示中 · 用<b>自动播放 / 单步</b>推进 · 点<b>开始/重演</b>回编辑态改图`; }
+  else if (isShort()) { el.className = "lockhint edit"; el.innerHTML = `编辑态 · 点空白<b>加点</b> · 点边上<b>数字</b>改边长 · 点<b>开始/重演</b>演示`; }
+  else { el.className = "lockhint edit"; el.innerHTML = `编辑态 · 点空白<b>加点</b> · 点<b>两个点</b>连/删边 · 点<b>开始/重演</b>演示`; }
+}
+function setButtons() {
+  $("randBtn").disabled = locked; $("undoBtn").disabled = locked; $("clearBtn").disabled = locked;
+  const hasSteps = locked && steps.length > 0;
+  $("playBtn").disabled = !hasSteps;
+  $("stepBtn").disabled = !hasSteps || idx >= steps.length - 1;
+  $("runBtn").textContent = locked ? "↩ 回到编辑" : "开始/重演";
+  updateLockHint();
+}
+function resetRun() { stopTimer(); steps = []; idx = 0; running = false; $("playBtn").textContent = "自动播放"; $("bigans").innerHTML = ""; setButtons(); }
+function renderStep() {
+  const s = steps[idx]; draw(s);
+  const at = `<span class="cyan">[${idx + 1}/${steps.length}]</span> `;
+  if (s) setStatus(at + (s.desc || ""));
+  $("stepBtn").disabled = idx >= steps.length - 1;
+}
+function stepOnce() { if (idx < steps.length - 1) { idx++; renderStep(); } if (idx >= steps.length - 1) { stopTimer(); running = false; $("playBtn").textContent = "自动播放"; } }
+function playLoop() {
+  if (!running) return;
+  if (idx >= steps.length - 1) { running = false; $("playBtn").textContent = "自动播放"; return; }
+  stepOnce();
+  timer = setTimeout(playLoop, Math.max(90, 1420 - Number($("speedInput").value)));
+}
+function togglePlay() {
+  if (!steps.length) return;
+  running = !running; $("playBtn").textContent = running ? "暂停" : "自动播放";
+  if (running) { if (idx >= steps.length - 1) idx = 0; playLoop(); } else stopTimer();
+}
+function toggleRun() {
+  if (locked) { locked = false; editingEdge = null; pickNode = null; resetRun(); renderCanvas(); setStatus("已回到编辑态：可改图/边长。改好再点「开始/重演」。"); return; }
+  if (editingEdge) commitEdge(true);
+  if (nodes.length === 0) { setStatus('<span class="yel">请先在画布上添加点。</span>'); return; }
+  locked = true; stopTimer(); running = false; $("bigans").innerHTML = "";
+  steps = (solver === "bt") ? genBtSteps() : genDpSteps();
+  idx = 0;
+  if (!steps.length) { locked = false; setButtons(); setStatus("无可演示步骤。"); return; }
+  setButtons(); renderStep();
+}
+
+// ===== 问题 / 解法 切换 =====
+function refreshTexts() {
+  $("subtitle").textContent = SUBTITLE[prob];
+  $("canvasLabel").innerHTML = isShort()
+    ? `图画布（完全图，任意两点有边，边权=距离缩放；求最短哈密顿路径）`
+    : `图画布（一般图：点<b style="color:var(--yellow)">两个点</b>连/删边${prob === "cycle" ? "；回路起点固定 <b style=\"color:var(--green)\">0</b>" : ""}）`;
+  $("canvasHint").innerHTML = isShort()
+    ? `点<b>空白</b>加点；点<b>边上数字</b>改边长。当前路径高亮。`
+    : `点<b>空白</b>加点；点<b>两个点</b>连边(再点一次删边)。当前路径高亮。`;
+  $("dpLabel").innerHTML = isShort()
+    ? `DP 表 dp[mask][i]（值=覆盖 mask 停在 i 的最短长，∞=不可达）`
+    : `DP 表 dp[mask][i]（✓=可覆盖 mask 且停在 i，✗/·=否）`;
+  $("formula").innerHTML = (solver === "bt") ? FORMULA_BT[prob] : FORMULA_DP[prob];
+  $("note").innerHTML = NOTE[prob];
+}
+function applyProb(p) {
+  prob = p;
+  document.querySelectorAll("#probTabs .tab").forEach(t => t.classList.toggle("active", t.dataset.prob === p));
+  locked = false; editingEdge = null; pickNode = null;
+  const cap = capOf(); if (nodes.length > cap) { nodes = nodes.slice(0, cap); reindex(); }
+  refreshTexts(); resetRun(); renderCanvas();
+  setStatus(nodes.length ? "已切换问题，点「开始/重演」演示。" : "点击画布空白处添加点。");
+}
+function applySolver(s) {
+  solver = s;
+  document.querySelectorAll("#solverTabs .tab").forEach(t => t.classList.toggle("active", t.dataset.solver === s));
+  $("view-dp").classList.toggle("on", s === "dp");
+  $("view-bt").classList.toggle("on", s === "bt");
+  locked = false; editingEdge = null; pickNode = null;
+  const cap = capOf(); if (nodes.length > cap) { nodes = nodes.slice(0, cap); reindex(); }
+  refreshTexts(); resetRun(); renderCanvas();
+  setStatus(nodes.length ? "已切换解法，点「开始/重演」演示。" : "点击画布空白处添加点。");
+}
+
+// ===== 文案 =====
+const SUBTITLE = {
+  path: "一般图·哈密顿路径判定 · 经过每个点恰好一次的路径是否存在",
+  cycle: "一般图·哈密顿回路判定 · 经过每点恰好一次并回到起点",
+  short: "完全图·最短哈密顿路径 · Held-Karp，边带权",
+};
+const FORMULA_BT = {
+  path: `<b>哈密顿路径（回溯）</b>：从每个点出发 DFS，沿<b>已有边</b>走到<b>未访问</b>点，走满 n 个点即成功。<br>任一分支走不通就<code>回溯</code>换下一个邻居。复杂度最坏 <code>O(n!)</code>。`,
+  cycle: `<b>哈密顿回路（回溯）</b>：固定起点 <code>0</code>，DFS 走满 n 点后还需<b>末点与 0 有边</b>才闭合成环。<br>复杂度最坏 <code>O(n!)</code>。`,
+  short: `<b>最短哈密顿路径（回溯）</b>：完全图上枚举点的排列，逐条算长度取最小。<br>复杂度 <code>O(n!)</code>，仅适合极小 n。`,
+};
+const FORMULA_DP = {
+  path: `<b>状压 DP 判定</b>：<code>dp[mask][i]</code> = 能否恰好访问集合 mask 中的点且停在 i。<br>转移：<code>dp[mask|1&lt;&lt;j][j] |= dp[mask][i]</code>（需 <b>i-j 有边</b>，j∉mask）。<br>存在哈密顿路径 ⇔ 某个 <code>dp[FULL][i]</code> 为真。<code>O(2ⁿn²)</code>。`,
+  cycle: `<b>状压 DP 判定</b>：固定起点 0，<code>dp[mask][i]</code>=从 0 出发访问 mask 停在 i（需含 0）。<br>存在回路 ⇔ 某 <code>dp[FULL][i]</code> 为真 <b>且 i-0 有边</b>。<code>O(2ⁿn²)</code>。`,
+  short: `<b>状压 DP · Held-Karp</b>：<code>dp[mask][i]</code>=覆盖 mask 停在 i 的最短长。<br>转移 <code>dp[mask|1&lt;&lt;j][j]=min(dp[mask][i]+a[i][j])</code>；答案 <code>min dp[FULL][i]</code>。<code>O(2ⁿn²)</code>。`,
+};
+const NOTE = {
+  path: `<b>哈密顿路径</b>：经过图中每个顶点<b>恰好一次</b>的路径（不要求回到起点）。判定是 NP 完全问题。回溯直观但最坏 <code>O(n!)</code>；状压 DP 把“访问过哪些点”压成二进制位，<code>O(2ⁿn²)</code>，n≤约 20 可解。画布点两点连/删边搭图。`,
+  cycle: `<b>哈密顿回路</b>：经过每点恰好一次<b>并回到起点</b>的环。此处固定起点 <code>0</code>。判定同为 NP 完全。与路径的唯一差别：走满后还需<b>末点与起点有边</b>。`,
+  short: `<b>最短哈密顿路径</b>：完全图（任意两点有边、带权），求覆盖所有点的<b>最短</b>路径。这正是 <code>state-dp</code> 传递游戏、<code>tsp</code> 的近亲——只是不要求回到起点。边权可点数字修改。`,
+};
+
+// ===== 接线 =====
+$("probTabs").addEventListener("click", e => { const t = e.target.closest(".tab"); if (t) applyProb(t.dataset.prob); });
+$("solverTabs").addEventListener("click", e => { const t = e.target.closest(".tab"); if (t) applySolver(t.dataset.solver); });
+$("runBtn").onclick = toggleRun;
+$("playBtn").onclick = togglePlay;
+$("stepBtn").onclick = () => { stopTimer(); running = false; $("playBtn").textContent = "自动播放"; stepOnce(); };
+$("randBtn").onclick = randomGraph;
+$("undoBtn").onclick = undo;
+$("clearBtn").onclick = clearAll;
+$("cppBtn").onclick = () => CppView.open(["ham_" + solver, "ham_" + (solver === "bt" ? "dp" : "bt")]);
+CppView.register({
+  ham_bt: { title: "哈密顿路径/回路 · 回溯 O(n!) — C++", tab: "回溯 O(n!)", code:
+[
+"// 回溯判定哈密顿路径/回路（一般图，邻接矩阵 g）。",
+"// path: 从每个点出发；cycle: 固定起点 0，走满后需末点与 0 有边。",
+"#include <iostream>",
+"#include <vector>",
+"using namespace std;",
+"int n; bool g[20][20], vis[20]; bool CYCLE = false;   // CYCLE=true 求回路",
+"bool dfs(int u, int cnt){",
+"    if(cnt == n){                       // 已覆盖全部点",
+"        return CYCLE ? g[u][0] : true;  // 回路还需回到 0",
+"    }",
+"    for(int v = 0; v < n; v++){",
+"        if(!vis[v] && g[u][v]){",
+"            vis[v] = true;",
+"            if(dfs(v, cnt + 1)) return true;",
+"            vis[v] = false;             // 回溯",
+"        }",
+"    }",
+"    return false;",
+"}",
+"int main(){",
+"    int m; cin >> n >> m;",
+"    for(int i=0,x,y;i<m;i++){ cin >> x >> y; g[x][y]=g[y][x]=true; }",
+"    bool ok = false;",
+"    if(CYCLE){ vis[0]=true; ok = dfs(0,1); }",
+"    else for(int s=0;s<n && !ok;s++){ fill(vis,vis+n,false); vis[s]=true; ok=dfs(s,1); }",
+"    cout << (ok ? \"YES\" : \"NO\") << endl;",
+"    return 0;",
+"}",
+].join("\n") },
+  ham_dp: { title: "哈密顿路径/回路/最短路 · 状压 DP O(2ⁿn²) — C++", tab: "状压DP O(2ⁿn²)", code:
+[
+"// 状压 DP：dp[mask][i] = 能否(判定) / 最短长(带权) 覆盖集合 mask 且停在 i。",
+"// 判定版(布尔)：path/cycle；带权版见下方注释。",
+"#include <iostream>",
+"#include <vector>",
+"#include <cstring>",
+"using namespace std;",
+"int n; bool g[20][20];",
+"bool dp[1<<16][16];",
+"int main(){",
+"    int m; cin >> n >> m;",
+"    for(int i=0,x,y;i<m;i++){ cin >> x >> y; g[x][y]=g[y][x]=true; }",
+"    int FULL = (1<<n) - 1;",
+"    for(int i=0;i<n;i++) dp[1<<i][i] = true;      // 每点可作起点(回路则只 dp[1][0])",
+"    for(int mask=1; mask<=FULL; mask++)",
+"        for(int i=0;i<n;i++){",
+"            if(!(mask>>i&1) || !dp[mask][i]) continue;",
+"            for(int j=0;j<n;j++){",
+"                if((mask>>j&1) || !g[i][j]) continue;",
+"                dp[mask | (1<<j)][j] = true;      // i-j 有边则可扩展",
+"            }",
+"        }",
+"    bool ok = false;",
+"    for(int i=0;i<n;i++) if(dp[FULL][i]) ok = true;        // 路径：任意末点",
+"    // 回路：改为 if(dp[FULL][i] && g[i][0]) ok = true;",
+"    // 带权最短：dp 改 int 距离, dp[nm][j]=min(dp[nm][j], dp[mask][i]+a[i][j]), 答案 min dp[FULL][i]",
+"    cout << (ok ? \"YES\" : \"NO\") << endl;",
+"    return 0;",
+"}",
+].join("\n") },
+});
+
+// ===== 初始化 =====
+applyProb("path");
+applySolver("bt");
+randomGraph();
+</script>
+<script src="../assets/theme.js"></script>
+</body>
+</html>
