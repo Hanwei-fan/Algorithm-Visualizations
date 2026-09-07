@@ -193,7 +193,7 @@
 
 <main>
   <section class="card">
-    <p class="plabel">图画布（起点固定 <b style="color:var(--green)">0</b> 号；完全图，任意两点距离=欧氏距离）</p>
+    <p class="plabel">图画布（起点固定 <b style="color:var(--green)">0</b> 号；完全图，任意两点距离=欧氏距离缩放取整）</p>
     <p class="hint">点<b>空白</b>处加城市（<span id="capHint"></span>）。当前回路/路径高亮显示。</p>
     <svg id="canvas" viewBox="0 0 640 440" preserveAspectRatio="xMidYMid meet"></svg>
     <div class="clegend">
@@ -212,7 +212,7 @@
       <div class="plabel mt">集合 ⇔ 二进制 ⇔ 整数（mask）</div>
       <div id="maskview"></div>
       <div class="maskeq" id="maskeq"></div>
-      <div class="plabel mt">代价矩阵 a[i][j]（欧氏距离）—— 转移时高亮正在取用的 <span style="color:var(--magenta)">a[i][j]</span></div>
+      <div class="plabel mt">代价矩阵 a[i][j]（欧氏距离缩放取整）—— 转移时高亮正在取用的 <span style="color:var(--magenta)">a[i][j]</span></div>
       <div id="matBox" style="overflow-x:auto"></div>
       <div class="plabel mt">DP 表　dp[mask][i]（行=已访问集合 mask，列=当前所在点 i）</div>
       <div id="dpBox" style="overflow-x:auto"></div>
@@ -245,7 +245,7 @@ function setStatus(t) { $("status").innerHTML = t; }
 function capOf() { return mode === "brute" ? 6 : 10; }
 
 // ===== 代价矩阵（默认欧氏距离四舍五入；用户可覆盖，对称）=====
-function dist(p, q) { return Math.round(Math.hypot(p.x - q.x, p.y - q.y)); }
+function dist(p, q) { return Math.max(1, Math.round(Math.hypot(p.x - q.x, p.y - q.y) / 8)); }  // 缩放到 1~2 位数便于观察
 function ekey(i, j) { return Math.min(i, j) + "-" + Math.max(i, j); }
 function edgeLen(i, j) { const k = ekey(i, j); return (k in customW) ? customW[k] : dist(nodes[i], nodes[j]); }
 function isCustom(i, j) { return ekey(i, j) in customW; }
