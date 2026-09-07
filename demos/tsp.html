@@ -359,9 +359,9 @@ function renderCanvas(hi) {
     const lx = bx + px * s * 0.62, ly = by + py * s * 0.62;
     const rx = bx - px * s * 0.62, ry = by - py * s * 0.62;
     pmarks += `<polygon class="${arrCls}" points="${tipx},${tipy} ${lx},${ly} ${rx},${ry}"/>`;
-    // 步序号：法向偏移一点，避免压在线上
-    const sx = mx + px * 15, sy = my + py * 15;
-    pmarks += `<circle cx="${sx}" cy="${sy}" r="8" class="${arrCls}" opacity="0.9"/><text class="seq" x="${sx}" y="${sy + 3.5}">${k + 1}</text>`;
+    // 步序号：放到靠 source 的 30% 处(远离中点边权)，法向微偏避免压线
+    const sx = a.x + dx * 0.3 + px * 11, sy = a.y + dy * 0.3 + py * 11;
+    pmarks += `<circle cx="${sx}" cy="${sy}" r="8" class="${arrCls}" opacity="0.92"/><text class="seq" x="${sx}" y="${sy + 3.5}">${k + 1}</text>`;
   }
   // 边长标签（每条边中点；编辑态可点击修改）
   let labels = "";
@@ -370,8 +370,8 @@ function renderCanvas(hi) {
     const onP = pathEdge.has(key);
     const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
     const px = -dy / len, py = dx / len;                       // 法向
-    const off = onP ? -15 : 0;                                 // 路径边标签移到序号对侧
-    const mx = (a.x + b.x) / 2 + px * off, my = (a.y + b.y) / 2 + py * off;
+    const off = onP ? 16 : 0;                                  // 路径边权法向偏移, 让开中点箭头(非路径边无箭头, 居中)
+    const mx = (a.x + b.x) / 2 + px * off, my = (a.y + b.y) / 2 + py * off;   // 步序号在 30% 处、箭头在中点、边权偏一侧——三者分离
     let cls = "ew"; if (hi.best && onP) cls += " best"; else if (onP) cls += " onpath"; if (isCustom(a.id, b.id)) cls += " custom";
     const txt = edgeLen(a.id, b.id);
     if (editingEdge && !locked && editingEdge.i === a.id && editingEdge.j === b.id) {
