@@ -83,14 +83,14 @@
   .arrow.onpath { fill: var(--cyan); filter: drop-shadow(0 0 4px rgba(0,240,255,.7)); }
   .arrow.best { fill: var(--green); filter: drop-shadow(0 0 4px rgba(0,255,156,.8)); }
   .seq { fill: #05060f; font-family: "SF Mono", Menlo, monospace; font-size: 10px; font-weight: 700; text-anchor: middle; pointer-events: none; }
-  .ew { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 11px; text-anchor: middle; pointer-events: none; }
+  .ew { fill: color-mix(in srgb, var(--muted) 35%, var(--text)); font-family: "SF Mono", Menlo, monospace; font-size: 11px; font-weight: 600; text-anchor: middle; pointer-events: none; }
   .ew.onpath { fill: var(--cyan); font-weight: 700; }
   .ew.best { fill: var(--green); font-weight: 700; }
   .ew.custom { fill: var(--yellow); }                              /* 用户改过的边长 */
   /* 编辑态：边长标签可点，带底衬方便点击 */
-  .ewbg { fill: rgba(5,4,15,0.75); stroke: var(--border); rx: 4; }
+  .ewbg { fill: color-mix(in srgb, var(--node-fill) 78%, transparent); stroke: var(--border); rx: 4; }
   .editable .ewbg { cursor: pointer; stroke: color-mix(in srgb, var(--yellow) 50%, var(--border)); }
-  .editable .ewbg:hover { stroke: var(--yellow); fill: color-mix(in srgb, var(--yellow) 14%, rgba(5,4,15,0.85)); }
+  .editable .ewbg:hover { stroke: var(--yellow); fill: color-mix(in srgb, var(--yellow) 16%, var(--node-fill)); }
   .editable .ew { cursor: pointer; }
   .ewedit { width: 46px; height: 22px; border: 1px solid var(--yellow); border-radius: 4px; background: #0d0b1a;
     color: var(--yellow); font-family: "SF Mono", Menlo, monospace; font-size: 12px; text-align: center; outline: none; }
