@@ -344,12 +344,12 @@ function renderCanvas(hi) {
     if (pathEdge.has(key)) continue;   // 路径边后画（在上层）
     edges += `<line class="edge" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`;
   }
-  // 再画高亮路径边（有向：线 + 中点箭头 + 步序号，清楚显示走向 pn[k] → pn[k+1]）
+  // 高亮路径：线在标签下层(便于读数)，箭头+步序号在标签上层(始终可见走向)
   const arrCls = hi.best ? "arrow best" : "arrow onpath";
-  let pedges = "";
+  let plines = "", pmarks = "";
   for (let k = 0; k + 1 < pn.length; k++) {
     const a = pos[pn[k]], b = pos[pn[k + 1]]; if (!a || !b) continue;
-    pedges += `<line class="${edgeCls}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`;
+    plines += `<line class="${edgeCls}" x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}"/>`;
     // 箭头：段中点，沿 a→b 方向的三角形
     const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
     const ux = dx / len, uy = dy / len, px = -uy, py = ux;   // 单位方向 + 法向
@@ -358,10 +358,10 @@ function renderCanvas(hi) {
     const bx = mx - ux * s, by = my - uy * s;
     const lx = bx + px * s * 0.62, ly = by + py * s * 0.62;
     const rx = bx - px * s * 0.62, ry = by - py * s * 0.62;
-    pedges += `<polygon class="${arrCls}" points="${tipx},${tipy} ${lx},${ly} ${rx},${ry}"/>`;
+    pmarks += `<polygon class="${arrCls}" points="${tipx},${tipy} ${lx},${ly} ${rx},${ry}"/>`;
     // 步序号：法向偏移一点，避免压在线上
     const sx = mx + px * 15, sy = my + py * 15;
-    pedges += `<circle cx="${sx}" cy="${sy}" r="8" class="${arrCls}" opacity="0.9"/><text class="seq" x="${sx}" y="${sy + 3.5}">${k + 1}</text>`;
+    pmarks += `<circle cx="${sx}" cy="${sy}" r="8" class="${arrCls}" opacity="0.9"/><text class="seq" x="${sx}" y="${sy + 3.5}">${k + 1}</text>`;
   }
   // 边长标签（每条边中点；编辑态可点击修改）
   let labels = "";
@@ -392,7 +392,8 @@ function renderCanvas(hi) {
     nstr += `<g class="${cls}" data-id="${nd.id}"><circle cx="${nd.x}" cy="${nd.y}" r="${R}"/><text class="lbl" x="${nd.x}" y="${nd.y + 5}">${nd.id}</text></g>`;
   });
   svg.classList.toggle("editable", !locked);
-  svg.innerHTML = edges + pedges + labels + nstr;
+  // 分层：淡边 → 高亮路径线 → 边权标签 → 箭头/步序号(在标签上层) → 节点
+  svg.innerHTML = edges + plines + labels + pmarks + nstr;
   if (editingEdge && !locked) { const inp = $("ewInput"); if (inp) { inp.focus(); inp.select(); } }
 }
 
