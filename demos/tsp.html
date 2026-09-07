@@ -276,19 +276,33 @@ function addNode(x, y) {
 function reindex() { nodes.forEach((n, i) => n.id = i); nextId = nodes.length; history = nodes.map(n => n.id); }  // 保持 id===数组下标，回路用下标索引
 function undo() { if (lockGuard() || !nodes.length) return; nodes.pop(); customW = {}; editingEdge = null; reindex(); resetRun(); renderCanvas(); setStatus(nodes.length ? `已撤销，剩 ${nodes.length} 个城市（边长已复位为默认）。` : "已清空。点击画布空白处添加城市。"); }
 function clearAll() { if (lockGuard()) return; nodes = []; nextId = 0; history = []; customW = {}; editingEdge = null; resetRun(); renderCanvas(); setStatus("已清空。点击画布空白处添加城市。"); }
+// 一个环形布局候选：角度均分 + 抖动 + 每点随机半径
+function ringLayout(n) {
+  const cx = 320, cy = 210, rad = 155, pts = [];
+  for (let i = 0; i < n; i++) {
+    const ang = -Math.PI / 2 + 2 * Math.PI * i / n + (Math.random() - 0.5) * 0.7, rr = rad - 30 + Math.random() * 60;
+    pts.push({ id: i, x: Math.round(cx + rr * Math.cos(ang)), y: Math.round(cy + rr * Math.sin(ang)) });
+  }
+  return pts;
+}
+// 完全图边权标签在中点：所有边中点两两最小距离作分数，越大越不重叠
+function minLabelSep(pts) {
+  const n = pts.length, mids = [];
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) mids.push({ x: (pts[i].x + pts[j].x) / 2, y: (pts[i].y + pts[j].y) / 2 });
+  let m = Infinity;
+  for (let a = 0; a < mids.length; a++) for (let b = a + 1; b < mids.length; b++) m = Math.min(m, Math.hypot(mids[a].x - mids[b].x, mids[a].y - mids[b].y));
+  return m;
+}
 function randomGraph() {
   if (lockGuard()) return;
   nodes = []; nextId = 0; history = []; customW = {}; editingEdge = null;
   const cap = capOf();
   const n = Math.min(cap, mode === "brute" ? 5 : 6);
-  const cx = 320, cy = 210, rad = 155;
-  for (let i = 0; i < n; i++) {
-    // 环形基础 + 小扰动，避免完美对称
-    const ang = -Math.PI / 2 + 2 * Math.PI * i / n;
-    const rr = rad - 30 + Math.random() * 60;
-    nodes.push({ id: i, x: Math.round(cx + rr * Math.cos(ang)), y: Math.round(cy + rr * Math.sin(ang)) });
-    history.push(i);
-  }
+  // 多次候选取"边权中点最小间距最大"的布局，避免标签重叠
+  let best = null, bestScore = -1;
+  for (let t = 0; t < 60; t++) { const p = ringLayout(n), s = minLabelSep(p); if (s > bestScore) { bestScore = s; best = p; } }
+  nodes = best;
+  for (let i = 0; i < n; i++) history.push(i);
   nextId = n;
   resetRun(); renderCanvas();
   setStatus(`随机生成 ${n} 个城市。点「开始/重演」。`);
