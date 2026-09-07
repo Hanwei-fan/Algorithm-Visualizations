@@ -83,7 +83,20 @@
   .arrow.onpath { fill: var(--cyan); filter: drop-shadow(0 0 4px rgba(0,240,255,.7)); }
   .arrow.best { fill: var(--green); filter: drop-shadow(0 0 4px rgba(0,255,156,.8)); }
   .seq { fill: #05060f; font-family: "SF Mono", Menlo, monospace; font-size: 10px; font-weight: 700; text-anchor: middle; pointer-events: none; }
-  .ew { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 10px; text-anchor: middle; pointer-events: none; }
+  .ew { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 11px; text-anchor: middle; pointer-events: none; }
+  .ew.onpath { fill: var(--cyan); font-weight: 700; }
+  .ew.best { fill: var(--green); font-weight: 700; }
+  .ew.custom { fill: var(--yellow); }                              /* 用户改过的边长 */
+  /* 编辑态：边长标签可点，带底衬方便点击 */
+  .ewbg { fill: rgba(5,4,15,0.75); stroke: var(--border); rx: 4; }
+  .editable .ewbg { cursor: pointer; stroke: color-mix(in srgb, var(--yellow) 50%, var(--border)); }
+  .editable .ewbg:hover { stroke: var(--yellow); fill: color-mix(in srgb, var(--yellow) 14%, rgba(5,4,15,0.85)); }
+  .editable .ew { cursor: pointer; }
+  .ewedit { width: 46px; height: 22px; border: 1px solid var(--yellow); border-radius: 4px; background: #0d0b1a;
+    color: var(--yellow); font-family: "SF Mono", Menlo, monospace; font-size: 12px; text-align: center; outline: none; }
+  .lockhint { font-size: 12px; font-family: "SF Mono", Menlo, monospace; margin: 6px 0 0; }
+  .lockhint.edit { color: var(--yellow); } .lockhint.locked { color: var(--muted); }
+  .lockhint b { color: var(--cyan); }
   .gnode circle { fill: var(--node-fill); stroke: var(--border); stroke-width: 2; transition: all .18s; cursor: pointer; }
   .gnode text.lbl { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; text-anchor: middle; pointer-events: none; }
   .gnode:hover circle { stroke: var(--cyan); }
@@ -189,6 +202,7 @@
       <span class="item"><span class="sw tail"></span>当前路径终点</span>
       <span class="item">▷ 箭头=走向，边上 <b style="color:var(--cyan)">①②③</b>=第几步</span>
     </div>
+    <p class="lockhint edit" id="lockHint"></p>
   </section>
   <section class="card">
     <div class="plabel">算法</div>
@@ -224,19 +238,30 @@ let nodes = [];                     // [{id,x,y}]  完全图由坐标即时算�
 let nextId = 0, history = [];
 let steps = [], idx = 0, timer = null, running = false;
 let curHi = { pathNodes: [], tail: null, best: false };  // 画布高亮（无步骤时的静态态）
+let locked = false;                 // false=编辑态(可加点/改边)；true=已锁定(演示中)。开始/重演 切换
+let customW = {};                   // 用户改过的边长： "min-max"(下标对) -> 正整数
+let editingEdge = null;             // 正在编辑的边： {i,j} 或 null
 function setStatus(t) { $("status").innerHTML = t; }
 function capOf() { return mode === "brute" ? 6 : 10; }
 
-// ===== 代价矩阵（欧氏距离，四舍五入，对称）=====
+// ===== 代价矩阵（默认欧氏距离四舍五入；用户可覆盖，对称）=====
 function dist(p, q) { return Math.round(Math.hypot(p.x - q.x, p.y - q.y)); }
+function ekey(i, j) { return Math.min(i, j) + "-" + Math.max(i, j); }
+function edgeLen(i, j) { const k = ekey(i, j); return (k in customW) ? customW[k] : dist(nodes[i], nodes[j]); }
+function isCustom(i, j) { return ekey(i, j) in customW; }
 function costMatrix() {
   const n = nodes.length, a = Array.from({ length: n }, () => new Array(n).fill(0));
-  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j) a[i][j] = dist(nodes[i], nodes[j]);
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) if (i !== j) a[i][j] = edgeLen(i, j);
   return a;
 }
 
 // ===== 画布交互 =====
+function lockGuard() {   // 锁定态下拦截修改操作，提示先解锁
+  if (locked) { setStatus('<span class="yel">演示已锁定。要改图/边长，请点「开始/重演」回到编辑态。</span>'); return true; }
+  return false;
+}
 function addNode(x, y) {
+  if (lockGuard()) return;
   const cap = capOf();
   if (nodes.length >= cap) { setStatus(`<span class="yel">已达上限 ${cap} 个城市（${mode === "brute" ? "全排列" : "状压DP"}模式）。</span>`); return; }
   x = Math.max(R + 4, Math.min(640 - R - 4, x));
@@ -246,13 +271,14 @@ function addNode(x, y) {
   history.push(id);
   resetRun();
   renderCanvas();
-  setStatus(`已添加城市 <b>${id}</b>（共 ${nodes.length} 个）。点「开始/重演」演示当前解法。`);
+  setStatus(`已添加城市 <b>${id}</b>（共 ${nodes.length} 个）。可点<b>边上数字</b>改边长，或点「开始/重演」演示。`);
 }
 function reindex() { nodes.forEach((n, i) => n.id = i); nextId = nodes.length; history = nodes.map(n => n.id); }  // 保持 id===数组下标，回路用下标索引
-function undo() { if (!nodes.length) return; nodes.pop(); reindex(); resetRun(); renderCanvas(); setStatus(nodes.length ? `已撤销，剩 ${nodes.length} 个城市。` : "已清空。点击画布空白处添加城市。"); }
-function clearAll() { nodes = []; nextId = 0; history = []; resetRun(); renderCanvas(); setStatus("已清空。点击画布空白处添加城市。"); }
+function undo() { if (lockGuard() || !nodes.length) return; nodes.pop(); customW = {}; editingEdge = null; reindex(); resetRun(); renderCanvas(); setStatus(nodes.length ? `已撤销，剩 ${nodes.length} 个城市（边长已复位为默认）。` : "已清空。点击画布空白处添加城市。"); }
+function clearAll() { if (lockGuard()) return; nodes = []; nextId = 0; history = []; customW = {}; editingEdge = null; resetRun(); renderCanvas(); setStatus("已清空。点击画布空白处添加城市。"); }
 function randomGraph() {
-  clearAll();
+  if (lockGuard()) return;
+  nodes = []; nextId = 0; history = []; customW = {}; editingEdge = null;
   const cap = capOf();
   const n = Math.min(cap, mode === "brute" ? 5 : 6);
   const cx = 320, cy = 210, rad = 155;
@@ -268,12 +294,35 @@ function randomGraph() {
   setStatus(`随机生成 ${n} 个城市。点「开始/重演」。`);
 }
 
+function startEditEdge(i, j) { editingEdge = { i, j }; renderCanvas(); }
+function commitEdge(save) {
+  if (!editingEdge) return;
+  const inp = $("ewInput");
+  if (save && inp) {
+    const v = Math.round(Number(inp.value));
+    if (Number.isFinite(v) && v >= 1) customW[ekey(editingEdge.i, editingEdge.j)] = v;
+  }
+  editingEdge = null; renderCanvas();
+}
 $("canvas").addEventListener("click", e => {
   const svg = $("canvas");
-  if (e.target.closest(".gnode")) return;      // 点已有节点：不做特殊处理（起点固定 0）
+  if (e.target.closest("foreignObject")) return;               // 点输入框本身：不处理
+  if (editingEdge) { commitEdge(true); return; }               // 正在编辑：先提交再说
+  if (locked) { setStatus('<span class="yel">演示已锁定。要改图/边长，请点「开始/重演」回到编辑态。</span>'); return; }
+  const eg = e.target.closest(".ewg");
+  if (eg) { startEditEdge(+eg.dataset.i, +eg.dataset.j); return; }  // 点边长标签：编辑
+  if (e.target.closest(".gnode")) return;                      // 点节点：不处理（起点固定 0）
   const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
   const loc = p.matrixTransform(svg.getScreenCTM().inverse());
   addNode(loc.x, loc.y);
+});
+$("canvas").addEventListener("keydown", e => {
+  if (!editingEdge) return;
+  if (e.key === "Enter") { e.preventDefault(); commitEdge(true); }
+  else if (e.key === "Escape") { e.preventDefault(); commitEdge(false); }
+});
+$("canvas").addEventListener("focusout", e => {   // 输入框失焦即提交（点到别处）
+  if (editingEdge && e.target.id === "ewInput") setTimeout(() => { if (editingEdge) commitEdge(true); }, 0);
 });
 
 // ===== 画布渲染：完全图淡边 + 高亮路径边 + 节点异色 =====
@@ -314,6 +363,24 @@ function renderCanvas(hi) {
     const sx = mx + px * 15, sy = my + py * 15;
     pedges += `<circle cx="${sx}" cy="${sy}" r="8" class="${arrCls}" opacity="0.9"/><text class="seq" x="${sx}" y="${sy + 3.5}">${k + 1}</text>`;
   }
+  // 边长标签（每条边中点；编辑态可点击修改）
+  let labels = "";
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    const a = nodes[i], b = nodes[j], key = ekey(a.id, b.id);
+    const onP = pathEdge.has(key);
+    const dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+    const px = -dy / len, py = dx / len;                       // 法向
+    const off = onP ? -15 : 0;                                 // 路径边标签移到序号对侧
+    const mx = (a.x + b.x) / 2 + px * off, my = (a.y + b.y) / 2 + py * off;
+    let cls = "ew"; if (hi.best && onP) cls += " best"; else if (onP) cls += " onpath"; if (isCustom(a.id, b.id)) cls += " custom";
+    const txt = edgeLen(a.id, b.id);
+    if (editingEdge && !locked && editingEdge.i === a.id && editingEdge.j === b.id) {
+      labels += `<foreignObject x="${mx - 23}" y="${my - 11}" width="46" height="22"><input xmlns="http://www.w3.org/1999/xhtml" class="ewedit" id="ewInput" type="number" min="1" value="${txt}"/></foreignObject>`;
+    } else {
+      const tw = String(txt).length * 7 + 8;
+      labels += `<g class="ewg" data-i="${a.id}" data-j="${b.id}"><rect class="ewbg" x="${mx - tw / 2}" y="${my - 9}" width="${tw}" height="18"/><text class="${cls}" x="${mx}" y="${my + 4}">${txt}</text></g>`;
+    }
+  }
   // 节点
   const pathSet = new Set(pn);
   let nstr = "";
@@ -324,7 +391,9 @@ function renderCanvas(hi) {
     else if (nd.id === 0) cls += " start";
     nstr += `<g class="${cls}" data-id="${nd.id}"><circle cx="${nd.x}" cy="${nd.y}" r="${R}"/><text class="lbl" x="${nd.x}" y="${nd.y + 5}">${nd.id}</text></g>`;
   });
-  svg.innerHTML = edges + pedges + nstr;
+  svg.classList.toggle("editable", !locked);
+  svg.innerHTML = edges + pedges + labels + nstr;
+  if (editingEdge && !locked) { const inp = $("ewInput"); if (inp) { inp.focus(); inp.select(); } }
 }
 
 // ===== 解法①：全排列暴力（固定 0 起点，闭合回路）=====
@@ -483,10 +552,27 @@ function renderBrute(step) {
 }
 // ===== 引擎 =====
 function stopTimer() { if (timer) { clearTimeout(timer); timer = null; } }
+function updateLockHint() {
+  const el = $("lockHint");
+  if (locked) { el.className = "lockhint locked"; el.innerHTML = `已锁定演示中 · 用<b>自动播放 / 单步</b>推进 · 点<b>开始/重演</b>回编辑态改图`; }
+  else { el.className = "lockhint edit"; el.innerHTML = `编辑态 · 点空白<b>加城市</b> · 点边上<b>数字</b>改边长 · 点<b>开始/重演</b>锁定并演示`; }
+}
+function setButtons() {
+  const editDisabled = locked;                       // 锁定态禁用建图类按钮
+  $("randBtn").disabled = editDisabled;
+  $("undoBtn").disabled = editDisabled;
+  $("clearBtn").disabled = editDisabled;
+  const hasSteps = locked && steps.length > 0;
+  $("playBtn").disabled = !hasSteps;
+  $("stepBtn").disabled = !hasSteps || idx >= steps.length - 1;
+  $("runBtn").textContent = locked ? "↩ 回到编辑" : "开始/重演";
+  updateLockHint();
+}
 function resetRun() {
   stopTimer(); steps = []; idx = 0; running = false;
-  $("playBtn").disabled = true; $("stepBtn").disabled = true; $("playBtn").textContent = "自动播放";
+  $("playBtn").textContent = "自动播放";
   $("bigans").innerHTML = "";
+  setButtons();
 }
 function renderStep() {
   const s = steps[idx];
@@ -509,13 +595,22 @@ function togglePlay() {
   $("playBtn").textContent = running ? "暂停" : "自动播放";
   if (running) { if (idx >= steps.length - 1) { idx = 0; } playLoop(); } else stopTimer();
 }
-function runDemo() {
+// 「开始/重演」按钮：编辑态→锁定并生成步骤；锁定态→解锁回编辑
+function toggleRun() {
+  if (locked) {                       // 已锁定：解锁回编辑态
+    locked = false; editingEdge = null;
+    resetRun(); renderCanvas();
+    setStatus("已回到编辑态：可增删城市、修改边长。改好后再点「开始/重演」。");
+    return;
+  }
+  if (editingEdge) commitEdge(true);  // 有未提交的边长先落定
   if (nodes.length === 0) { setStatus('<span class="yel">请先在画布上添加城市（点空白处）。</span>'); return; }
-  resetRun();
+  locked = true;                      // 进入锁定演示态
+  stopTimer(); running = false; $("bigans").innerHTML = "";
   steps = (mode === "brute") ? genBruteSteps() : genDpSteps();
   idx = 0;
-  if (!steps.length) { setStatus("无可演示步骤。"); return; }
-  $("playBtn").disabled = false; $("stepBtn").disabled = steps.length <= 1;
+  if (!steps.length) { locked = false; setButtons(); setStatus("无可演示步骤。"); return; }
+  setButtons();
   renderStep();
 }
 
@@ -531,11 +626,12 @@ function applyMode(m) {
   $("capHint").textContent = `最多 ${capOf()} 城`;
   $("formula").innerHTML = m === "brute" ? FORMULA_BRUTE : FORMULA_DP;
   $("note").innerHTML = m === "brute" ? NOTE_BRUTE : NOTE_DP;
-  // 切模式时若超出新上限，裁掉多余城市
+  locked = false; editingEdge = null;                // 切模式回到编辑态
+  // 切模式时若超出新上限，裁掉多余城市；边长复位（下标可能变）
   const cap = capOf();
-  if (nodes.length > cap) { nodes = nodes.slice(0, cap); reindex(); }
+  if (nodes.length > cap) { nodes = nodes.slice(0, cap); reindex(); customW = {}; }
   resetRun(); renderCanvas();
-  setStatus(nodes.length ? "已切换解法，点「开始/重演」演示。" : "点击画布空白处添加城市。");
+  setStatus(nodes.length ? "已切换解法，可改图/边长，点「开始/重演」演示。" : "点击画布空白处添加城市。");
 }
 // ===== 文案 =====
 const FORMULA_BRUTE =
@@ -549,14 +645,16 @@ const FORMULA_DP =
   `答案：<code>min over i ( dp[FULL][i] + a[i][0] )</code>（补上回起点）。复杂度 <code>O(2ⁿ·n²)</code>。`;
 const NOTE_BRUTE =
   `<b>暴力枚举</b>：直观但只适合 n ≤ 8 左右。此处上限 <b>6</b> 城，已对回路做正反向去重，枚举数 = <code>(n-1)!/2</code>。` +
-  ` 画布中<span style="color:var(--cyan)">青色</span>为当前回路，<span style="color:var(--green)">绿色</span>为最终最优回路。`;
+  ` 画布中<span style="color:var(--cyan)">青色</span>为当前回路，<span style="color:var(--green)">绿色</span>为最终最优回路。` +
+  ` <b>边长可改</b>：演示前点边上数字即可改（<span style="color:var(--yellow)">黄色</span>=改过）；点「开始/重演」锁定并演示，再点一次回到编辑态。`;
 const NOTE_DP =
   `<b>状压 DP</b>：把“访问过哪些城市”压进一个整数的二进制位，避免重复子问题。上限 <b>10</b> 城（2¹⁰ 行 DP 表尚可视化）。` +
-  ` 右侧 DP 表<span style="color:var(--yellow)">黄格</span>=正在计算的 dp[mask][j]，<span style="color:var(--magenta)">品红</span>=来源 dp[mask][i]，<span style="color:var(--green)">绿格</span>=最优末点。`;
+  ` 右侧 DP 表<span style="color:var(--yellow)">黄格</span>=正在计算的 dp[mask][j]，<span style="color:var(--magenta)">品红</span>=来源 dp[mask][i]，<span style="color:var(--green)">绿格</span>=最优末点。` +
+  ` <b>边长可改</b>：演示前点边上数字即可改，代价矩阵 a[i][j] 随之更新；点「开始/重演」锁定并演示，再点一次回到编辑态。`;
 
 // ===== 接线 =====
 $("modeTabs").addEventListener("click", e => { const t = e.target.closest(".tab"); if (t) applyMode(t.dataset.mode); });
-$("runBtn").onclick = runDemo;
+$("runBtn").onclick = toggleRun;
 $("playBtn").onclick = togglePlay;
 $("stepBtn").onclick = () => { stopTimer(); running = false; $("playBtn").textContent = "自动播放"; stepOnce(); };
 $("randBtn").onclick = randomGraph;
