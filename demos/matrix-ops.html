@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>矩阵运算演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+    --node-fill: #16213e;
+  }
+  * { box-sizing: border-box; }
+  html, body { min-height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+    min-height: 100vh;
+  }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px;
+    text-transform: uppercase; color: #fff;
+    text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 8px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .tab {
+    padding: 9px 18px; border: 1px solid var(--border); border-bottom: none;
+    border-radius: 8px 8px 0 0; cursor: pointer; color: var(--muted);
+    font-size: 14px; letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace;
+    background: rgba(18,15,38,0.4); transition: all .18s;
+  }
+  .tab:hover { color: var(--cyan); }
+  .tab.active { color: var(--cyan); background: var(--panel); border-color: var(--cyan); text-shadow: 0 0 6px rgba(0,240,255,.5); }
+  .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text);
+    font-family: "SF Mono", Menlo, monospace; width: 60px;
+  }
+  .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .speed { display: flex; flex-direction: column; gap: 5px; }
+  .speed label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .speed input { width: 120px; accent-color: var(--magenta); }
+  .btn {
+    padding: 9px 15px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 13px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s; white-space: nowrap;
+  }
+  .btn:hover:not(:disabled) { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(18,15,38,0.5); }
+  .btn.secondary:hover:not(:disabled) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.06); box-shadow: none; }
+  .cppview-btn {
+    margin-left: auto; padding: 9px 15px; border: 1px solid var(--green); border-radius: 4px;
+    background: rgba(0,255,156,0.1); color: var(--green); font-size: 13px; letter-spacing: 1px;
+    cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .cppview-btn:hover { background: var(--green); color: #05060f; box-shadow: 0 0 16px rgba(0,255,156,.5); }
+  main { padding: 6px 30px; display: grid; grid-template-columns: 1.6fr 1fr; gap: 18px; align-items: start; }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px; backdrop-filter: blur(6px);
+  }
+  .plabel { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; margin: 0 0 8px; }
+  .plabel.mt { margin-top: 16px; }
+
+  /* 矩阵网格 */
+  .matrices { display: flex; gap: 20px; flex-wrap: wrap; margin: 0 auto; }
+  .matrix-group { display: flex; flex-direction: column; gap: 8px; }
+  .matrix-label { font-size: 13px; color: var(--cyan); font-weight: 700; font-family: "SF Mono", Menlo, monospace; letter-spacing: .5px; }
+  .matrix { display: inline-grid; gap: 4px; padding: 10px; background: rgba(5,4,15,0.4); border-radius: 8px; border: 1px solid var(--border); }
+  .matrix-cell {
+    width: 48px; height: 44px; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; font-weight: 700; border-radius: 5px; color: var(--text);
+    background: color-mix(in srgb, var(--cyan) 7%, var(--node-fill)); border: 1px solid var(--border);
+    font-family: "SF Mono", Menlo, monospace; transition: background .15s, color .15s;
+  }
+  .matrix-cell.editable { cursor: pointer; }
+  .matrix-cell.editable:hover { background: color-mix(in srgb, var(--cyan) 18%, var(--node-fill)); border-color: var(--cyan); }
+  .matrix-cell.cur { background: color-mix(in srgb, var(--yellow) 32%, var(--node-fill)); border-color: var(--yellow); box-shadow: 0 0 8px rgba(255,212,0,.5); }
+  .matrix-cell.rowa { background: color-mix(in srgb, var(--magenta) 26%, var(--node-fill)); border-color: var(--magenta); }
+  .matrix-cell.colb { background: color-mix(in srgb, var(--green) 26%, var(--node-fill)); border-color: var(--green); }
+  .matrix-cell.res { background: color-mix(in srgb, var(--cyan) 22%, var(--node-fill)); border: 1px solid var(--cyan); }
+  .matrix-cell.resnew { background: color-mix(in srgb, var(--green) 34%, var(--node-fill)); border: 1px solid var(--green); box-shadow: 0 0 10px rgba(0,255,156,.55); }
+  .matrix-cell input {
+    width: 100%; height: 100%; border: 1px solid var(--yellow); border-radius: 4px;
+    background: #0d0b1a; color: var(--yellow); font-family: "SF Mono", Menlo, monospace;
+    font-size: 16px; font-weight: 700; text-align: center; outline: none;
+  }
+  .matrix-cell input:focus { box-shadow: 0 0 8px rgba(255,212,0,.6); }
+
+  .op-symbol { font-size: 24px; color: var(--magenta); font-weight: 700; align-self: center; margin: 0 8px; }
+  .eq-symbol { font-size: 24px; color: var(--cyan); font-weight: 700; align-self: center; margin: 0 8px; }
+
+  .stats { margin-top: 12px; font-family: "SF Mono", Menlo, monospace; font-size: 14px; color: var(--text); }
+  .stats b { color: var(--yellow); }
+  .status { margin-top: 8px; font-size: 14px; min-height: 48px; color: var(--text); font-family: "SF Mono", Menlo, monospace; line-height: 1.6; }
+  .status .hl { color: var(--yellow); font-weight: 700; }
+  .error { color: var(--magenta); font-weight: 700; }
+  .note { margin: 6px 30px 30px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+  .note code { color: var(--cyan); background: rgba(0,240,255,0.08); padding: 1px 5px; border-radius: 3px; }
+  .note b { color: var(--yellow); }
+</style>
+<script>
+/* 防 FOUC */
+(function () {
+  try {
+    var V = {
+      cyber: { "--bg": "#07060f", "--grid": "rgba(0,240,255,0.06)", "--text": "#e6e1ff", "--panel": "rgba(18,15,38,0.72)", "--border": "#2a2350", "--muted": "#7d76a8" },
+      ocean: { "--bg": "#0e1524", "--grid": "rgba(120,170,220,0.05)", "--text": "#e8eef7", "--panel": "rgba(22,32,52,0.82)", "--border": "#2b3b57", "--muted": "#8fa2bd" },
+      sepia: { "--bg": "#f3ecde", "--grid": "rgba(150,130,95,0.06)", "--text": "#3a332a", "--panel": "rgba(255,251,242,0.86)", "--border": "#d8c9ad", "--muted": "#8a7f6c" },
+      light: { "--bg": "#f7f9fc", "--grid": "rgba(80,120,170,0.05)", "--text": "#1f2733", "--panel": "rgba(255,255,255,0.9)", "--border": "#d5dde8", "--muted": "#6b7688" }
+    };
+    var t = localStorage.getItem("algoviz-theme") || "cyber";
+    if (!V[t]) t = "cyber";
+    var d = document.documentElement, v = V[t];
+    for (var k in v) d.style.setProperty(k, v[k]);
+    d.style.setProperty("color-scheme", (t === "sepia" || t === "light") ? "light" : "dark");
+  } catch (e) {}
+})();
+</script>
+</head>
+<body>
+<header>
+  <h1>矩阵运算演示</h1>
+  <p>矩阵转置、加法、减法、乘法的分步可视化演示。可编辑矩阵元素，逐步高亮运算过程与中间结果。</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="tabs">
+  <div class="tab active" data-op="transpose">转置 Aᵀ</div>
+  <div class="tab" data-op="add">加法 A+B</div>
+  <div class="tab" data-op="sub">减法 A−B</div>
+  <div class="tab" data-op="mul">乘法 A×B</div>
+</div>
+
+<div class="controls">
+  <div class="field"><label id="labR1">矩阵 A 行数</label><input id="r1" type="number" value="3" min="1" max="8"></div>
+  <div class="field"><label id="labC1">矩阵 A 列数</label><input id="c1" type="number" value="3" min="1" max="8"></div>
+  <div class="field"><label id="labR2">矩阵 B 行数</label><input id="r2" type="number" value="3" min="1" max="8"></div>
+  <div class="field"><label id="labC2">矩阵 B 列数</label><input id="c2" type="number" value="3" min="1" max="8"></div>
+  <button class="btn secondary" id="resetMatBtn">重设矩阵</button>
+  <div class="speed"><label for="speedInput">速度</label><input id="speedInput" type="range" min="120" max="1300" value="620" step="50"></div>
+  <button class="btn" id="playBtn">自动播放</button>
+  <button class="btn secondary" id="stepBtn">单步 ▶</button>
+  <button class="btn secondary" id="resetBtn">重置</button>
+  <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
+</div>
+
+<main>
+  <section class="card">
+    <div class="plabel">矩阵运算过程</div>
+    <div id="matrixView" style="display:flex;justify-content:center;overflow-x:auto;padding:10px;"></div>
+    <div class="status" id="status"></div>
+  </section>
+  <section class="card">
+    <div class="plabel">说明</div>
+    <div class="stats" id="stats"></div>
+  </section>
+</main>
+
+<div class="note" id="note"></div>
+
+<script src="../assets/cppview.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let op = "transpose", steps = [], idx = 0, timer = null, running = false;
+let matA = [], matB = [], matC = [];
+let r1 = 3, c1 = 3, r2 = 3, c2 = 3;
+
+function initMatrices() {
+  r1 = Math.max(1, Math.min(8, parseInt($("r1").value, 10) || 3));
+  c1 = Math.max(1, Math.min(8, parseInt($("c1").value, 10) || 3));
+  r2 = Math.max(1, Math.min(8, parseInt($("r2").value, 10) || 3));
+  c2 = Math.max(1, Math.min(8, parseInt($("c2").value, 10) || 3));
+
+  const randVal = () => Math.floor(Math.random() * 10);
+  matA = [];
+  for (let i = 0; i < r1; i++) { const row = []; for (let j = 0; j < c1; j++) row.push(randVal()); matA.push(row); }
+  matB = [];
+  for (let i = 0; i < r2; i++) { const row = []; for (let j = 0; j < c2; j++) row.push(randVal()); matB.push(row); }
+  matC = [];
+}
+
+function setStatus(t) { $("status").innerHTML = t; }
+
+function genTransposeSteps() {
+  const list = [];
+  const res = [];
+  for (let i = 0; i < c1; i++) { const row = []; for (let j = 0; j < r1; j++) row.push(null); res.push(row); }
+
+  list.push({ matA, matB: null, matC: res, curI: null, curJ: null, desc: `转置：将矩阵 A(${r1}×${c1}) 的行与列互换，得 Aᵀ(${c1}×${r1})。A[i][j] → Aᵀ[j][i]。`, done: false });
+
+  for (let i = 0; i < r1; i++) {
+    for (let j = 0; j < c1; j++) {
+      res[j][i] = matA[i][j];
+      list.push({ matA, matB: null, matC: res, curI: i, curJ: j, desc: `A[${i}][${j}] = <span class="hl">${matA[i][j]}</span> → Aᵀ[${j}][${i}] = <span class="hl">${matA[i][j]}</span>`, done: false });
+    }
+  }
+  list.push({ matA, matB: null, matC: res, curI: null, curJ: null, desc: `转置完成！Aᵀ = <b class="hl">${res.map(r => "[" + r.join(", ") + "]").join(" ")}</b>`, done: true });
+  return list;
+}
+
+function genAddSteps() {
+  if (r1 !== r2 || c1 !== c2) {
+    setStatus(`<span class="error">❌ 加法要求两矩阵同型：A(${r1}×${c1}) 和 B(${r2}×${c2}) 的行列数必须相同。</span>`);
+    steps = [];
+    idx = 0;
+    running = false;
+    $("stepBtn").disabled = true;
+    $("playBtn").disabled = true;
+    return [];
+  }
+  const list = [];
+  const res = [];
+  for (let i = 0; i < r1; i++) { const row = []; for (let j = 0; j < c1; j++) row.push(null); res.push(row); }
+
+  list.push({ matA, matB, matC: res, curI: null, curJ: null, desc: `加法：A(${r1}×${c1}) + B(${r2}×${c2}) = C，逐格对应相加：C[i][j] = A[i][j] + B[i][j]。`, done: false });
+
+  for (let i = 0; i < r1; i++) {
+    for (let j = 0; j < c1; j++) {
+      const sum = matA[i][j] + matB[i][j];
+      res[i][j] = sum;
+      list.push({ matA, matB, matC: res, curI: i, curJ: j, desc: `C[${i}][${j}] = A[${i}][${j}] + B[${i}][${j}] = <span class="hl">${matA[i][j]}</span> + <span class="hl">${matB[i][j]}</span> = <span class="hl">${sum}</span>`, done: false });
+    }
+  }
+  list.push({ matA, matB, matC: res, curI: null, curJ: null, desc: `加法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
+  return list;
+}
+
+function genSubSteps() {
+  if (r1 !== r2 || c1 !== c2) {
+    setStatus(`<span class="error">❌ 减法要求两矩阵同型：A(${r1}×${c1}) 和 B(${r2}×${c2}) 的行列数必须相同。</span>`);
+    steps = [];
+    idx = 0;
+    running = false;
+    $("stepBtn").disabled = true;
+    $("playBtn").disabled = true;
+    return [];
+  }
+  const list = [];
+  const res = [];
+  for (let i = 0; i < r1; i++) { const row = []; for (let j = 0; j < c1; j++) row.push(null); res.push(row); }
+
+  list.push({ matA, matB, matC: res, curI: null, curJ: null, desc: `减法：A(${r1}×${c1}) − B(${r2}×${c2}) = C，逐格对应相减：C[i][j] = A[i][j] − B[i][j]。`, done: false });
+
+  for (let i = 0; i < r1; i++) {
+    for (let j = 0; j < c1; j++) {
+      const diff = matA[i][j] - matB[i][j];
+      res[i][j] = diff;
+      list.push({ matA, matB, matC: res, curI: i, curJ: j, desc: `C[${i}][${j}] = A[${i}][${j}] − B[${i}][${j}] = <span class="hl">${matA[i][j]}</span> − <span class="hl">${matB[i][j]}</span> = <span class="hl">${diff}</span>`, done: false });
+    }
+  }
+  list.push({ matA, matB, matC: res, curI: null, curJ: null, desc: `减法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
+  return list;
+}
+
+function genMulSteps() {
+  if (c1 !== r2) {
+    setStatus(`<span class="error">❌ 乘法要求 A 的列数 = B 的行数：A(${r1}×${c1}) 的列数 ${c1} ≠ B(${r2}×${c2}) 的行数 ${r2}。</span>`);
+    steps = [];
+    idx = 0;
+    running = false;
+    $("stepBtn").disabled = true;
+    $("playBtn").disabled = true;
+    return [];
+  }
+  const list = [];
+  const res = [];
+  for (let i = 0; i < r1; i++) { const row = []; for (let j = 0; j < c2; j++) row.push(null); res.push(row); }
+
+  list.push({ matA, matB, matC: res, curI: null, curJ: null, curK: null, desc: `乘法：A(${r1}×${c1}) × B(${r2}×${c2}) = C(${r1}×${c2})。C[i][j] = Σ A[i][k] × B[k][j] (k=0..${c1-1})。逐位相乘累加。`, done: false });
+
+  for (let i = 0; i < r1; i++) {
+    for (let j = 0; j < c2; j++) {
+      let sum = 0;
+      list.push({ matA, matB, matC: res, curI: i, curJ: j, curK: -1, desc: `计算 C[${i}][${j}]：A 第 ${i} 行 × B 第 ${j} 列，累加 ${c1} 项。`, done: false });
+      for (let k = 0; k < c1; k++) {
+        const prod = matA[i][k] * matB[k][j];
+        sum += prod;
+        list.push({ matA, matB, matC: res, curI: i, curJ: j, curK: k, acc: sum, desc: `k=${k}：<span class="hl">${matA[i][k]}</span> × <span class="hl">${matB[k][j]}</span> = <span class="hl">${prod}</span>，累加 = <span class="hl">${sum}</span>`, done: false });
+      }
+      res[i][j] = sum;
+      list.push({ matA, matB, matC: res, curI: i, curJ: j, curK: -2, desc: `C[${i}][${j}] 完成 = <span class="hl">${sum}</span>`, done: false });
+    }
+  }
+  list.push({ matA, matB, matC: res, curI: null, curJ: null, curK: null, desc: `乘法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
+  return list;
+}
+
+function renderMatrices(step) {
+  const { matA, matB, matC, curI, curJ, curK, acc } = step;
+  let html = `<div class="matrices">`;
+
+  const renderMat = (mat, label, r, c, isA, isCurI, isCurJ, isCurK) => {
+    let h = `<div class="matrix-group"><div class="matrix-label">${label}</div><div class="matrix" style="grid-template-columns:repeat(${c},1fr)">`;
+    for (let i = 0; i < r; i++) {
+      for (let j = 0; j < c; j++) {
+        let cls = "matrix-cell";
+        if (isA && i === isCurI && j === isCurJ) cls += " rowa";
+        if (!isA && isCurK != null && i === isCurK) cls += " colb";
+        if (mat[i] && mat[i][j] != null) {
+          h += `<div class="${cls}">${mat[i][j]}</div>`;
+        } else {
+          h += `<div class="${cls}"></div>`;
+        }
+      }
+    }
+    h += `</div></div>`;
+    return h;
+  };
+
+  if (op === "transpose") {
+    html += renderMat(matA, "A", r1, c1, true, curI, curJ, null);
+    html += `<div class="eq-symbol">→</div>`;
+    html += renderMat(matC, "Aᵀ", c1, r1, false, null, null, null);
+  } else if (op === "add" || op === "sub") {
+    html += renderMat(matA, "A", r1, c1, true, curI, curJ, null);
+    html += `<div class="op-symbol">${op === "add" ? "+" : "−"}</div>`;
+    html += renderMat(matB, "B", r2, c2, false, curI, curJ, null);
+    html += `<div class="eq-symbol">=</div>`;
+    html += renderMat(matC, "C", r1, c1, false, null, null, null);
+  } else if (op === "mul") {
+    html += renderMat(matA, "A", r1, c1, true, curI, null, null);
+    html += `<div class="op-symbol">×</div>`;
+    html += renderMat(matB, "B", r2, c2, false, null, curJ, curK);
+    html += `<div class="eq-symbol">=</div>`;
+    html += renderMat(matC, "C", r1, c2, false, null, null, null);
+    if (acc != null) {
+      html += `<div style="align-self:center;margin-left:8px;font-family:'SF Mono';font-size:14px;color:var(--yellow);font-weight:700;">累: ${acc}</div>`;
+    }
+  }
+
+  html += `</div>`;
+  $("matrixView").innerHTML = html;
+}
+
+function draw(k) {
+  const s = steps[k];
+  renderMatrices(s);
+  setStatus(s.desc);
+}
+
+function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(idx); } if (idx >= steps.length - 1) endRun(); }
+function endRun() { running = false; stopTimer(); $("stepBtn").disabled = true; $("playBtn").disabled = true; }
+function playAll() { stopTimer(); const spd = 1420 - parseInt($("speedInput").value, 10); timer = setInterval(() => { if (idx < steps.length - 1) { idx++; draw(idx); } else endRun(); }, spd); }
+function stopTimer() { if (timer) { clearInterval(timer); timer = null; } }
+
+function prepare() {
+  stopTimer();
+  initMatrices();
+
+  let out = [];
+  if (op === "transpose") out = genTransposeSteps();
+  else if (op === "add") out = genAddSteps();
+  else if (op === "sub") out = genSubSteps();
+  else if (op === "mul") out = genMulSteps();
+
+  steps = out;
+  idx = 0; running = true;
+  $("stepBtn").disabled = false; $("playBtn").disabled = false;
+  draw(0);
+}
+
+function switchOp(o) {
+  if (o === op) return;
+  op = o;
+  document.querySelectorAll(".tab").forEach(t => t.classList.toggle("active", t.dataset.op === o));
+  prepare();
+}
+
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => switchOp(t.dataset.op));
+$("playBtn").onclick = () => { if (idx >= steps.length - 1) prepare(); playAll(); };
+$("stepBtn").onclick = () => { stopTimer(); stepOnce(); };
+$("resetBtn").onclick = () => prepare();
+$("resetMatBtn").onclick = () => prepare();
+
+$("cppBtn").onclick = () => CppView.open("matrix_" + op);
+
+$("note").innerHTML = `矩阵运算：<b>转置</b> Aᵀ[j][i] = A[i][j]；<b>加减</b>要求同型，C[i][j] = A[i][j] ± B[i][j]；<b>乘法</b>要求 A 列数 = B 行数，C[i][j] = Σ A[i][k]·B[k][j]。`;
+
+CppView.register({
+  matrix_transpose: { title: "矩阵转置 — C++", code:
+`#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    int r, c; cin >> r >> c;
+    vector<vector<int>> A(r, vector<int>(c));
+    for (int i = 0; i < r; i++)
+        for (int j = 0; j < c; j++)
+            cin >> A[i][j];
+
+    vector<vector<int>> AT(c, vector<int>(r));
+    for (int i = 0; i < r; i++)
+        for (int j = 0; j < c; j++)
+            AT[j][i] = A[i][j];  // 转置
+
+    for (int i = 0; i < c; i++) {
+        for (int j = 0; j < r; j++)
+            cout << AT[i][j] << " ";
+        cout << "\\n";
+    }
+}` },
+  matrix_add: { title: "矩阵加法 — C++", code:
+`#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    int r, c; cin >> r >> c;
+    vector<vector<int>> A(r, vector<int>(c)), B(r, vector<int>(c));
+
+    for (int i = 0; i < r; i++)
+        for (int j = 0; j < c; j++)
+            cin >> A[i][j];
+    for (int i = 0; i < r; i++)
+        for (int j = 0; j < c; j++)
+            cin >> B[i][j];
+
+    vector<vector<int>> C(r, vector<int>(c));
+    for (int i = 0; i < r; i++)
+        for (int j = 0; j < c; j++)
+            C[i][j] = A[i][j] + B[i][j];  // 逐格相加
+
+    for (int i = 0; i < r; i++) {
+        for (int j = 0; j < c; j++)
+            cout << C[i][j] << " ";
+        cout << "\\n";
+    }
+}` },
+  matrix_sub: { title: "矩阵减法 — C++", code:
+`#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    int r, c; cin >> r >> c;
+    vector<vector<int>> A(r, vector<int>(c)), B(r, vector<int>(c));
+
+    for (int i = 0; i < r; i++)
+        for (int j = 0; j < c; j++)
+            cin >> A[i][j];
+    for (int i = 0; i < r; i++)
+        for (int j = 0; j < c; j++)
+            cin >> B[i][j];
+
+    vector<vector<int>> C(r, vector<int>(c));
+    for (int i = 0; i < r; i++)
+        for (int j = 0; j < c; j++)
+            C[i][j] = A[i][j] - B[i][j];  // 逐格相减
+
+    for (int i = 0; i < r; i++) {
+        for (int j = 0; j < c; j++)
+            cout << C[i][j] << " ";
+        cout << "\\n";
+    }
+}` },
+  matrix_mul: { title: "矩阵乘法 — C++", code:
+`#include <iostream>
+#include <vector>
+using namespace std;
+
+int main() {
+    int r1, c1, r2, c2; cin >> r1 >> c1 >> r2 >> c2;
+    if (c1 != r2) { cout << "维度不匹配\\n"; return 0; }
+
+    vector<vector<int>> A(r1, vector<int>(c1)), B(r2, vector<int>(c2));
+    for (int i = 0; i < r1; i++)
+        for (int j = 0; j < c1; j++)
+            cin >> A[i][j];
+    for (int i = 0; i < r2; i++)
+        for (int j = 0; j < c2; j++)
+            cin >> B[i][j];
+
+    vector<vector<int>> C(r1, vector<int>(c2, 0));
+    for (int i = 0; i < r1; i++)
+        for (int j = 0; j < c2; j++)
+            for (int k = 0; k < c1; k++)
+                C[i][j] += A[i][k] * B[k][j];  // 累加
+
+    for (int i = 0; i < r1; i++) {
+        for (int j = 0; j < c2; j++)
+            cout << C[i][j] << " ";
+        cout << "\\n";
+    }
+}` }
+});
+
+prepare();
+</script>
+<script src="../assets/theme.js"></script>
+</body>
+</html>
