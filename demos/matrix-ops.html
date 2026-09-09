@@ -210,16 +210,17 @@ function genTransposeSteps() {
   for (let i = 0; i < c1; i++) { const row = []; for (let j = 0; j < r1; j++) row.push(null); res.push(row); }
 
   const computed = new Set();
-  list.push({ matA, matB: null, matC: res, curI: null, curJ: null, computed: new Set(computed), desc: `转置：将矩阵 A(${r1}×${c1}) 的行与列互换，得 Aᵀ(${c1}×${r1})。A[i][j] → Aᵀ[j][i]。`, done: false });
+  const copyRes = () => res.map(r => [...r]);
+  list.push({ matA, matB: null, matC: copyRes(), computed: new Set(computed), hlA: null, desc: `转置：将矩阵 A(${r1}×${c1}) 的行与列互换，得 Aᵀ(${c1}×${r1})。A[i][j] → Aᵀ[j][i]。`, done: false });
 
   for (let i = 0; i < r1; i++) {
     for (let j = 0; j < c1; j++) {
       res[j][i] = matA[i][j];
       computed.add(`${j},${i}`);
-      list.push({ matA, matB: null, matC: res, curI: i, curJ: j, computed: new Set(computed), desc: `A[${i}][${j}] = <span class="hl">${matA[i][j]}</span> → Aᵀ[${j}][${i}] = <span class="hl">${matA[i][j]}</span>`, done: false });
+      list.push({ matA, matB: null, matC: copyRes(), computed: new Set(computed), hlA: {i, j}, desc: `A[${i}][${j}] = <span class="hl">${matA[i][j]}</span> → Aᵀ[${j}][${i}]`, done: false });
     }
   }
-  list.push({ matA, matB: null, matC: res, curI: null, curJ: null, computed: new Set(computed), desc: `转置完成！Aᵀ = <b class="hl">${res.map(r => "[" + r.join(", ") + "]").join(" ")}</b>`, done: true });
+  list.push({ matA, matB: null, matC: copyRes(), computed: new Set(computed), hlA: null, desc: `转置完成！Aᵀ = <b class="hl">${res.map(r => "[" + r.join(", ") + "]").join(" ")}</b>`, done: true });
   return list;
 }
 
@@ -238,17 +239,18 @@ function genAddSteps() {
   for (let i = 0; i < r1; i++) { const row = []; for (let j = 0; j < c1; j++) row.push(null); res.push(row); }
 
   const computed = new Set();
-  list.push({ matA, matB, matC: res, curI: null, curJ: null, computed: new Set(computed), desc: `加法：A(${r1}×${c1}) + B(${r2}×${c2}) = C，逐格对应相加：C[i][j] = A[i][j] + B[i][j]。`, done: false });
+  const copyRes = () => res.map(r => [...r]);
+  list.push({ matA, matB, matC: copyRes(), computed: new Set(computed), hlA: null, hlB: null, desc: `加法：A(${r1}×${c1}) + B(${r2}×${c2}) = C，逐格对应相加：C[i][j] = A[i][j] + B[i][j]。`, done: false });
 
   for (let i = 0; i < r1; i++) {
     for (let j = 0; j < c1; j++) {
       const sum = matA[i][j] + matB[i][j];
       res[i][j] = sum;
       computed.add(`${i},${j}`);
-      list.push({ matA, matB, matC: res, curI: i, curJ: j, computed: new Set(computed), desc: `C[${i}][${j}] = A[${i}][${j}] + B[${i}][${j}] = <span class="hl">${matA[i][j]}</span> + <span class="hl">${matB[i][j]}</span> = <span class="hl">${sum}</span>`, done: false });
+      list.push({ matA, matB, matC: copyRes(), curI: i, curJ: j, computed: new Set(computed), hlA: {i, j}, hlB: {i, j}, desc: `C[${i}][${j}] = A[${i}][${j}] + B[${i}][${j}] = <span class="hl">${matA[i][j]}</span> + <span class="hl">${matB[i][j]}</span> = <span class="hl">${sum}</span>`, done: false });
     }
   }
-  list.push({ matA, matB, matC: res, curI: null, curJ: null, computed: new Set(computed), desc: `加法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
+  list.push({ matA, matB, matC: copyRes(), computed: new Set(computed), hlA: null, hlB: null, desc: `加法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
   return list;
 }
 
@@ -267,17 +269,18 @@ function genSubSteps() {
   for (let i = 0; i < r1; i++) { const row = []; for (let j = 0; j < c1; j++) row.push(null); res.push(row); }
 
   const computed = new Set();
-  list.push({ matA, matB, matC: res, curI: null, curJ: null, computed: new Set(computed), desc: `减法：A(${r1}×${c1}) − B(${r2}×${c2}) = C，逐格对应相减：C[i][j] = A[i][j] − B[i][j]。`, done: false });
+  const copyRes = () => res.map(r => [...r]);
+  list.push({ matA, matB, matC: copyRes(), computed: new Set(computed), hlA: null, hlB: null, desc: `减法：A(${r1}×${c1}) − B(${r2}×${c2}) = C，逐格对应相减：C[i][j] = A[i][j] − B[i][j]。`, done: false });
 
   for (let i = 0; i < r1; i++) {
     for (let j = 0; j < c1; j++) {
       const diff = matA[i][j] - matB[i][j];
       res[i][j] = diff;
       computed.add(`${i},${j}`);
-      list.push({ matA, matB, matC: res, curI: i, curJ: j, computed: new Set(computed), desc: `C[${i}][${j}] = A[${i}][${j}] − B[${i}][${j}] = <span class="hl">${matA[i][j]}</span> − <span class="hl">${matB[i][j]}</span> = <span class="hl">${diff}</span>`, done: false });
+      list.push({ matA, matB, matC: copyRes(), curI: i, curJ: j, computed: new Set(computed), hlA: {i, j}, hlB: {i, j}, desc: `C[${i}][${j}] = A[${i}][${j}] − B[${i}][${j}] = <span class="hl">${matA[i][j]}</span> − <span class="hl">${matB[i][j]}</span> = <span class="hl">${diff}</span>`, done: false });
     }
   }
-  list.push({ matA, matB, matC: res, curI: null, curJ: null, computed: new Set(computed), desc: `减法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
+  list.push({ matA, matB, matC: copyRes(), computed: new Set(computed), hlA: null, hlB: null, desc: `减法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
   return list;
 }
 
@@ -296,41 +299,61 @@ function genMulSteps() {
   for (let i = 0; i < r1; i++) { const row = []; for (let j = 0; j < c2; j++) row.push(null); res.push(row); }
 
   const computed = new Set();
-  list.push({ matA, matB, matC: res, curI: null, curJ: null, curK: null, computed: new Set(computed), desc: `乘法：A(${r1}×${c1}) × B(${r2}×${c2}) = C(${r1}×${c2})。C[i][j] = Σ A[i][k] × B[k][j] (k=0..${c1-1})。逐位相乘累加。`, done: false });
+  const copyRes = () => res.map(r => [...r]);
+  list.push({ matA, matB, matC: copyRes(), computed: new Set(computed), hlA: [], hlB: [], desc: `乘法：A(${r1}×${c1}) × B(${r2}×${c2}) = C(${r1}×${c2})。C[i][j] = Σ A[i][k] × B[k][j] (k=0..${c1-1})。逐位相乘累加。`, done: false });
 
   for (let i = 0; i < r1; i++) {
     for (let j = 0; j < c2; j++) {
       let sum = 0;
-      list.push({ matA, matB, matC: res, curI: i, curJ: j, curK: -1, computed: new Set(computed), desc: `计算 C[${i}][${j}]：A 第 ${i} 行 × B 第 ${j} 列，累加 ${c1} 项。`, done: false });
+      const hlAInit = []; for (let kk = 0; kk < c1; kk++) hlAInit.push({i, j: kk});
+      const hlBInit = []; for (let kk = 0; kk < c1; kk++) hlBInit.push({i: kk, j});
+      list.push({ matA, matB, matC: copyRes(), curI: i, curJ: j, computed: new Set(computed), hlA: hlAInit, hlB: hlBInit, desc: `计算 C[${i}][${j}]：A 第 ${i} 行 × B 第 ${j} 列，累加 ${c1} 项。`, done: false });
       for (let k = 0; k < c1; k++) {
         const prod = matA[i][k] * matB[k][j];
         sum += prod;
-        list.push({ matA, matB, matC: res, curI: i, curJ: j, curK: k, acc: sum, computed: new Set(computed), desc: `k=${k}：<span class="hl">${matA[i][k]}</span> × <span class="hl">${matB[k][j]}</span> = <span class="hl">${prod}</span>，累加 = <span class="hl">${sum}</span>`, done: false });
+        const hlA = []; for (let kk = 0; kk <= k; kk++) hlA.push({i, j: kk});
+        const hlB = []; for (let kk = 0; kk <= k; kk++) hlB.push({i: kk, j});
+        list.push({ matA, matB, matC: copyRes(), curI: i, curJ: j, computed: new Set(computed), hlA, hlB, desc: `k=${k}：<span class="hl">${matA[i][k]}</span> × <span class="hl">${matB[k][j]}</span> = <span class="hl">${prod}</span>，累加 = <span class="hl">${sum}</span>`, done: false });
       }
       res[i][j] = sum;
       computed.add(`${i},${j}`);
-      list.push({ matA, matB, matC: res, curI: i, curJ: j, curK: -2, computed: new Set(computed), desc: `C[${i}][${j}] 完成 = <span class="hl">${sum}</span>`, done: false });
+      list.push({ matA, matB, matC: copyRes(), curI: i, curJ: j, computed: new Set(computed), hlA: [], hlB: [], desc: `C[${i}][${j}] 完成 = <span class="hl">${sum}</span>`, done: false });
     }
   }
-  list.push({ matA, matB, matC: res, curI: null, curJ: null, curK: null, computed: new Set(computed), desc: `乘法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
+  list.push({ matA, matB, matC: copyRes(), computed: new Set(computed), hlA: [], hlB: [], desc: `乘法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
   return list;
 }
 
 function renderMatrices(step) {
-  const { matA, matB, matC, curI, curJ, curK, acc, computed } = step;
+  const { matA, matB, matC, curI, curJ, curK, acc, computed, hlA, hlB } = step;
   let html = `<div class="matrices">`;
 
-  const renderMat = (mat, label, r, c, isA, isCurI, isCurJ, isCurK, computedSet) => {
+  // hlA/hlB: {i,j} 对象或数组，表示要高亮的坐标
+  const renderMat = (mat, label, r, c, hlPos, computedSet, hlClass = "rowa") => {
     let h = `<div class="matrix-group"><div class="matrix-label">${label}</div><div class="matrix" style="grid-template-columns:repeat(${c},1fr)">`;
     for (let i = 0; i < r; i++) {
       for (let j = 0; j < c; j++) {
         let cls = "matrix-cell";
-        if (isA && i === isCurI && j === isCurJ) cls += " rowa";
-        if (!isA && isCurK != null && i === isCurK) cls += " colb";
+        // 检查是否需要高亮（源矩阵 A、B 的参与计算的元素）
+        if (hlPos) {
+          if (Array.isArray(hlPos)) {
+            // 对于 A 行、B 列的高亮
+            for (const pos of hlPos) {
+              if (pos.i === i && pos.j === j) {
+                cls += ` ${hlClass}`;
+                break;
+              }
+            }
+          } else if (hlPos.i === i && hlPos.j === j) {
+            cls += ` ${hlClass}`;
+          }
+        }
+        // 检查是否已计算（结果矩阵 C 的已填充格子）
         if (computedSet && computedSet.has(`${i},${j}`)) {
-          if (i === isCurI && j === isCurJ) cls += " cur";
+          if (i === curI && j === curJ) cls += " cur";
           else cls += " res";
         }
+
         if (mat[i] && mat[i][j] != null) {
           h += `<div class="${cls}">${mat[i][j]}</div>`;
         } else {
@@ -343,24 +366,29 @@ function renderMatrices(step) {
   };
 
   if (op === "transpose") {
-    html += renderMat(matA, "A", r1, c1, true, curI, curJ, null, null);
+    // A: 当前计算元素高亮
+    html += renderMat(matA, "A", r1, c1, hlA, null, "rowa");
     html += `<div class="eq-symbol">→</div>`;
-    // 对于转置，结果矩阵的当前格子应该是 [curJ, curI]（对应 A 中的 [curI, curJ]）
-    const resCurI = curJ != null ? curJ : null;
-    const resCurJ = curI != null ? curI : null;
-    html += renderMat(matC, "Aᵀ", c1, r1, false, resCurI, resCurJ, null, computed);
+    // Aᵀ: 只显示已计算的结果，不高亮
+    html += renderMat(matC, "Aᵀ", c1, r1, null, computed, "rowa");
   } else if (op === "add" || op === "sub") {
-    html += renderMat(matA, "A", r1, c1, true, curI, curJ, null, null);
+    // A: 当前行高亮
+    html += renderMat(matA, "A", r1, c1, hlA, null, "rowa");
     html += `<div class="op-symbol">${op === "add" ? "+" : "−"}</div>`;
-    html += renderMat(matB, "B", r2, c2, false, curI, curJ, null, null);
+    // B: 当前行高亮
+    html += renderMat(matB, "B", r2, c2, hlB, null, "colb");
     html += `<div class="eq-symbol">=</div>`;
-    html += renderMat(matC, "C", r1, c1, false, curI, curJ, null, computed);
+    // C: 只显示已计算的结果，不高亮
+    html += renderMat(matC, "C", r1, c1, null, computed, "rowa");
   } else if (op === "mul") {
-    html += renderMat(matA, "A", r1, c1, true, curI, null, null, null);
+    // A: 当前行高亮
+    html += renderMat(matA, "A", r1, c1, hlA, null, "rowa");
     html += `<div class="op-symbol">×</div>`;
-    html += renderMat(matB, "B", r2, c2, false, null, curJ, curK, null);
+    // B: 当前列高亮
+    html += renderMat(matB, "B", r2, c2, hlB, null, "colb");
     html += `<div class="eq-symbol">=</div>`;
-    html += renderMat(matC, "C", r1, c2, false, curI, curJ, null, computed);
+    // C: 只显示已计算的结果，不高亮
+    html += renderMat(matC, "C", r1, c2, null, computed, "rowa");
     if (acc != null) {
       html += `<div style="align-self:center;margin-left:8px;font-family:'SF Mono';font-size:14px;color:var(--yellow);font-weight:700;">累: ${acc}</div>`;
     }
