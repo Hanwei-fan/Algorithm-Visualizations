@@ -441,6 +441,19 @@ function draw(k) {
   const s = steps[k];
   renderMatrices(s);
   setStatus(s.desc);
+
+  // 更新右侧说明板块
+  let statsHtml = '';
+  if (op === "transpose") {
+    statsHtml = `<b>转置运算</b><br>将矩阵的行与列互换<br><br>定义：Aᵀ[j][i] = A[i][j]<br>结果矩阵维度：${c1}×${r1}`;
+  } else if (op === "add") {
+    statsHtml = `<b>矩阵加法</b><br>对应元素相加<br><br>定义：C[i][j] = A[i][j] + B[i][j]<br>要求：A 与 B 同型`;
+  } else if (op === "sub") {
+    statsHtml = `<b>矩阵减法</b><br>对应元素相减<br><br>定义：C[i][j] = A[i][j] − B[i][j]<br>要求：A 与 B 同型`;
+  } else if (op === "mul") {
+    statsHtml = `<b>矩阵乘法</b><br>行列乘积求和<br><br>定义：C[i][j] = Σ A[i][k]·B[k][j]<br>要求：A 列数 = B 行数`;
+  }
+  $("stats").innerHTML = statsHtml;
 }
 
 function stepOnce() { if (!running) return; if (idx < steps.length - 1) { idx++; draw(idx); } if (idx >= steps.length - 1) endRun(); }
