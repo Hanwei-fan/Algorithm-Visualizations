@@ -209,15 +209,17 @@ function genTransposeSteps() {
   const res = [];
   for (let i = 0; i < c1; i++) { const row = []; for (let j = 0; j < r1; j++) row.push(null); res.push(row); }
 
-  list.push({ matA, matB: null, matC: res, curI: null, curJ: null, desc: `转置：将矩阵 A(${r1}×${c1}) 的行与列互换，得 Aᵀ(${c1}×${r1})。A[i][j] → Aᵀ[j][i]。`, done: false });
+  const computed = new Set();
+  list.push({ matA, matB: null, matC: res, curI: null, curJ: null, computed: new Set(computed), desc: `转置：将矩阵 A(${r1}×${c1}) 的行与列互换，得 Aᵀ(${c1}×${r1})。A[i][j] → Aᵀ[j][i]。`, done: false });
 
   for (let i = 0; i < r1; i++) {
     for (let j = 0; j < c1; j++) {
       res[j][i] = matA[i][j];
-      list.push({ matA, matB: null, matC: res, curI: i, curJ: j, desc: `A[${i}][${j}] = <span class="hl">${matA[i][j]}</span> → Aᵀ[${j}][${i}] = <span class="hl">${matA[i][j]}</span>`, done: false });
+      computed.add(`${j},${i}`);
+      list.push({ matA, matB: null, matC: res, curI: i, curJ: j, computed: new Set(computed), desc: `A[${i}][${j}] = <span class="hl">${matA[i][j]}</span> → Aᵀ[${j}][${i}] = <span class="hl">${matA[i][j]}</span>`, done: false });
     }
   }
-  list.push({ matA, matB: null, matC: res, curI: null, curJ: null, desc: `转置完成！Aᵀ = <b class="hl">${res.map(r => "[" + r.join(", ") + "]").join(" ")}</b>`, done: true });
+  list.push({ matA, matB: null, matC: res, curI: null, curJ: null, computed: new Set(computed), desc: `转置完成！Aᵀ = <b class="hl">${res.map(r => "[" + r.join(", ") + "]").join(" ")}</b>`, done: true });
   return list;
 }
 
@@ -235,16 +237,18 @@ function genAddSteps() {
   const res = [];
   for (let i = 0; i < r1; i++) { const row = []; for (let j = 0; j < c1; j++) row.push(null); res.push(row); }
 
-  list.push({ matA, matB, matC: res, curI: null, curJ: null, desc: `加法：A(${r1}×${c1}) + B(${r2}×${c2}) = C，逐格对应相加：C[i][j] = A[i][j] + B[i][j]。`, done: false });
+  const computed = new Set();
+  list.push({ matA, matB, matC: res, curI: null, curJ: null, computed: new Set(computed), desc: `加法：A(${r1}×${c1}) + B(${r2}×${c2}) = C，逐格对应相加：C[i][j] = A[i][j] + B[i][j]。`, done: false });
 
   for (let i = 0; i < r1; i++) {
     for (let j = 0; j < c1; j++) {
       const sum = matA[i][j] + matB[i][j];
       res[i][j] = sum;
-      list.push({ matA, matB, matC: res, curI: i, curJ: j, desc: `C[${i}][${j}] = A[${i}][${j}] + B[${i}][${j}] = <span class="hl">${matA[i][j]}</span> + <span class="hl">${matB[i][j]}</span> = <span class="hl">${sum}</span>`, done: false });
+      computed.add(`${i},${j}`);
+      list.push({ matA, matB, matC: res, curI: i, curJ: j, computed: new Set(computed), desc: `C[${i}][${j}] = A[${i}][${j}] + B[${i}][${j}] = <span class="hl">${matA[i][j]}</span> + <span class="hl">${matB[i][j]}</span> = <span class="hl">${sum}</span>`, done: false });
     }
   }
-  list.push({ matA, matB, matC: res, curI: null, curJ: null, desc: `加法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
+  list.push({ matA, matB, matC: res, curI: null, curJ: null, computed: new Set(computed), desc: `加法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
   return list;
 }
 
@@ -262,16 +266,18 @@ function genSubSteps() {
   const res = [];
   for (let i = 0; i < r1; i++) { const row = []; for (let j = 0; j < c1; j++) row.push(null); res.push(row); }
 
-  list.push({ matA, matB, matC: res, curI: null, curJ: null, desc: `减法：A(${r1}×${c1}) − B(${r2}×${c2}) = C，逐格对应相减：C[i][j] = A[i][j] − B[i][j]。`, done: false });
+  const computed = new Set();
+  list.push({ matA, matB, matC: res, curI: null, curJ: null, computed: new Set(computed), desc: `减法：A(${r1}×${c1}) − B(${r2}×${c2}) = C，逐格对应相减：C[i][j] = A[i][j] − B[i][j]。`, done: false });
 
   for (let i = 0; i < r1; i++) {
     for (let j = 0; j < c1; j++) {
       const diff = matA[i][j] - matB[i][j];
       res[i][j] = diff;
-      list.push({ matA, matB, matC: res, curI: i, curJ: j, desc: `C[${i}][${j}] = A[${i}][${j}] − B[${i}][${j}] = <span class="hl">${matA[i][j]}</span> − <span class="hl">${matB[i][j]}</span> = <span class="hl">${diff}</span>`, done: false });
+      computed.add(`${i},${j}`);
+      list.push({ matA, matB, matC: res, curI: i, curJ: j, computed: new Set(computed), desc: `C[${i}][${j}] = A[${i}][${j}] − B[${i}][${j}] = <span class="hl">${matA[i][j]}</span> − <span class="hl">${matB[i][j]}</span> = <span class="hl">${diff}</span>`, done: false });
     }
   }
-  list.push({ matA, matB, matC: res, curI: null, curJ: null, desc: `减法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
+  list.push({ matA, matB, matC: res, curI: null, curJ: null, computed: new Set(computed), desc: `减法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
   return list;
 }
 
@@ -289,36 +295,42 @@ function genMulSteps() {
   const res = [];
   for (let i = 0; i < r1; i++) { const row = []; for (let j = 0; j < c2; j++) row.push(null); res.push(row); }
 
-  list.push({ matA, matB, matC: res, curI: null, curJ: null, curK: null, desc: `乘法：A(${r1}×${c1}) × B(${r2}×${c2}) = C(${r1}×${c2})。C[i][j] = Σ A[i][k] × B[k][j] (k=0..${c1-1})。逐位相乘累加。`, done: false });
+  const computed = new Set();
+  list.push({ matA, matB, matC: res, curI: null, curJ: null, curK: null, computed: new Set(computed), desc: `乘法：A(${r1}×${c1}) × B(${r2}×${c2}) = C(${r1}×${c2})。C[i][j] = Σ A[i][k] × B[k][j] (k=0..${c1-1})。逐位相乘累加。`, done: false });
 
   for (let i = 0; i < r1; i++) {
     for (let j = 0; j < c2; j++) {
       let sum = 0;
-      list.push({ matA, matB, matC: res, curI: i, curJ: j, curK: -1, desc: `计算 C[${i}][${j}]：A 第 ${i} 行 × B 第 ${j} 列，累加 ${c1} 项。`, done: false });
+      list.push({ matA, matB, matC: res, curI: i, curJ: j, curK: -1, computed: new Set(computed), desc: `计算 C[${i}][${j}]：A 第 ${i} 行 × B 第 ${j} 列，累加 ${c1} 项。`, done: false });
       for (let k = 0; k < c1; k++) {
         const prod = matA[i][k] * matB[k][j];
         sum += prod;
-        list.push({ matA, matB, matC: res, curI: i, curJ: j, curK: k, acc: sum, desc: `k=${k}：<span class="hl">${matA[i][k]}</span> × <span class="hl">${matB[k][j]}</span> = <span class="hl">${prod}</span>，累加 = <span class="hl">${sum}</span>`, done: false });
+        list.push({ matA, matB, matC: res, curI: i, curJ: j, curK: k, acc: sum, computed: new Set(computed), desc: `k=${k}：<span class="hl">${matA[i][k]}</span> × <span class="hl">${matB[k][j]}</span> = <span class="hl">${prod}</span>，累加 = <span class="hl">${sum}</span>`, done: false });
       }
       res[i][j] = sum;
-      list.push({ matA, matB, matC: res, curI: i, curJ: j, curK: -2, desc: `C[${i}][${j}] 完成 = <span class="hl">${sum}</span>`, done: false });
+      computed.add(`${i},${j}`);
+      list.push({ matA, matB, matC: res, curI: i, curJ: j, curK: -2, computed: new Set(computed), desc: `C[${i}][${j}] 完成 = <span class="hl">${sum}</span>`, done: false });
     }
   }
-  list.push({ matA, matB, matC: res, curI: null, curJ: null, curK: null, desc: `乘法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
+  list.push({ matA, matB, matC: res, curI: null, curJ: null, curK: null, computed: new Set(computed), desc: `乘法完成！C = ${res.map(r => "[" + r.join(", ") + "]").join(" ")}`, done: true });
   return list;
 }
 
 function renderMatrices(step) {
-  const { matA, matB, matC, curI, curJ, curK, acc } = step;
+  const { matA, matB, matC, curI, curJ, curK, acc, computed } = step;
   let html = `<div class="matrices">`;
 
-  const renderMat = (mat, label, r, c, isA, isCurI, isCurJ, isCurK) => {
+  const renderMat = (mat, label, r, c, isA, isCurI, isCurJ, isCurK, computedSet) => {
     let h = `<div class="matrix-group"><div class="matrix-label">${label}</div><div class="matrix" style="grid-template-columns:repeat(${c},1fr)">`;
     for (let i = 0; i < r; i++) {
       for (let j = 0; j < c; j++) {
         let cls = "matrix-cell";
         if (isA && i === isCurI && j === isCurJ) cls += " rowa";
         if (!isA && isCurK != null && i === isCurK) cls += " colb";
+        if (computedSet && computedSet.has(`${i},${j}`)) {
+          if (i === isCurI && j === isCurJ) cls += " cur";
+          else cls += " res";
+        }
         if (mat[i] && mat[i][j] != null) {
           h += `<div class="${cls}">${mat[i][j]}</div>`;
         } else {
@@ -331,21 +343,24 @@ function renderMatrices(step) {
   };
 
   if (op === "transpose") {
-    html += renderMat(matA, "A", r1, c1, true, curI, curJ, null);
+    html += renderMat(matA, "A", r1, c1, true, curI, curJ, null, null);
     html += `<div class="eq-symbol">→</div>`;
-    html += renderMat(matC, "Aᵀ", c1, r1, false, null, null, null);
+    // 对于转置，结果矩阵的当前格子应该是 [curJ, curI]（对应 A 中的 [curI, curJ]）
+    const resCurI = curJ != null ? curJ : null;
+    const resCurJ = curI != null ? curI : null;
+    html += renderMat(matC, "Aᵀ", c1, r1, false, resCurI, resCurJ, null, computed);
   } else if (op === "add" || op === "sub") {
-    html += renderMat(matA, "A", r1, c1, true, curI, curJ, null);
+    html += renderMat(matA, "A", r1, c1, true, curI, curJ, null, null);
     html += `<div class="op-symbol">${op === "add" ? "+" : "−"}</div>`;
-    html += renderMat(matB, "B", r2, c2, false, curI, curJ, null);
+    html += renderMat(matB, "B", r2, c2, false, curI, curJ, null, null);
     html += `<div class="eq-symbol">=</div>`;
-    html += renderMat(matC, "C", r1, c1, false, null, null, null);
+    html += renderMat(matC, "C", r1, c1, false, curI, curJ, null, computed);
   } else if (op === "mul") {
-    html += renderMat(matA, "A", r1, c1, true, curI, null, null);
+    html += renderMat(matA, "A", r1, c1, true, curI, null, null, null);
     html += `<div class="op-symbol">×</div>`;
-    html += renderMat(matB, "B", r2, c2, false, null, curJ, curK);
+    html += renderMat(matB, "B", r2, c2, false, null, curJ, curK, null);
     html += `<div class="eq-symbol">=</div>`;
-    html += renderMat(matC, "C", r1, c2, false, null, null, null);
+    html += renderMat(matC, "C", r1, c2, false, curI, curJ, null, computed);
     if (acc != null) {
       html += `<div style="align-self:center;margin-left:8px;font-family:'SF Mono';font-size:14px;color:var(--yellow);font-weight:700;">累: ${acc}</div>`;
     }
