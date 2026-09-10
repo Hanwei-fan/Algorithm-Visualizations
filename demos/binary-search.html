@@ -105,15 +105,26 @@
   .note { padding: 10px 30px 0; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
   .tab.secondary { background: rgba(255,255,255,0.02); color: var(--muted); border-color: var(--border); }
   .tab.secondary:hover { border-color: var(--cyan); color: var(--cyan); }
-  .tree-demo { display: none; padding: 10px 30px 28px; }
+  .tree-demo { display: none; padding: 0 30px 28px 30px; }
   .tree-demo.active { display: block; }
-  .tree-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); }
+  .tree-demo.active main { display: grid !important; grid-template-columns: 1.6fr 1fr !important; gap: 18px !important; align-items: start !important; }
+  .tree-left { min-width: 0; }
+  .tree-right { min-width: 0; }
+  .tree-right .pseudocode { background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13.5px; color: #8fb8c9; margin: 0 0 16px 0; }
+  .tree-right .pseudocode .line { padding: 3px 8px; border-radius: 3px; white-space: pre; }
+  .tree-right .pseudocode .line.active { background: linear-gradient(90deg, rgba(255,43,214,.9), rgba(0,240,255,.6)); color: #fff; box-shadow: 0 0 14px rgba(255,43,214,.5); }
+  .tree-right .stats { display: flex; gap: 24px; font-size: 15px; align-items: baseline; letter-spacing: .5px; flex-wrap: wrap; margin: 0 0 16px 0; }
+  .tree-right .stats b { font-size: 22px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(255,212,0,.6); }
+  .tree-right .status { margin: 0 0 16px 0; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
+  .tree-right .tree-metrics { margin-top: 16px; }
+  @media (max-width: 1200px) { .tree-demo.active main { grid-template-columns: 1fr !important; } }
   .tree-title { font-size: 16px; font-weight: 600; letter-spacing: 1px; margin-bottom: 16px; color: var(--cyan); }
-  #treeSvg { width: 100%; height: auto; display: block; border: 1px solid var(--border); border-radius: 6px; background: rgba(0,0,0,0.3); margin-bottom: 16px; }
+  #treeSvg { width: 100%; height: 400px; display: block; border: 1px solid var(--border); border-radius: 6px; background: rgba(0,0,0,0.3); }
   .tree-edge { stroke: #4a4478; stroke-width: 1.5; }
   .tree-edge.left { stroke: rgba(255, 43, 214, 0.5); }
   .tree-edge.right { stroke: rgba(0, 255, 156, 0.5); }
-  .bstnode rect { fill: color-mix(in srgb, var(--cyan) 8%, rgba(0,0,0,0.3)); stroke: var(--border); stroke-width: 1.5; transition: all 0.2s; }
+  .tree-edge-label { font-family: "SF Mono", Menlo, monospace; font-size: 9px; fill: var(--muted); pointer-events: none; }
+  .bstnode rect { fill: #16213e; stroke: var(--border); stroke-width: 1.5; transition: all 0.2s; }
   .bstnode text.val { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700; }
   .bstnode text.idx { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 9px; }
   .tree-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
@@ -187,32 +198,38 @@
 <div class="note" id="note"></div>
 
 <div class="tree-demo" id="treeDemo">
-  <div class="tree-card">
-    <div class="tree-title">二叉判定树分析</div>
-    <svg id="treeSvg" viewBox="0 0 720 400" preserveAspectRatio="xMidYMid meet"></svg>
-    <div class="tree-metrics">
-      <div class="metric">
-        <div class="metric-label">树的深度</div>
-        <div class="metric-value" id="treeDepthVal">-</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">节点总数</div>
-        <div class="metric-value" id="treeNodeCountVal">-</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">平均搜索长度(ASL)</div>
-        <div class="metric-value" id="aslVal">-</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">最短搜索路径</div>
-        <div class="metric-value" id="minPathVal">-</div>
-      </div>
-      <div class="metric">
-        <div class="metric-label">最长搜索路径</div>
-        <div class="metric-value" id="maxPathVal">-</div>
+  <main>
+    <div class="tree-left">
+      <svg id="treeSvg" viewBox="0 0 720 400" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+    <div class="tree-right">
+      <div class="pseudocode" id="code"></div>
+      <div class="stats">比较次数：<b id="count">0</b></div>
+      <div class="status" id="status"></div>
+      <div class="tree-metrics">
+        <div class="metric">
+          <div class="metric-label">树的深度</div>
+          <div class="metric-value" id="treeDepthVal">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">节点总数</div>
+          <div class="metric-value" id="treeNodeCountVal">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">平均搜索长度(ASL)</div>
+          <div class="metric-value" id="aslVal">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">最短搜索路径</div>
+          <div class="metric-value" id="minPathVal">-</div>
+        </div>
+        <div class="metric">
+          <div class="metric-label">最长搜索路径</div>
+          <div class="metric-value" id="maxPathVal">-</div>
+        </div>
       </div>
     </div>
-  </div>
+  </main>
 </div>
 
 <script>
@@ -353,6 +370,14 @@ function layoutBSTHeap(root) {
   });
 }
 
+// 获取子树中所有节点的索引范围
+function getSubtreeRange(node) {
+  if (!node) return { min: Infinity, max: -Infinity };
+  const nodes = collectBSTNodes(node);
+  const indices = nodes.map(n => n.index);
+  return { min: Math.min(...indices), max: Math.max(...indices) };
+}
+
 // 通过SVG绘制树
 function renderBSTSVG(root) {
   const svg = $("treeSvg");
@@ -363,19 +388,30 @@ function renderBSTSVG(root) {
 
   const nodes = collectBSTNodes(root);
   let edges = "";
+  let labels = "";
   let boxes = "";
 
-  // 先绘制所有连接线
+  // 先绘制所有连接线和标签
   nodes.forEach(node => {
     if (node.left) {
       edges += `<line class="tree-edge left" x1="${node.x}" y1="${node.y}" x2="${node.left.x}" y2="${node.left.y}"/>`;
+      // 计算边的中点并添加标签
+      const midX = (node.x + node.left.x) / 2;
+      const midY = (node.y + node.left.y) / 2;
+      const leftRange = getSubtreeRange(node.left);
+      labels += `<text class="tree-edge-label" x="${midX - 12}" y="${midY - 6}">[${leftRange.min},${leftRange.max}]</text>`;
     }
     if (node.right) {
       edges += `<line class="tree-edge right" x1="${node.x}" y1="${node.y}" x2="${node.right.x}" y2="${node.right.y}"/>`;
+      // 计算边的中点并添加标签
+      const midX = (node.x + node.right.x) / 2;
+      const midY = (node.y + node.right.y) / 2;
+      const rightRange = getSubtreeRange(node.right);
+      labels += `<text class="tree-edge-label" x="${midX + 4}" y="${midY - 6}">[${rightRange.min},${rightRange.max}]</text>`;
     }
   });
 
-  // 再绘制所有节点
+  // 再绘制所有节点（在边之上）
   nodes.forEach(node => {
     const w = 44, h = 30;
     boxes += `<g class="bstnode">
@@ -385,7 +421,7 @@ function renderBSTSVG(root) {
              </g>`;
   });
 
-  svg.innerHTML = edges + boxes;
+  svg.innerHTML = edges + labels + boxes;
 }
 
 // 更新树的显示
