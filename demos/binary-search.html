@@ -341,8 +341,8 @@ function getTreeDepth(root) {
   return 1 + Math.max(getTreeDepth(root.left), getTreeDepth(root.right));
 }
 
-// 使用堆式布局计算树节点位置
-function layoutBSTHeap(root) {
+// 使用改进的树布局计算节点位置
+function layoutBSTImproved(root) {
   const nodes = collectBSTNodes(root);
   if (nodes.length === 0) return;
 
@@ -351,15 +351,23 @@ function layoutBSTHeap(root) {
   const topY = 30;
   const dy = (H - topY - 30) / Math.max(depth - 1, 1);
 
-  nodes.forEach((node, idx) => {
-    const heapIdx = idx + 1;  // 1-based heap index
-    const lvl = Math.floor(Math.log2(heapIdx));
-    const posInLevel = heapIdx - (1 << lvl);
-    const totalInLevel = 1 << lvl;
+  // 递归计算每个节点的x坐标
+  function computeLayout(node, depth, minX, maxX) {
+    if (!node) return;
 
-    node.x = W * (posInLevel + 0.5) / totalInLevel;
-    node.y = topY + lvl * dy;
-  });
+    node.y = topY + depth * dy;
+    node.x = (minX + maxX) / 2;
+
+    // 递归处理左右子树
+    const mid = node.x;
+    const leftWidth = (mid - minX) / 2;
+    const rightWidth = (maxX - mid) / 2;
+
+    if (node.left) computeLayout(node.left, depth + 1, minX, mid - 20);
+    if (node.right) computeLayout(node.right, depth + 1, mid + 20, maxX);
+  }
+
+  computeLayout(root, 0, 40, W - 40);
 }
 
 // 获取子树中所有节点的索引范围
@@ -423,8 +431,8 @@ function updateTreeDisplay() {
   // 构建树
   bstRoot = buildBST(arr, 0, arr.length - 1);
 
-  // 布局树（使用堆式布局）
-  layoutBSTHeap(bstRoot);
+  // 布局树（使用改进的树布局）
+  layoutBSTImproved(bstRoot);
 
   // 计算统计信息
   const stats = calculateTreeStats(bstRoot);
