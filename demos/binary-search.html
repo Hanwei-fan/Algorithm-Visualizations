@@ -192,7 +192,7 @@
       <div class="pointers" id="pointer"></div>
     </div>
     <div class="tree-section">
-      <svg id="treeSvg" viewBox="0 0 720 300" preserveAspectRatio="xMidYMid meet"></svg>
+      <svg id="treeSvg" viewBox="0 0 720 420" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
   </div>
   <div class="demo-right">
@@ -347,24 +347,22 @@ function layoutBSTImproved(root) {
   if (nodes.length === 0) return;
 
   const depth = getTreeDepth(root);
-  const W = 720, H = 400;
+  const W = 720, H = 420;
   const topY = 30;
-  const dy = (H - topY - 30) / Math.max(depth - 1, 1);
+  const bottomY = 30;
+  const dy = (H - topY - bottomY) / Math.max(depth - 1, 1);
 
   // 递归计算每个节点的x坐标
-  function computeLayout(node, depth, minX, maxX) {
+  function computeLayout(node, d, minX, maxX) {
     if (!node) return;
 
-    node.y = topY + depth * dy;
+    node.y = topY + d * dy;
     node.x = (minX + maxX) / 2;
 
     // 递归处理左右子树
     const mid = node.x;
-    const leftWidth = (mid - minX) / 2;
-    const rightWidth = (maxX - mid) / 2;
-
-    if (node.left) computeLayout(node.left, depth + 1, minX, mid - 20);
-    if (node.right) computeLayout(node.right, depth + 1, mid + 20, maxX);
+    if (node.left) computeLayout(node.left, d + 1, minX, mid - 20);
+    if (node.right) computeLayout(node.right, d + 1, mid + 20, maxX);
   }
 
   computeLayout(root, 0, 40, W - 40);
