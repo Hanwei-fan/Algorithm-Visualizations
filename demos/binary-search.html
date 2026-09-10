@@ -73,11 +73,12 @@
   .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--muted); padding: 0 30px 6px; letter-spacing: .5px; }
   .legend span { display: inline-flex; align-items: center; gap: 7px; }
   .swatch { width: 14px; height: 14px; border-radius: 3px; }
-  main { padding: 10px 30px 28px; }
-  .card {
-    background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
-    backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
-  }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+  @media (max-width: 1200px) { main { grid-template-columns: 1fr; } }
+  .demo-left { display: flex; flex-direction: column; gap: 16px; }
+  .demo-right { display: flex; flex-direction: column; gap: 16px; }
+  .array-section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); }
+  .tree-section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); flex: 1; display: flex; flex-direction: column; min-height: 350px; }
   .array { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
   .cell { width: 56px; display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; }
   .cell .box {
@@ -99,15 +100,12 @@
   .resultmark { position: absolute; left: -6px; top: -2px; bottom: 18px; width: 3px; background: var(--green); box-shadow: 0 0 10px var(--green); border-radius: 2px; }
   .resultmark.end { left: auto; right: -6px; }
   .pointers { min-height: 22px; font-size: 14px; color: var(--cyan); margin-bottom: 14px; font-family: "SF Mono", Menlo, monospace; letter-spacing: .5px; }
-  .pseudocode { background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13.5px; color: #8fb8c9; margin: 10px 0 16px; }
-  .pseudocode .line { padding: 3px 8px; border-radius: 3px; white-space: pre; }
-  .pseudocode .line.active { background: linear-gradient(90deg, rgba(255,43,214,.9), rgba(0,240,255,.6)); color: #fff; box-shadow: 0 0 14px rgba(255,43,214,.5); }
-  .stats { display: flex; gap: 24px; font-size: 15px; align-items: baseline; letter-spacing: .5px; }
-  .stats b { font-size: 26px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(255,212,0,.6); }
-  .status { margin-top: 14px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
-  .note { padding: 10px 30px 0; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
-  .tab.secondary { background: rgba(255,255,255,0.02); color: var(--muted); border-color: var(--border); }
-  .tab.secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+  .demo-right .pseudocode { background: rgba(3,2,12,0.85); border: 1px solid var(--border); border-radius: 6px; padding: 14px 16px; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12.5px; color: #8fb8c9; margin: 0 0 12px; overflow-x: auto; }
+  .demo-right .pseudocode .line { padding: 2px 8px; border-radius: 3px; white-space: pre-wrap; word-break: break-word; }
+  .demo-right .pseudocode .line.active { background: linear-gradient(90deg, rgba(255,43,214,.9), rgba(0,240,255,.6)); color: #fff; box-shadow: 0 0 14px rgba(255,43,214,.5); }
+  .demo-right .stats { display: flex; gap: 24px; font-size: 14px; align-items: baseline; margin-bottom: 12px; }
+  .demo-right .stats b { font-size: 22px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(255,212,0,.6); }
+  .demo-right .status { margin-bottom: 12px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
   .tree-demo { display: none; padding: 0 30px 28px 30px; }
   .tree-demo.active { display: block; }
   .tree-demo.active main { display: grid !important; grid-template-columns: 1.6fr 1fr !important; gap: 18px !important; align-items: start !important; }
@@ -121,9 +119,7 @@
   .tree-right .status { margin: 0 0 16px 0; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
   .tree-right .tree-metrics { margin-top: 16px; }
   @media (max-width: 1200px) { .tree-demo.active main { grid-template-columns: 1fr !important; } }
-  .tree-title { font-size: 16px; font-weight: 600; letter-spacing: 1px; margin-bottom: 16px; color: var(--cyan); }
-  #treeSvg { width: 100%; height: 400px; display: block; border: 1px solid var(--border); border-radius: 6px; background: rgba(0,0,0,0.3); }
-  .tree-edge { stroke: var(--edge-base); stroke-width: 1.5; }
+  #treeSvg { width: 100%; height: 100%; display: block; border: none; }
   .tree-edge.left { stroke: var(--edge-left); }
   .tree-edge.right { stroke: var(--edge-right); }
   .tree-edge-label { font-family: "SF Mono", Menlo, monospace; font-size: 9px; fill: var(--label-color); pointer-events: none; }
@@ -158,6 +154,7 @@
 <header>
   <h1 id="title">二分查找演示</h1>
   <p id="subtitle"></p>
+  <p id="note"></p>
 </header>
 <a class="back" href="../index.html">← 返回门户</a>
 
@@ -165,7 +162,6 @@
   <button class="tab active" data-algo="bs">binary_search</button>
   <button class="tab" data-algo="lb">lower_bound</button>
   <button class="tab" data-algo="ub">upper_bound</button>
-  <button class="tab secondary" id="treeViewBtn">🌳 查看树</button>
 </div>
 
 <div class="controls">
@@ -190,50 +186,43 @@
 <div class="legend" id="legend"></div>
 
 <main>
-  <section class="card">
-    <div class="array" id="arrayBox"></div>
-    <div class="pointers" id="pointer"></div>
-    <div class="pseudocode" id="code"></div>
-    <div class="stats">比较次数：<b id="count">0</b></div>
-    <div class="status" id="status"></div>
-  </section>
-</main>
-<div class="note" id="note"></div>
-
-<div class="tree-demo" id="treeDemo">
-  <main>
-    <div class="tree-left">
-      <svg id="treeSvg" viewBox="0 0 720 400" preserveAspectRatio="xMidYMid meet"></svg>
+  <div class="demo-left">
+    <div class="array-section">
+      <div class="array" id="arrayBox"></div>
+      <div class="pointers" id="pointer"></div>
     </div>
-    <div class="tree-right">
-      <div class="pseudocode" id="code"></div>
-      <div class="stats">比较次数：<b id="count">0</b></div>
-      <div class="status" id="status"></div>
-      <div class="tree-metrics">
-        <div class="metric">
-          <div class="metric-label">树的深度</div>
-          <div class="metric-value" id="treeDepthVal">-</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">节点总数</div>
-          <div class="metric-value" id="treeNodeCountVal">-</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">平均搜索长度(ASL)</div>
-          <div class="metric-value" id="aslVal">-</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">最短搜索路径</div>
-          <div class="metric-value" id="minPathVal">-</div>
-        </div>
-        <div class="metric">
-          <div class="metric-label">最长搜索路径</div>
-          <div class="metric-value" id="maxPathVal">-</div>
-        </div>
+    <div class="tree-section">
+      <svg id="treeSvg" viewBox="0 0 720 300" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+  </div>
+  <div class="demo-right">
+    <div class="pseudocode" id="pseudocode"></div>
+    <div class="stats">比较次数：<b id="compCount">0</b></div>
+    <div class="status" id="statusText"></div>
+    <div class="tree-metrics">
+      <div class="metric">
+        <div class="metric-label">树的深度</div>
+        <div class="metric-value" id="treeDepthVal">-</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">节点总数</div>
+        <div class="metric-value" id="treeNodeCountVal">-</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">平均搜索长度(ASL)</div>
+        <div class="metric-value" id="aslVal">-</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">最短搜索路径</div>
+        <div class="metric-value" id="minPathVal">-</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">最长搜索路径</div>
+        <div class="metric-value" id="maxPathVal">-</div>
       </div>
     </div>
-  </main>
-</div>
+  </div>
+</main>
 
 <script>
 const CFG = {
@@ -475,7 +464,7 @@ function getMinMaxPath(node, depth = 0) {
   };
 }
 
-function renderCode(lines) { $("code").innerHTML = lines.map((l, i) => `<div class="line" data-line="${i}">${l}</div>`).join(""); }
+function renderCode(lines) { $("pseudocode").innerHTML = lines.map((l, i) => `<div class="line" data-line="${i}">${l}</div>`).join(""); }
 function renderLegend(items) { $("legend").innerHTML = items.map(([c, t]) => `<span><i class="swatch" style="background:${c}"></i>${t}</span>`).join(""); }
 function buildArray(n) {
   const el = $("arrayBox"); el.innerHTML = "";
@@ -487,8 +476,8 @@ function buildArray(n) {
   }
 }
 function setLine(line) {
-  $("code").querySelectorAll(".line").forEach(l => l.classList.remove("active"));
-  const t = $("code").querySelector(`[data-line="${line}"]`); if (t) t.classList.add("active");
+  $("pseudocode").querySelectorAll(".line").forEach(l => l.classList.remove("active"));
+  const t = $("pseudocode").querySelector(`[data-line="${line}"]`); if (t) t.classList.add("active");
 }
 function clearCells() {
   $("arrayBox").querySelectorAll(".cell").forEach(c => { c.className = "cell"; const m = c.querySelector(".resultmark"); if (m) m.remove(); });
@@ -569,8 +558,8 @@ function draw(k) {
     }
   }
   setLine(s.line);
-  $("count").textContent = s.count;
-  $("status").textContent = s.status;
+  $("compCount").textContent = s.count;
+  $("statusText").textContent = s.status;
 }
 
 function prepare() {
@@ -604,13 +593,6 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => applyAlgo(t.dat
 $("playBtn").onclick = () => { prepare(); play(); };
 $("stepBtn").onclick = () => { if (!timer && idx === 0) prepare(); stop(); stepOnce(); };
 $("resetBtn").onclick = () => { stop(); prepare(); };
-$("treeViewBtn").onclick = () => {
-  const treeDemo = $("treeDemo");
-  treeDemo.classList.toggle("active");
-  if (treeDemo.classList.contains("active")) {
-    updateTreeDisplay();
-  }
-};
 
 applyAlgo("bs");
 </script>
