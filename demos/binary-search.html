@@ -10,6 +10,8 @@
     --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
     --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
     --node-fill: #16213e;
+    --edge-base: #4a4478; --edge-left: rgba(255, 43, 214, 0.5); --edge-right: rgba(0, 255, 156, 0.5);
+    --label-color: #7d76a8;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -121,10 +123,10 @@
   @media (max-width: 1200px) { .tree-demo.active main { grid-template-columns: 1fr !important; } }
   .tree-title { font-size: 16px; font-weight: 600; letter-spacing: 1px; margin-bottom: 16px; color: var(--cyan); }
   #treeSvg { width: 100%; height: 400px; display: block; border: 1px solid var(--border); border-radius: 6px; background: rgba(0,0,0,0.3); }
-  .tree-edge { stroke: #4a4478; stroke-width: 1.5; }
-  .tree-edge.left { stroke: rgba(255, 43, 214, 0.5); }
-  .tree-edge.right { stroke: rgba(0, 255, 156, 0.5); }
-  .tree-edge-label { font-family: "SF Mono", Menlo, monospace; font-size: 9px; fill: var(--muted); pointer-events: none; }
+  .tree-edge { stroke: var(--edge-base); stroke-width: 1.5; }
+  .tree-edge.left { stroke: var(--edge-left); }
+  .tree-edge.right { stroke: var(--edge-right); }
+  .tree-edge-label { font-family: "SF Mono", Menlo, monospace; font-size: 9px; fill: var(--label-color); pointer-events: none; }
   .bstnode rect { fill: var(--node-fill); stroke: var(--border); stroke-width: 1.5; transition: all 0.2s; }
   .bstnode text.val { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700; }
   .bstnode text.idx { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 9px; }
@@ -138,10 +140,10 @@
 (function () {
   try {
     var V = {
-      cyber: { "--bg": "#07060f", "--grid": "rgba(0,240,255,0.06)", "--text": "#e6e1ff", "--panel": "rgba(18,15,38,0.72)", "--border": "#2a2350", "--muted": "#7d76a8", "--node-fill": "#16213e" },
-      ocean: { "--bg": "#0e1524", "--grid": "rgba(120,170,220,0.05)", "--text": "#e8eef7", "--panel": "rgba(22,32,52,0.82)", "--border": "#2b3b57", "--muted": "#8fa2bd", "--node-fill": "#1c2b45" },
-      sepia: { "--bg": "#f3ecde", "--grid": "rgba(150,130,95,0.06)", "--text": "#3a332a", "--panel": "rgba(255,251,242,0.86)", "--border": "#d8c9ad", "--muted": "#8a7f6c", "--node-fill": "#fffdf6" },
-      light: { "--bg": "#f7f9fc", "--grid": "rgba(80,120,170,0.05)", "--text": "#1f2733", "--panel": "rgba(255,255,255,0.9)", "--border": "#d5dde8", "--muted": "#6b7688", "--node-fill": "#ffffff" }
+      cyber: { "--bg": "#07060f", "--grid": "rgba(0,240,255,0.06)", "--text": "#e6e1ff", "--panel": "rgba(18,15,38,0.72)", "--border": "#2a2350", "--muted": "#7d76a8", "--node-fill": "#16213e", "--edge-base": "#4a4478", "--edge-left": "rgba(255, 43, 214, 0.5)", "--edge-right": "rgba(0, 255, 156, 0.5)", "--label-color": "#7d76a8" },
+      ocean: { "--bg": "#0e1524", "--grid": "rgba(120,170,220,0.05)", "--text": "#e8eef7", "--panel": "rgba(22,32,52,0.82)", "--border": "#2b3b57", "--muted": "#8fa2bd", "--node-fill": "#1c2b45", "--edge-base": "#3d5a7e", "--edge-left": "rgba(232, 138, 181, 0.5)", "--edge-right": "rgba(127, 201, 154, 0.5)", "--label-color": "#8fa2bd" },
+      sepia: { "--bg": "#f3ecde", "--grid": "rgba(150,130,95,0.06)", "--text": "#3a332a", "--panel": "rgba(255,251,242,0.86)", "--border": "#d8c9ad", "--muted": "#8a7f6c", "--node-fill": "#fffdf6", "--edge-base": "#b0a48a", "--edge-left": "rgba(192, 86, 126, 0.5)", "--edge-right": "rgba(46, 139, 87, 0.5)", "--label-color": "#8a7f6c" },
+      light: { "--bg": "#f7f9fc", "--grid": "rgba(80,120,170,0.05)", "--text": "#1f2733", "--panel": "rgba(255,255,255,0.9)", "--border": "#d5dde8", "--muted": "#6b7688", "--node-fill": "#ffffff", "--edge-base": "#9ba8b8", "--edge-left": "rgba(192, 38, 160, 0.5)", "--edge-right": "rgba(26, 158, 95, 0.5)", "--label-color": "#6b7688" }
     };
     var t = localStorage.getItem("algoviz-theme") || "cyber";
     if (!V[t]) t = "cyber";
