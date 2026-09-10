@@ -103,6 +103,17 @@
   .stats b { font-size: 26px; color: var(--yellow); font-family: "SF Mono", Menlo, monospace; text-shadow: 0 0 12px rgba(255,212,0,.6); }
   .status { margin-top: 14px; font-size: 15px; min-height: 22px; color: var(--text); font-family: "SF Mono", Menlo, monospace; }
   .note { padding: 10px 30px 0; font-size: 13px; color: var(--muted); letter-spacing: .5px; }
+  .tab.secondary { background: rgba(255,255,255,0.02); color: var(--muted); border-color: var(--border); }
+  .tab.secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+  .tree-demo { display: none; padding: 10px 30px 28px; }
+  .tree-demo.active { display: block; }
+  .tree-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); }
+  .tree-title { font-size: 16px; font-weight: 600; letter-spacing: 1px; margin-bottom: 16px; color: var(--cyan); }
+  .tree-canvas { width: 100%; border: 1px solid var(--border); border-radius: 6px; background: rgba(0,0,0,0.3); margin-bottom: 16px; }
+  .tree-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .metric { background: rgba(0,240,255,0.05); border: 1px solid rgba(0,240,255,0.2); border-radius: 4px; padding: 12px; }
+  .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .metric-value { font-size: 20px; font-weight: 600; color: var(--cyan); font-family: "SF Mono", Menlo, monospace; }
 </style>
 <script>
 /* 防 FOUC：body 绘制前先按已存主题设好关键 CSS 变量，避免浅色主题刷新时闪一下深色。theme.js 之后再补全。 */
@@ -134,6 +145,7 @@
   <button class="tab active" data-algo="bs">binary_search</button>
   <button class="tab" data-algo="lb">lower_bound</button>
   <button class="tab" data-algo="ub">upper_bound</button>
+  <button class="tab secondary" id="treeViewBtn">🌳 查看树</button>
 </div>
 
 <div class="controls">
@@ -167,6 +179,35 @@
   </section>
 </main>
 <div class="note" id="note"></div>
+
+<div class="tree-demo" id="treeDemo">
+  <div class="tree-card">
+    <div class="tree-title">二叉判定树分析</div>
+    <canvas id="treeCanvas" class="tree-canvas" height="500"></canvas>
+    <div class="tree-metrics">
+      <div class="metric">
+        <div class="metric-label">树的深度</div>
+        <div class="metric-value" id="treeDepthVal">-</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">节点总数</div>
+        <div class="metric-value" id="treeNodeCountVal">-</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">平均搜索长度(ASL)</div>
+        <div class="metric-value" id="aslVal">-</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">最短搜索路径</div>
+        <div class="metric-value" id="minPathVal">-</div>
+      </div>
+      <div class="metric">
+        <div class="metric-label">最长搜索路径</div>
+        <div class="metric-value" id="maxPathVal">-</div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 const CFG = {
@@ -221,7 +262,191 @@ const CFG = {
 
 let algo = "bs";
 let arr = [], target = 0, steps = [], idx = 0, timer = null;
+let bstRoot = null;  // 二叉判定树根节点
+let treeMetrics = {};  // 树的统计信息
 const $ = id => document.getElementById(id);
+
+// 二叉树节点类
+class BSTNode {
+  constructor(value, index, depth = 0) {
+    this.value = value;
+    this.index = index;
+    this.depth = depth;
+    this.left = null;
+    this.right = null;
+    this.x = 0;
+    this.y = 0;
+  }
+}
+
+// 从数组构建二叉搜索树
+function buildBST(arr, lo, hi, depth = 0) {
+  if (lo > hi) return null;
+
+  const mid = Math.floor((lo + hi) / 2);
+  const node = new BSTNode(arr[mid], mid, depth);
+
+  node.left = buildBST(arr, lo, mid - 1, depth + 1);
+  node.right = buildBST(arr, mid + 1, hi, depth + 1);
+
+  return node;
+}
+
+// 计算树的统计信息
+function calculateTreeStats(node) {
+  if (!node) return { depth: 0, count: 0, sumDepth: 0 };
+
+  const left = calculateTreeStats(node.left);
+  const right = calculateTreeStats(node.right);
+
+  const depth = 1 + Math.max(left.depth, right.depth);
+  const count = 1 + left.count + right.count;
+  const sumDepth = node.depth + left.sumDepth + right.sumDepth;
+
+  return { depth, count, sumDepth };
+}
+
+// 计算树节点的布局位置（中序遍历）
+function layoutTree(node, canvas, offset = 0) {
+  if (!node) return offset;
+
+  const nodeRadius = 25;
+  const canvasWidth = canvas.width;
+  const canvasHeight = canvas.height;
+  const verticalSpacing = 70;
+  const horizontalSpacing = canvasWidth / Math.pow(2, calculateTreeStats(bstRoot).depth + 1);
+
+  // 递归布局：左、中、右
+  offset = layoutTree(node.left, canvas, offset);
+
+  node.x = offset * horizontalSpacing + nodeRadius + 20;
+  node.y = node.depth * verticalSpacing + nodeRadius + 20;
+
+  offset = layoutTree(node.right, canvas, offset + 1);
+
+  return offset;
+}
+
+// 在canvas上绘制树
+function drawBST() {
+  const canvas = $("treeCanvas");
+  if (!canvas || !bstRoot) return;
+
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // 绘制背景
+  ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // 绘制树
+  drawTreeConnections(ctx, bstRoot);
+  drawTreeNodes(ctx, bstRoot);
+}
+
+// 递归绘制连接线
+function drawTreeConnections(ctx, node) {
+  if (!node) return;
+
+  const nodeRadius = 25;
+
+  if (node.left) {
+    ctx.strokeStyle = "rgba(255, 43, 214, 0.5)";  // 左子树红色
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(node.x, node.y + nodeRadius);
+    ctx.lineTo(node.left.x, node.left.y - nodeRadius);
+    ctx.stroke();
+    drawTreeConnections(ctx, node.left);
+  }
+
+  if (node.right) {
+    ctx.strokeStyle = "rgba(0, 255, 156, 0.5)";  // 右子树绿色
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(node.x, node.y + nodeRadius);
+    ctx.lineTo(node.right.x, node.right.y - nodeRadius);
+    ctx.stroke();
+    drawTreeConnections(ctx, node.right);
+  }
+}
+
+// 递归绘制节点
+function drawTreeNodes(ctx, node) {
+  if (!node) return;
+
+  const nodeRadius = 25;
+
+  // 绘制节点圆
+  ctx.fillStyle = "rgba(0, 240, 255, 0.2)";
+  ctx.strokeStyle = "rgba(0, 240, 255, 0.8)";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(node.x, node.y, nodeRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // 绘制节点文本
+  ctx.fillStyle = "var(--text)";
+  ctx.font = "bold 13px 'SF Mono', monospace";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(node.value, node.x, node.y - 6);
+
+  ctx.font = "10px 'SF Mono', monospace";
+  ctx.fillStyle = "rgba(125, 118, 168, 0.9)";
+  ctx.fillText(`[${node.index}]`, node.x, node.y + 8);
+
+  drawTreeNodes(ctx, node.left);
+  drawTreeNodes(ctx, node.right);
+}
+
+// 更新树的显示
+function updateTreeDisplay() {
+  if (arr.length === 0) return;
+
+  // 构建树
+  bstRoot = buildBST(arr, 0, arr.length - 1);
+
+  // 计算统计信息
+  const stats = calculateTreeStats(bstRoot);
+  const asl = stats.count > 0 ? (stats.sumDepth / stats.count).toFixed(2) : 0;
+
+  // 计算最短和最长路径
+  const minMaxPath = getMinMaxPath(bstRoot);
+
+  // 更新显示
+  $("treeDepthVal").textContent = stats.depth;
+  $("treeNodeCountVal").textContent = stats.count;
+  $("aslVal").textContent = asl;
+  $("minPathVal").textContent = minMaxPath.min;
+  $("maxPathVal").textContent = minMaxPath.max;
+
+  // 布局和绘制
+  const canvas = $("treeCanvas");
+  layoutTree(bstRoot, canvas);
+  drawBST();
+}
+
+// 获取树的最短和最长路径
+function getMinMaxPath(node, depth = 0) {
+  if (!node) return { min: Infinity, max: -Infinity };
+
+  if (!node.left && !node.right) {
+    return { min: depth + 1, max: depth + 1 };
+  }
+
+  const left = getMinMaxPath(node.left, depth + 1);
+  const right = getMinMaxPath(node.right, depth + 1);
+
+  return {
+    min: Math.min(
+      left.min !== Infinity ? left.min : Infinity,
+      right.min !== Infinity ? right.min : Infinity
+    ),
+    max: Math.max(left.max, right.max)
+  };
+}
 
 function renderCode(lines) { $("code").innerHTML = lines.map((l, i) => `<div class="line" data-line="${i}">${l}</div>`).join(""); }
 function renderLegend(items) { $("legend").innerHTML = items.map(([c, t]) => `<span><i class="swatch" style="background:${c}"></i>${t}</span>`).join(""); }
@@ -330,6 +555,7 @@ function prepare() {
   buildArray(arr.length);
   renderCode(CFG[algo].code);
   steps = algo === "bs" ? genBS() : genBound(algo === "ub");
+  updateTreeDisplay();  // 更新树的显示
   idx = 0; draw(0);
 }
 function stepOnce() { if (idx < steps.length - 1) { idx++; draw(idx); return true; } return false; }
@@ -351,6 +577,13 @@ document.querySelectorAll(".tab").forEach(t => t.onclick = () => applyAlgo(t.dat
 $("playBtn").onclick = () => { prepare(); play(); };
 $("stepBtn").onclick = () => { if (!timer && idx === 0) prepare(); stop(); stepOnce(); };
 $("resetBtn").onclick = () => { stop(); prepare(); };
+$("treeViewBtn").onclick = () => {
+  const treeDemo = $("treeDemo");
+  treeDemo.classList.toggle("active");
+  if (treeDemo.classList.contains("active")) {
+    updateTreeDisplay();
+  }
+};
 
 applyAlgo("bs");
 </script>
