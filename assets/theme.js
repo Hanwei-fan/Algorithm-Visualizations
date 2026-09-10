@@ -105,6 +105,8 @@
         .card { box-shadow: 0 0 0 1px rgba(0,0,0,.04), 0 6px 24px rgba(0,0,0,.08) !important; }
         /* SVG/网格里常见的白色描边文字在浅底看不清时略加深(仅纯白 fill 的文字) */
         text[fill="#fff"], text[fill="#ffffff"] { fill: var(--text) !important; }
+        /* 二叉树节点描边在浅色主题下加深以提高可见性 */
+        .bstnode rect { stroke: color-mix(in srgb, var(--border) 60%, var(--text)) !important; }
         /* 关联题目卡片：深底 → 浅底，浅蓝灰 why 文字 → 深灰 */
         .prob { background: ${codeBg} !important; }
         .prob .why { color: ${codeFg} !important; }

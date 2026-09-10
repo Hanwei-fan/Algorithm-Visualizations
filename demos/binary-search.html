@@ -9,6 +9,7 @@
     --bg: #07060f; --bg2: #0d0b1a; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
     --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
     --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+    --node-fill: #16213e;
   }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
@@ -124,7 +125,7 @@
   .tree-edge.left { stroke: rgba(255, 43, 214, 0.5); }
   .tree-edge.right { stroke: rgba(0, 255, 156, 0.5); }
   .tree-edge-label { font-family: "SF Mono", Menlo, monospace; font-size: 9px; fill: var(--muted); pointer-events: none; }
-  .bstnode rect { fill: #16213e; stroke: var(--border); stroke-width: 1.5; transition: all 0.2s; }
+  .bstnode rect { fill: var(--node-fill); stroke: var(--border); stroke-width: 1.5; transition: all 0.2s; }
   .bstnode text.val { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700; }
   .bstnode text.idx { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 9px; }
   .tree-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
@@ -137,10 +138,10 @@
 (function () {
   try {
     var V = {
-      cyber: { "--bg": "#07060f", "--grid": "rgba(0,240,255,0.06)", "--text": "#e6e1ff", "--panel": "rgba(18,15,38,0.72)", "--border": "#2a2350", "--muted": "#7d76a8" },
-      ocean: { "--bg": "#0e1524", "--grid": "rgba(120,170,220,0.05)", "--text": "#e8eef7", "--panel": "rgba(22,32,52,0.82)", "--border": "#2b3b57", "--muted": "#8fa2bd" },
-      sepia: { "--bg": "#f3ecde", "--grid": "rgba(150,130,95,0.06)", "--text": "#3a332a", "--panel": "rgba(255,251,242,0.86)", "--border": "#d8c9ad", "--muted": "#8a7f6c" },
-      light: { "--bg": "#f7f9fc", "--grid": "rgba(80,120,170,0.05)", "--text": "#1f2733", "--panel": "rgba(255,255,255,0.9)", "--border": "#d5dde8", "--muted": "#6b7688" }
+      cyber: { "--bg": "#07060f", "--grid": "rgba(0,240,255,0.06)", "--text": "#e6e1ff", "--panel": "rgba(18,15,38,0.72)", "--border": "#2a2350", "--muted": "#7d76a8", "--node-fill": "#16213e" },
+      ocean: { "--bg": "#0e1524", "--grid": "rgba(120,170,220,0.05)", "--text": "#e8eef7", "--panel": "rgba(22,32,52,0.82)", "--border": "#2b3b57", "--muted": "#8fa2bd", "--node-fill": "#1c2b45" },
+      sepia: { "--bg": "#f3ecde", "--grid": "rgba(150,130,95,0.06)", "--text": "#3a332a", "--panel": "rgba(255,251,242,0.86)", "--border": "#d8c9ad", "--muted": "#8a7f6c", "--node-fill": "#fffdf6" },
+      light: { "--bg": "#f7f9fc", "--grid": "rgba(80,120,170,0.05)", "--text": "#1f2733", "--panel": "rgba(255,255,255,0.9)", "--border": "#d5dde8", "--muted": "#6b7688", "--node-fill": "#ffffff" }
     };
     var t = localStorage.getItem("algoviz-theme") || "cyber";
     if (!V[t]) t = "cyber";
