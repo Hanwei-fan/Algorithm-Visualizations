@@ -73,12 +73,12 @@
   .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--muted); padding: 0 30px 6px; letter-spacing: .5px; }
   .legend span { display: inline-flex; align-items: center; gap: 7px; }
   .swatch { width: 14px; height: 14px; border-radius: 3px; }
-  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
   @media (max-width: 1400px) { main { grid-template-columns: 1fr; } }
   .demo-left { display: flex; flex-direction: column; gap: 16px; }
   .demo-right { display: flex; flex-direction: column; gap: 16px; }
   .array-section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); }
-  .tree-section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); flex: 1; display: flex; flex-direction: column; min-height: 420px; margin-bottom: 16px; }
+  .tree-section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); flex: 1; display: flex; flex-direction: column; min-height: 350px; }
   .array { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
   .cell { width: 56px; display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; }
   .cell .box {
@@ -197,14 +197,14 @@
       <div class="array" id="arrayBox"></div>
       <div class="pointers" id="pointer"></div>
     </div>
-    <div class="pseudocode" id="pseudocode"></div>
-    <div class="stats">比较次数：<b id="compCount">0</b></div>
-    <div class="status" id="statusText"></div>
-  </div>
-  <div class="demo-right">
     <div class="tree-section">
       <svg id="treeSvg" viewBox="0 0 720 420" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
+  </div>
+  <div class="demo-right">
+    <div class="pseudocode" id="pseudocode"></div>
+    <div class="stats">比较次数：<b id="compCount">0</b></div>
+    <div class="status" id="statusText"></div>
     <div class="tree-metrics">
       <div class="metric">
         <div class="metric-label">树的深度</div>
