@@ -109,7 +109,13 @@
   .tree-demo.active { display: block; }
   .tree-card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); }
   .tree-title { font-size: 16px; font-weight: 600; letter-spacing: 1px; margin-bottom: 16px; color: var(--cyan); }
-  .tree-canvas { width: 100%; border: 1px solid var(--border); border-radius: 6px; background: rgba(0,0,0,0.3); margin-bottom: 16px; }
+  #treeSvg { width: 100%; height: auto; display: block; border: 1px solid var(--border); border-radius: 6px; background: rgba(0,0,0,0.3); margin-bottom: 16px; }
+  .tree-edge { stroke: #4a4478; stroke-width: 1.5; }
+  .tree-edge.left { stroke: rgba(255, 43, 214, 0.5); }
+  .tree-edge.right { stroke: rgba(0, 255, 156, 0.5); }
+  .bstnode rect { fill: color-mix(in srgb, var(--cyan) 8%, rgba(0,0,0,0.3)); stroke: var(--border); stroke-width: 1.5; transition: all 0.2s; }
+  .bstnode text.val { fill: var(--text); font-family: "SF Mono", Menlo, monospace; font-size: 13px; font-weight: 700; }
+  .bstnode text.idx { fill: var(--muted); font-family: "SF Mono", Menlo, monospace; font-size: 9px; }
   .tree-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
   .metric { background: rgba(0,240,255,0.05); border: 1px solid rgba(0,240,255,0.2); border-radius: 4px; padding: 12px; }
   .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
@@ -183,7 +189,7 @@
 <div class="tree-demo" id="treeDemo">
   <div class="tree-card">
     <div class="tree-title">二叉判定树分析</div>
-    <canvas id="treeCanvas" class="tree-canvas" height="500"></canvas>
+    <svg id="treeSvg" viewBox="0 0 720 400" preserveAspectRatio="xMidYMid meet"></svg>
     <div class="tree-metrics">
       <div class="metric">
         <div class="metric-label">树的深度</div>
@@ -306,99 +312,80 @@ function calculateTreeStats(node) {
   return { depth, count, sumDepth };
 }
 
-// 计算树节点的布局位置（中序遍历）
-function layoutTree(node, canvas, offset = 0) {
-  if (!node) return offset;
-
-  const nodeRadius = 25;
-  const canvasWidth = canvas.width;
-  const canvasHeight = canvas.height;
-  const verticalSpacing = 70;
-  const horizontalSpacing = canvasWidth / Math.pow(2, calculateTreeStats(bstRoot).depth + 1);
-
-  // 递归布局：左、中、右
-  offset = layoutTree(node.left, canvas, offset);
-
-  node.x = offset * horizontalSpacing + nodeRadius + 20;
-  node.y = node.depth * verticalSpacing + nodeRadius + 20;
-
-  offset = layoutTree(node.right, canvas, offset + 1);
-
-  return offset;
+// 收集树中的所有节点（BFS序）
+function collectBSTNodes(root) {
+  if (!root) return [];
+  const result = [];
+  const queue = [root];
+  while (queue.length > 0) {
+    const node = queue.shift();
+    result.push(node);
+    if (node.left) queue.push(node.left);
+    if (node.right) queue.push(node.right);
+  }
+  return result;
 }
 
-// 在canvas上绘制树
-function drawBST() {
-  const canvas = $("treeCanvas");
-  if (!canvas || !bstRoot) return;
-
-  const ctx = canvas.getContext("2d");
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  // 绘制背景
-  ctx.fillStyle = "rgba(0, 0, 0, 0.2)";
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-  // 绘制树
-  drawTreeConnections(ctx, bstRoot);
-  drawTreeNodes(ctx, bstRoot);
+// 计算树的深度
+function getTreeDepth(root) {
+  if (!root) return 0;
+  return 1 + Math.max(getTreeDepth(root.left), getTreeDepth(root.right));
 }
 
-// 递归绘制连接线
-function drawTreeConnections(ctx, node) {
-  if (!node) return;
+// 使用堆式布局计算树节点位置
+function layoutBSTHeap(root) {
+  const nodes = collectBSTNodes(root);
+  if (nodes.length === 0) return;
 
-  const nodeRadius = 25;
+  const depth = getTreeDepth(root);
+  const W = 720, H = 400;
+  const topY = 30;
+  const dy = (H - topY - 30) / Math.max(depth - 1, 1);
 
-  if (node.left) {
-    ctx.strokeStyle = "rgba(255, 43, 214, 0.5)";  // 左子树红色
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(node.x, node.y + nodeRadius);
-    ctx.lineTo(node.left.x, node.left.y - nodeRadius);
-    ctx.stroke();
-    drawTreeConnections(ctx, node.left);
+  nodes.forEach((node, idx) => {
+    const heapIdx = idx + 1;  // 1-based heap index
+    const lvl = Math.floor(Math.log2(heapIdx));
+    const posInLevel = heapIdx - (1 << lvl);
+    const totalInLevel = 1 << lvl;
+
+    node.x = W * (posInLevel + 0.5) / totalInLevel;
+    node.y = topY + lvl * dy;
+  });
+}
+
+// 通过SVG绘制树
+function renderBSTSVG(root) {
+  const svg = $("treeSvg");
+  if (!root) {
+    svg.innerHTML = "";
+    return;
   }
 
-  if (node.right) {
-    ctx.strokeStyle = "rgba(0, 255, 156, 0.5)";  // 右子树绿色
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.moveTo(node.x, node.y + nodeRadius);
-    ctx.lineTo(node.right.x, node.right.y - nodeRadius);
-    ctx.stroke();
-    drawTreeConnections(ctx, node.right);
-  }
-}
+  const nodes = collectBSTNodes(root);
+  let edges = "";
+  let boxes = "";
 
-// 递归绘制节点
-function drawTreeNodes(ctx, node) {
-  if (!node) return;
+  // 先绘制所有连接线
+  nodes.forEach(node => {
+    if (node.left) {
+      edges += `<line class="tree-edge left" x1="${node.x}" y1="${node.y}" x2="${node.left.x}" y2="${node.left.y}"/>`;
+    }
+    if (node.right) {
+      edges += `<line class="tree-edge right" x1="${node.x}" y1="${node.y}" x2="${node.right.x}" y2="${node.right.y}"/>`;
+    }
+  });
 
-  const nodeRadius = 25;
+  // 再绘制所有节点
+  nodes.forEach(node => {
+    const w = 44, h = 30;
+    boxes += `<g class="bstnode">
+               <rect x="${node.x - w/2}" y="${node.y - h/2}" width="${w}" height="${h}" rx="5"/>
+               <text class="val" x="${node.x}" y="${node.y + 2}" text-anchor="middle">${node.value}</text>
+               <text class="idx" x="${node.x}" y="${node.y - h/2 - 3}" text-anchor="middle">[${node.index}]</text>
+             </g>`;
+  });
 
-  // 绘制节点圆
-  ctx.fillStyle = "rgba(0, 240, 255, 0.2)";
-  ctx.strokeStyle = "rgba(0, 240, 255, 0.8)";
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.arc(node.x, node.y, nodeRadius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  // 绘制节点文本
-  ctx.fillStyle = "var(--text)";
-  ctx.font = "bold 13px 'SF Mono', monospace";
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.fillText(node.value, node.x, node.y - 6);
-
-  ctx.font = "10px 'SF Mono', monospace";
-  ctx.fillStyle = "rgba(125, 118, 168, 0.9)";
-  ctx.fillText(`[${node.index}]`, node.x, node.y + 8);
-
-  drawTreeNodes(ctx, node.left);
-  drawTreeNodes(ctx, node.right);
+  svg.innerHTML = edges + boxes;
 }
 
 // 更新树的显示
@@ -407,6 +394,9 @@ function updateTreeDisplay() {
 
   // 构建树
   bstRoot = buildBST(arr, 0, arr.length - 1);
+
+  // 布局树（使用堆式布局）
+  layoutBSTHeap(bstRoot);
 
   // 计算统计信息
   const stats = calculateTreeStats(bstRoot);
@@ -422,10 +412,8 @@ function updateTreeDisplay() {
   $("minPathVal").textContent = minMaxPath.min;
   $("maxPathVal").textContent = minMaxPath.max;
 
-  // 布局和绘制
-  const canvas = $("treeCanvas");
-  layoutTree(bstRoot, canvas);
-  drawBST();
+  // 使用SVG绘制树
+  renderBSTSVG(bstRoot);
 }
 
 // 获取树的最短和最长路径
