@@ -73,12 +73,12 @@
   .legend { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; color: var(--muted); padding: 0 30px 6px; letter-spacing: .5px; }
   .legend span { display: inline-flex; align-items: center; gap: 7px; }
   .swatch { width: 14px; height: 14px; border-radius: 3px; }
-  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.5fr 1fr; gap: 20px; }
+  main { padding: 10px 30px 20px; display: grid; grid-template-columns: 1.2fr 1fr; gap: 20px; }
   @media (max-width: 1400px) { main { grid-template-columns: 1fr; } }
   .demo-left { display: flex; flex-direction: column; gap: 16px; }
   .demo-right { display: flex; flex-direction: column; gap: 16px; }
   .array-section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); }
-  .tree-section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); flex: 1; display: flex; flex-direction: column; min-height: 350px; }
+  .tree-section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px; backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5); flex: 1; display: flex; flex-direction: column; min-height: 420px; margin-bottom: 16px; }
   .array { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
   .cell { width: 56px; display: flex; flex-direction: column; align-items: center; gap: 5px; position: relative; }
   .cell .box {
@@ -126,6 +126,10 @@
   .tree-edge-label { font-family: "SF Mono", Menlo, monospace; font-size: 10px; fill: var(--label-color); font-weight: 600; pointer-events: none; background: rgba(0,0,0,0.3); }
   .bstnode rect { fill: var(--node-fill); stroke: var(--cyan); stroke-width: 2.5; transition: all 0.2s; box-shadow: 0 0 8px rgba(0,240,255,0.4); }
   .bstnode rect:hover { stroke-width: 3; filter: brightness(1.3); }
+  .bstnode.visited rect { fill: rgba(0, 255, 156, 0.25); stroke: var(--green); stroke-width: 3; filter: drop-shadow(0 0 8px rgba(0, 255, 156, 0.6)); }
+  .bstnode.current rect { fill: var(--yellow); stroke: var(--yellow); stroke-width: 3; filter: drop-shadow(0 0 12px rgba(255, 212, 0, 0.8)); }
+  .bstnode.found rect { fill: var(--green); stroke: var(--green); stroke-width: 3; filter: drop-shadow(0 0 12px rgba(0, 255, 156, 0.8)); animation: pulse-tree 0.8s ease-in-out infinite alternate; }
+  @keyframes pulse-tree { to { filter: drop-shadow(0 0 20px rgba(0, 255, 156, 1)); } }
   .bstnode text.val { fill: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; }
   .bstnode text.idx { fill: var(--yellow); font-family: "SF Mono", Menlo, monospace; font-size: 10px; font-weight: 600; }
   .tree-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
@@ -193,14 +197,14 @@
       <div class="array" id="arrayBox"></div>
       <div class="pointers" id="pointer"></div>
     </div>
-    <div class="tree-section">
-      <svg id="treeSvg" viewBox="0 0 720 420" preserveAspectRatio="xMidYMid meet"></svg>
-    </div>
-  </div>
-  <div class="demo-right">
     <div class="pseudocode" id="pseudocode"></div>
     <div class="stats">比较次数：<b id="compCount">0</b></div>
     <div class="status" id="statusText"></div>
+  </div>
+  <div class="demo-right">
+    <div class="tree-section">
+      <svg id="treeSvg" viewBox="0 0 720 420" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
     <div class="tree-metrics">
       <div class="metric">
         <div class="metric-label">树的深度</div>
@@ -379,7 +383,7 @@ function getSubtreeRange(node) {
 }
 
 // 通过SVG绘制树
-function renderBSTSVG(root) {
+function renderBSTSVG(root, highlightInfo = null) {
   const svg = $("treeSvg");
   if (!root) {
     svg.innerHTML = "";
@@ -395,7 +399,6 @@ function renderBSTSVG(root) {
   nodes.forEach(node => {
     if (node.left) {
       edges += `<line class="tree-edge left" x1="${node.x}" y1="${node.y}" x2="${node.left.x}" y2="${node.left.y}"/>`;
-      // 计算边的中点并添加标签
       const midX = (node.x + node.left.x) / 2;
       const midY = (node.y + node.left.y) / 2;
       const leftRange = getSubtreeRange(node.left);
@@ -403,7 +406,6 @@ function renderBSTSVG(root) {
     }
     if (node.right) {
       edges += `<line class="tree-edge right" x1="${node.x}" y1="${node.y}" x2="${node.right.x}" y2="${node.right.y}"/>`;
-      // 计算边的中点并添加标签
       const midX = (node.x + node.right.x) / 2;
       const midY = (node.y + node.right.y) / 2;
       const rightRange = getSubtreeRange(node.right);
@@ -414,7 +416,16 @@ function renderBSTSVG(root) {
   // 再绘制所有节点（在边之上）
   nodes.forEach(node => {
     const w = 52, h = 36;
-    boxes += `<g class="bstnode">
+    let nodeClass = "bstnode";
+
+    // 根据高亮信息添加类
+    if (highlightInfo) {
+      if (node.index === highlightInfo.mid) nodeClass += " current";
+      else if (node.index === highlightInfo.found) nodeClass += " found";
+      else if (node.index >= highlightInfo.lo && node.index <= highlightInfo.hi) nodeClass += " visited";
+    }
+
+    boxes += `<g class="${nodeClass}">
                <rect x="${node.x - w/2}" y="${node.y - h/2}" width="${w}" height="${h}" rx="6"/>
                <text class="val" x="${node.x}" y="${node.y + 3}" text-anchor="middle">${node.value}</text>
                <text class="idx" x="${node.x}" y="${node.y - h/2 - 4}" text-anchor="middle">[${node.index}]</text>
@@ -534,6 +545,18 @@ function genBound(isUpper) {
 function draw(k) {
   const s = steps[k];
   clearCells();
+
+  // 更新树的高亮
+  if (bstRoot) {
+    const highlightInfo = {
+      lo: s.lo,
+      hi: s.hi,
+      mid: s.mid >= 0 ? s.mid : -1,
+      found: s.found >= 0 ? s.found : -1
+    };
+    renderBSTSVG(bstRoot, highlightInfo);
+  }
+
   const cells = $("arrayBox").querySelectorAll(".cell");
   if (algo === "bs") {
     cells.forEach((c, i) => c.classList.add(i < s.lo || i > s.hi ? "discard" : "range"));
