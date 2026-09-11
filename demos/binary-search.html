@@ -132,8 +132,8 @@
   .bstnode.current rect { fill: var(--yellow); stroke: var(--yellow); stroke-width: 3; filter: drop-shadow(0 0 12px rgba(255, 212, 0, 0.8)); }
   .bstnode.found rect { fill: var(--green); stroke: var(--green); stroke-width: 3; filter: drop-shadow(0 0 12px rgba(0, 255, 156, 0.8)); animation: pulse-tree 0.8s ease-in-out infinite alternate; }
   @keyframes pulse-tree { to { filter: drop-shadow(0 0 20px rgba(0, 255, 156, 1)); } }
-  .bstnode text.val { fill: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-size: 15px; font-weight: 700; }
-  .bstnode text.idx { fill: var(--yellow); font-family: "SF Mono", Menlo, monospace; font-size: 10px; font-weight: 600; }
+  .bstnode text.val { fill: var(--cyan); font-family: "SF Mono", Menlo, monospace; font-size: 17px; font-weight: 700; stroke: var(--bg); stroke-width: 0.8; paint-order: stroke; }
+  .bstnode text.idx { fill: var(--yellow); font-family: "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 700; stroke: var(--bg); stroke-width: 0.6; paint-order: stroke; }
   .tree-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
   .metric { background: rgba(0,240,255,0.05); border: 1px solid rgba(0,240,255,0.2); border-radius: 4px; padding: 12px; }
   .metric-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
