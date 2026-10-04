@@ -542,10 +542,18 @@ function performAutoL() {
 }
 
 function performAutoQ() {
-  const {l1, r1, l2, r2} = gameState;
-  const optimal = computeOptimal(l1, r1, l2, r2);
-  gameState.qChoice = optimal.ji;
-  $('gameStatus').textContent = `🤖 小Q 选择了第 ${optimal.ji+1} 列 (B[${optimal.ji+1}]=${B[optimal.ji]})`;
+  const {l1, r1, l2, r2, lChoice} = gameState;
+  // Q 在 L 已选定的行中，选择最小值的列
+  let minVal = C[lChoice][l2];
+  let ji = l2;
+  for (let j = l2; j <= r2; j++) {
+    if (C[lChoice][j] < minVal) {
+      minVal = C[lChoice][j];
+      ji = j;
+    }
+  }
+  gameState.qChoice = ji;
+  $('gameStatus').textContent = `🤖 小Q 选择了第 ${ji+1} 列 (B[${ji+1}]=${B[ji]})`;
   renderMatrix();
   finishGame();
 }
