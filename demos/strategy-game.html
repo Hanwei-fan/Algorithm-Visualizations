@@ -409,12 +409,21 @@ function getMatrixCellClass(i, j) {
 
   let cls = inRange ? 'inrange' : '';
 
-  if (lChoice === i && qChoice === j) cls += ' selected';
-  else if (lChoice === i) cls += ' lselected';
-  else if (qChoice === j) cls += ' qselected';
+  // 三种显示状态：L选了（行高亮），Q选了（列高亮），都选了（交叉点黄色）
+  if (lChoice === i && qChoice === j) {
+    cls += ' selected';
+  } else if (lChoice === i) {
+    cls += ' lselected';
+  } else if (qChoice === j) {
+    cls += ' qselected';
+  }
 
-  if (gameState.isLTurn && lChoice === -1 && i >= l1 && i <= r1) cls += ' selectable';
-  else if (!gameState.isLTurn && lChoice !== -1 && qChoice === -1 && j >= l2 && j <= r2) cls += ' selectable';
+  // 选择范围内的单元格可点击
+  if (gameState.isLTurn && lChoice === -1 && i >= l1 && i <= r1) {
+    cls += ' selectable';
+  } else if (!gameState.isLTurn && lChoice !== -1 && qChoice === -1 && j >= l2 && j <= r2) {
+    cls += ' selectable';
+  }
 
   return cls;
 }
