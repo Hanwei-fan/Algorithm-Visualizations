@@ -36,6 +36,15 @@
     font-family: "SF Mono", Menlo, monospace; transition: all .18s;
   }
   .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .tabs { display: flex; gap: 10px; padding: 14px 30px 0; flex-wrap: wrap; }
+  .tab {
+    padding: 9px 18px; border: 1px solid var(--border); border-bottom: none;
+    border-radius: 8px 8px 0 0; cursor: pointer; color: var(--muted);
+    font-size: 14px; letter-spacing: 1px; font-family: "SF Mono", Menlo, monospace;
+    background: rgba(18,15,38,0.4); transition: all .18s;
+  }
+  .tab:hover { color: var(--cyan); }
+  .tab.active { color: var(--cyan); background: var(--panel); border-color: var(--cyan); text-shadow: 0 0 6px rgba(0,240,255,.5); }
   .controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding: 16px 30px; }
   .field { display: flex; flex-direction: column; gap: 5px; }
   .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
@@ -70,26 +79,22 @@
   .matrix { display: inline-block; border-collapse: collapse; font-size: 13px; }
   .matrix td { padding: 7px 12px; border: 1px solid var(--border); text-align: center; font-weight: 700; font-family: "SF Mono", Menlo, monospace; }
   .matrix td.header { background: rgba(0,240,255,0.1); color: var(--cyan); }
-  .matrix td.value { background: rgba(5,4,15,0.5); cursor: pointer; transition: all .2s; }
-  .matrix td.value:hover { background: rgba(0,240,255,0.2); }
+  .matrix td.value { background: rgba(5,4,15,0.5); cursor: default; transition: all .2s; }
   .matrix td.value.inrange { background: rgba(0,255,156,0.15); border-color: var(--green); }
-  .matrix td.value.selected { background: var(--yellow); color: #05060f; }
+  .matrix td.value.selectable { cursor: pointer; }
+  .matrix td.value.selectable:hover { background: rgba(0,240,255,0.2); box-shadow: 0 0 8px rgba(0,240,255,.3) inset; }
+  .matrix td.value.selected { background: var(--yellow); color: #05060f; font-weight: 800; box-shadow: 0 0 12px rgba(255,212,0,.6); }
+  .matrix td.value.lselected { background: rgba(0,240,255,0.35); color: #fff; border-color: var(--cyan); box-shadow: 0 0 8px rgba(0,240,255,.4); }
+  .matrix td.value.qselected { background: rgba(0,255,156,0.25); color: #fff; border-color: var(--green); box-shadow: 0 0 8px rgba(0,255,156,.4); }
   .game-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 14px 0; }
   .info-box { background: rgba(0,240,255,0.05); border: 1px solid rgba(0,240,255,0.2); border-radius: 6px; padding: 12px; }
   .info-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 5px; }
   .info-value { font-size: 18px; font-weight: 600; color: var(--cyan); font-family: "SF Mono", Menlo, monospace; }
-  .mode-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-  .mode-tab {
-    padding: 7px 14px; border: 1px solid var(--border); border-radius: 4px;
-    background: rgba(255,255,255,0.02); color: var(--muted); font-size: 12px;
-    letter-spacing: 0.5px; cursor: pointer; font-family: "SF Mono", Menlo, monospace; transition: all .18s;
-  }
-  .mode-tab:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); }
-  .mode-tab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; }
   .game-status { padding: 12px; border-radius: 6px; margin-bottom: 12px; font-size: 14px; font-family: "SF Mono", Menlo, monospace;
     background: rgba(0,255,156,0.1); border: 1px solid rgba(0,255,156,0.3); color: var(--green);
   }
   .game-status.waiting { background: rgba(0,240,255,0.1); border-color: rgba(0,240,255,0.3); color: var(--cyan); }
+  .game-status.auto { background: rgba(255,212,0,0.1); border-color: rgba(255,212,0,0.3); color: var(--yellow); }
   .move-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
   .move-controls .btn { padding: 8px 12px; font-size: 12px; }
   .note { margin: 6px 30px 20px; font-size: 13px; color: var(--muted); line-height: 1.7; }
@@ -147,42 +152,50 @@
   <button class="cppview-btn" id="cppBtn">查看 C++ 代码</button>
 </div>
 
+<div class="tabs">
+  <div class="tab active" data-mode="setup">📊 设置范围</div>
+  <div class="tab" data-mode="user-l">👤 用户为小L</div>
+  <div class="tab" data-mode="user-q">👤 用户为小Q</div>
+  <div class="tab" data-mode="alternate">🔄 轮流扮演</div>
+  <div class="tab" data-mode="auto">🤖 最优策略</div>
+</div>
+
 <main>
   <section class="card">
     <div class="plabel">矩阵 C (C[i][j] = A[i] × B[j])</div>
-    <div id="matrixContainer" style="overflow-x: auto;"></div>
+    <div id="matrixContainer" style="overflow-x: auto; margin-bottom: 14px;"></div>
 
-    <div class="plabel mt">选择范围查询</div>
-    <div class="controls" style="padding: 0; gap: 8px; display: flex; flex-wrap: wrap;">
-      <div class="field">
-        <label>l₁</label>
-        <input id="l1Input" type="number" value="1" min="1" style="width: 60px;">
+    <div id="setupPanel">
+      <div class="plabel mt">选择查询范围</div>
+      <div class="controls" style="padding: 0; gap: 8px; display: flex; flex-wrap: wrap;">
+        <div class="field">
+          <label>l₁</label>
+          <input id="l1Input" type="number" value="1" min="1" style="width: 60px;">
+        </div>
+        <div class="field">
+          <label>r₁</label>
+          <input id="r1Input" type="number" value="5" min="1" style="width: 60px;">
+        </div>
+        <div class="field">
+          <label>l₂</label>
+          <input id="l2Input" type="number" value="1" min="1" style="width: 60px;">
+        </div>
+        <div class="field">
+          <label>r₂</label>
+          <input id="r2Input" type="number" value="4" min="1" style="width: 60px;">
+        </div>
       </div>
-      <div class="field">
-        <label>r₁</label>
-        <input id="r1Input" type="number" value="5" min="1" style="width: 60px;">
-      </div>
-      <div class="field">
-        <label>l₂</label>
-        <input id="l2Input" type="number" value="1" min="1" style="width: 60px;">
-      </div>
-      <div class="field">
-        <label>r₂</label>
-        <input id="r2Input" type="number" value="4" min="1" style="width: 60px;">
-      </div>
-      <button class="btn" id="queryBtn">开始查询</button>
     </div>
 
-    <div id="gameArea" style="display: none; margin-top: 16px;">
+    <div id="gamePanel" style="display: none;">
       <div class="game-status" id="gameStatus"></div>
-      <div id="matrixQueryContainer" style="overflow-x: auto; margin: 12px 0;"></div>
       <div class="game-info" id="queryResult" style="display: none;"></div>
       <div class="move-controls" id="moveControls"></div>
     </div>
   </section>
 
   <section class="card">
-    <div class="plabel">最优决策规则</div>
+    <div class="plabel">决策规则</div>
     <div id="rulesList" style="font-size: 13px; color: var(--muted); line-height: 1.8;"></div>
   </section>
 </main>
@@ -225,6 +238,13 @@
 <script>
 const $ = id => document.getElementById(id);
 let A = [], B = [], C = [];
+let gameState = {
+  mode: 'setup',
+  l1: 0, r1: 0, l2: 0, r2: 0,
+  lChoice: -1,
+  qChoice: -1,
+  isLTurn: true
+};
 
 const CPP_CODE = `#include <algorithm>
 #include <iostream>
@@ -329,8 +349,11 @@ function init() {
 function setupEventListeners() {
   $('generateBtn').onclick = generateMatrix;
   $('randomBtn').onclick = randomGenerate;
-  $('queryBtn').onclick = startQuery;
   $('cppBtn').onclick = () => window.showCpp(CPP_CODE, 'C++');
+
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.onclick = () => switchMode(tab.dataset.mode);
+  });
 }
 
 function randomGenerate() {
@@ -367,85 +390,132 @@ function renderMatrix() {
   html += '</tr>';
   for (let i = 0; i < A.length; i++) {
     html += `<tr><td class="header">A[${i+1}]<br>${A[i]}</td>`;
-    for (let j = 0; j < B.length; j++) html += `<td class="value">${C[i][j]}</td>`;
+    for (let j = 0; j < B.length; j++) {
+      const cls = getMatrixCellClass(i, j);
+      const onclick = cls.includes('selectable') ? `onclick="selectCell(${i}, ${j})"` : '';
+      html += `<td class="value ${cls}" ${onclick}>${C[i][j]}</td>`;
+    }
     html += '</tr>';
   }
   html += '</table>';
   $('matrixContainer').innerHTML = html;
 }
 
-function renderRulesList() {
-  const rules = [
-    "<b>A全正</b> (min>0): B全正→L取max,Q取min | B全负→L取min,Q取max | B混合→L取min,Q取min",
-    "<b>A全负</b> (max<0): B全正→L取max,Q取max | B全负→L取min,Q取min | B混合→L取max,Q取max",
-    "<b>A混合</b>: B全正→L取max,Q取min | B全负→L取min,Q取max | B混合→max(A负最小×B最小, A正最小×B最大)",
-    "<b>特殊</b>: 若A有0,ans对0取max | 若B有0,ans对0取min"
-  ];
-  $('rulesList').innerHTML = rules.map((r, i) => `<div style="margin-bottom: 8px;"><b>${i+1}.</b> ${r}</div>`).join('');
+function getMatrixCellClass(i, j) {
+  if (gameState.mode === 'setup') return '';
+
+  const {l1, r1, l2, r2, lChoice, qChoice} = gameState;
+  const inRange = (i >= l1 && i <= r1) && (j >= l2 && j <= r2);
+
+  let cls = inRange ? 'inrange' : '';
+
+  if (lChoice === i && qChoice === j) cls += ' selected';
+  else if (lChoice === i) cls += ' lselected';
+  else if (qChoice === j) cls += ' qselected';
+
+  if (gameState.isLTurn && lChoice === -1 && i >= l1 && i <= r1) cls += ' selectable';
+  else if (!gameState.isLTurn && lChoice !== -1 && qChoice === -1 && j >= l2 && j <= r2) cls += ' selectable';
+
+  return cls;
 }
 
-function startQuery() {
-  const l1 = parseInt($('l1Input').value) - 1;
-  const r1 = parseInt($('r1Input').value) - 1;
-  const l2 = parseInt($('l2Input').value) - 1;
-  const r2 = parseInt($('r2Input').value) - 1;
-  if (l1 < 0 || r1 >= A.length || l2 < 0 || r2 >= B.length || l1 > r1 || l2 > r2) {
-    alert('范围参数错误！');
-    return;
-  }
-  const gameArea = $('gameArea');
-  gameArea.style.display = 'block';
-  $('gameStatus').textContent = `查询范围：A[${l1+1}..${r1+1}] × B[${l2+1}..${r2+1}]`;
+function switchMode(mode) {
+  if (mode === 'setup') {
+    gameState.mode = 'setup';
+  } else if (gameState.mode === 'setup') {
+    const l1 = parseInt($('l1Input').value) - 1;
+    const r1 = parseInt($('r1Input').value) - 1;
+    const l2 = parseInt($('l2Input').value) - 1;
+    const r2 = parseInt($('r2Input').value) - 1;
 
-  let html = '<table class="matrix" style="margin: 0 auto;"><tr><td class="header"></td>';
-  for (let j = 0; j < B.length; j++) {
-    const inRange = j >= l2 && j <= r2;
-    html += `<td class="header" style="${inRange ? 'background: rgba(0,255,156,0.2);' : ''}">${j+1}</td>`;
-  }
-  html += '</tr>';
-  for (let i = 0; i < A.length; i++) {
-    const rowInRange = i >= l1 && i <= r1;
-    html += `<tr><td class="header" style="${rowInRange ? 'background: rgba(0,255,156,0.2);' : ''}">${i+1}</td>`;
-    for (let j = 0; j < B.length; j++) {
-      const inRange = (i >= l1 && i <= r1) && (j >= l2 && j <= r2);
-      const cls = inRange ? 'value inrange' : 'value';
-      html += `<td class="${cls}">${C[i][j]}</td>`;
+    if (l1 < 0 || r1 >= A.length || l2 < 0 || r2 >= B.length || l1 > r1 || l2 > r2) {
+      alert('范围参数错误！');
+      return;
     }
-    html += '</tr>';
-  }
-  html += '</table>';
-  $('matrixQueryContainer').innerHTML = html;
 
-  const result = computeOptimal(l1, r1, l2, r2);
-  const resultBox = $('queryResult');
-  resultBox.style.display = 'grid';
-  resultBox.innerHTML = `
-    <div class="info-box">
-      <div class="info-label">A区间</div>
-      <div class="info-value">[${l1+1},${r1+1}]</div>
-    </div>
-    <div class="info-box">
-      <div class="info-label">B区间</div>
-      <div class="info-value">[${l2+1},${r2+1}]</div>
-    </div>
-    <div class="info-box">
-      <div class="info-label">最优得分</div>
-      <div class="info-value">${result.score}</div>
-    </div>
-    <div class="info-box">
-      <div class="info-label">小L选择</div>
-      <div class="info-value">A[${result.li+1}]=${result.la}</div>
-    </div>
-    <div class="info-box">
-      <div class="info-label">小Q选择</div>
-      <div class="info-value">B[${result.ji+1}]=${result.lb}</div>
-    </div>
-    <div class="info-box">
-      <div class="info-label">决策规则</div>
-      <div class="info-value" style="font-size: 12px;">${result.rule}</div>
-    </div>
-  `;
+    gameState = { mode, l1, r1, l2, r2, lChoice: -1, qChoice: -1, isLTurn: true };
+  }
+
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+
+  renderGameState();
 }
+
+function renderGameState() {
+  $('setupPanel').style.display = gameState.mode === 'setup' ? 'block' : 'none';
+  $('gamePanel').style.display = gameState.mode === 'setup' ? 'none' : 'block';
+  renderMatrix();
+
+  if (gameState.mode !== 'setup') updateGameStatus();
+}
+
+function updateGameStatus() {
+  const {l1, r1, l2, r2, lChoice, qChoice, mode} = gameState;
+
+  if (lChoice === -1 && qChoice === -1) {
+    if (gameState.isLTurn) {
+      if (mode === 'user-l' || mode === 'alternate') {
+        $('gameStatus').className = 'game-status';
+        $('gameStatus').textContent = `👤 小L 的回合：请从第 ${l1+1} 到 ${r1+1} 行中选择一行`;
+      } else {
+        $('gameStatus').className = 'game-status auto';
+        performAutoL();
+      }
+    } else {
+      if (mode === 'user-q' || (mode === 'alternate' && !gameState.isLTurn)) {
+        $('gameStatus').className = 'game-status';
+        $('gameStatus').textContent = `👤 小Q 的回合：请从第 ${l2+1} 到 ${r2+1} 列中选择一列`;
+      } else {
+        $('gameStatus').className = 'game-status auto';
+        performAutoQ();
+      }
+    }
+    $('queryResult').style.display = 'none';
+  } else if (qChoice === -1) {
+    if (mode === 'user-q' || (mode === 'alternate' && !gameState.isLTurn)) {
+      $('gameStatus').className = 'game-status';
+      $('gameStatus').textContent = `👤 小Q 的回合：小L 选了第 ${lChoice+1} 行，请从第 ${l2+1} 到 ${r2+1} 列中选择一列`;
+    } else {
+      $('gameStatus').className = 'game-status auto';
+      setTimeout(() => performAutoQ(), 800);
+    }
+  } else {
+    finishGame();
+  }
+  renderMatrix();
+}
+
+function performAutoL() {
+  const {l1, r1, l2, r2} = gameState;
+  const optimal = computeOptimal(l1, r1, l2, r2);
+  gameState.lChoice = optimal.li;
+  $('gameStatus').textContent = `🤖 小L 选择了第 ${optimal.li+1} 行 (A[${optimal.li+1}]=${A[optimal.li]})`;
+  gameState.isLTurn = false;
+  renderMatrix();
+  setTimeout(() => updateGameStatus(), 800);
+}
+
+function performAutoQ() {
+  const {l1, r1, l2, r2} = gameState;
+  const optimal = computeOptimal(l1, r1, l2, r2);
+  gameState.qChoice = optimal.ji;
+  $('gameStatus').textContent = `🤖 小Q 选择了第 ${optimal.ji+1} 列 (B[${optimal.ji+1}]=${B[optimal.ji]})`;
+  renderMatrix();
+  finishGame();
+}
+
+window.selectCell = function(i, j) {
+  const {l1, r1, l2, r2, lChoice} = gameState;
+  if (gameState.isLTurn && lChoice === -1 && i >= l1 && i <= r1) {
+    gameState.lChoice = i;
+    gameState.isLTurn = false;
+    updateGameStatus();
+  } else if (!gameState.isLTurn && lChoice !== -1 && j >= l2 && j <= r2) {
+    gameState.qChoice = j;
+    finishGame();
+  }
+};
 
 function computeOptimal(l1, r1, l2, r2) {
   const subA = A.slice(l1, r1 + 1);
@@ -457,36 +527,74 @@ function computeOptimal(l1, r1, l2, r2) {
   const hasAZero = subA.includes(0);
   const hasBZero = subB.includes(0);
 
-  let score = 0, li = l1, ji = l2, rule = '';
+  let score = 0, li = l1, ji = l2;
 
   if (bMin > 0) {
-    if (aMin > 0) { score = aMax * bMin; rule = 'A全正+B全正'; }
-    else if (aMax < 0) { score = aMax * bMax; rule = 'A全负+B全正'; }
-    else { score = aMax * bMin; rule = 'A混合+B全正'; }
+    if (aMin > 0) score = aMax * bMin;
+    else if (aMax < 0) score = aMax * bMax;
+    else score = aMax * bMin;
   } else if (bMax < 0) {
-    if (aMin > 0) { score = aMin * bMin; rule = 'A全正+B全负'; }
-    else if (aMax < 0) { score = aMin * bMax; rule = 'A全负+B全负'; }
-    else { score = aMin * bMax; rule = 'A混合+B全负'; }
+    if (aMin > 0) score = aMin * bMin;
+    else if (aMax < 0) score = aMin * bMax;
+    else score = aMin * bMax;
   } else {
-    if (aMin > 0) { score = aMin * bMin; rule = 'A全正+B混合'; }
-    else if (aMax < 0) { score = aMax * bMax; rule = 'A全负+B混合'; }
-    else {
-      const c1 = aMin * bMin;
-      const c2 = aMax * bMax;
-      score = Math.max(c1, c2);
-      rule = c1 > c2 ? 'A混合+B混合(负)' : 'A混合+B混合(正)';
-    }
+    if (aMin > 0) score = aMin * bMin;
+    else if (aMax < 0) score = aMax * bMax;
+    else score = Math.max(aMin * bMin, aMax * bMax);
   }
 
   if (hasAZero) score = Math.max(score, 0);
   if (hasBZero) score = Math.min(score, 0);
 
-  li = subA.indexOf(score / (bMin || bMax)) + l1;
-  if (li < l1 || li > r1) li = score > 0 ? subA.indexOf(aMax) + l1 : subA.indexOf(aMin) + l1;
+  li = (score > 0 ? subA.indexOf(aMax) : score < 0 ? subA.indexOf(aMin) : subA.indexOf(0)) + l1;
+  if (li < l1 || li > r1) li = subA.indexOf(aMax) + l1;
 
-  ji = score === 0 ? l2 : (score > 0 ? subB.indexOf(bMin) + l2 : subB.indexOf(bMax) + l2);
+  ji = (score > 0 ? subB.indexOf(bMin) : score < 0 ? subB.indexOf(bMax) : subB.indexOf(0)) + l2;
+  if (ji < l2 || ji > r2) ji = subB.indexOf(bMin) + l2;
 
-  return { score, li, ji, la: A[li], lb: B[ji], rule };
+  return {li, ji, score};
+}
+
+function finishGame() {
+  const {l1, r1, l2, r2, lChoice, qChoice} = gameState;
+  const score = C[lChoice][qChoice];
+  const optimal = computeOptimal(l1, r1, l2, r2);
+
+  $('gameStatus').className = 'game-status waiting';
+  $('gameStatus').innerHTML = `✓ 游戏结束 | 小L选第 <b>${lChoice+1}</b> 行，小Q选第 <b>${qChoice+1}</b> 列，得分 <b>${score}</b> | 最优得分 <b>${optimal.score}</b>`;
+
+  const resultBox = $('queryResult');
+  resultBox.style.display = 'grid';
+  resultBox.innerHTML = `
+    <div class="info-box">
+      <div class="info-label">查询范围</div>
+      <div class="info-value">A[${l1+1}..${r1+1}] × B[${l2+1}..${r2+1}]</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">你的得分</div>
+      <div class="info-value" style="color: ${score === optimal.score ? 'var(--green)' : 'var(--magenta)'};">${score}</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">最优得分</div>
+      <div class="info-value">${optimal.score}</div>
+    </div>
+    <div class="info-box">
+      <div class="info-label">最优决策</div>
+      <div class="info-value" style="font-size: 12px;">L[${optimal.li+1}]×Q[${optimal.ji+1}]</div>
+    </div>
+  `;
+
+  $('moveControls').innerHTML = '<button class="btn secondary" onclick="location.reload()">重新开始</button>';
+}
+
+function renderRulesList() {
+  const rules = [
+    "<b>A全正</b> (min>0): B全正→L取max,Q取min | B全负→L取min,Q取max | B混合→L取min,Q取min",
+    "<b>A全负</b> (max<0): B全正→L取max,Q取max | B全负→L取min,Q取min | B混合→L取max,Q取max",
+    "<b>A混合</b>: B全正→L取max,Q取min | B全负→L取min,Q取max | B混合→max(A负最小×B最小, A正最小×B最大)",
+    "<b>特殊</b>: 若A有0,ans对0取max | 若B有0,ans对0取min"
+  ];
+  $('rulesList').innerHTML = rules.map((r, i) => `<div style="margin-bottom: 8px;"><b>${i+1}.</b> ${r}</div>`).join('');
 }
 
 init();
