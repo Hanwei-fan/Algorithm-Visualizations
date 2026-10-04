@@ -520,37 +520,86 @@ window.selectCell = function(i, j) {
 function computeOptimal(l1, r1, l2, r2) {
   const subA = A.slice(l1, r1 + 1);
   const subB = B.slice(l2, r2 + 1);
-  const aMin = Math.min(...subA);
-  const aMax = Math.max(...subA);
-  const bMin = Math.min(...subB);
-  const bMax = Math.max(...subB);
-  const hasAZero = subA.includes(0);
-  const hasBZero = subB.includes(0);
 
-  let score = 0, li = l1, ji = l2;
+  let aMin = Math.min(...subA);
+  let aMax = Math.max(...subA);
+  let bMin = Math.min(...subB);
+  let bMax = Math.max(...subB);
 
+  let hasAZero = subA.includes(0);
+  let hasBZero = subB.includes(0);
+
+  let score = 0;
+
+  // 根据 A、B 区间正负性分类讨论
   if (bMin > 0) {
-    if (aMin > 0) score = aMax * bMin;
-    else if (aMax < 0) score = aMax * bMax;
-    else score = aMax * bMin;
+    // B 区间全为正数
+    if (aMin > 0) {
+      // A全正：L取max，Q取min → max(A) × min(B)
+      score = aMax * bMin;
+    } else if (aMax < 0) {
+      // A全负：L取max（最接近0的负数），Q取max → max(A) × max(B)
+      score = aMax * bMax;
+    } else {
+      // A混合：L取max（正数），Q取min → max(A) × min(B)
+      score = aMax * bMin;
+    }
   } else if (bMax < 0) {
-    if (aMin > 0) score = aMin * bMin;
-    else if (aMax < 0) score = aMin * bMax;
-    else score = aMin * bMax;
+    // B 区间全为负数
+    if (aMin > 0) {
+      // A全正：L取min，Q取min → min(A) × min(B)
+      score = aMin * bMin;
+    } else if (aMax < 0) {
+      // A全负：L取min，Q取max → min(A) × max(B)
+      score = aMin * bMax;
+    } else {
+      // A混合：L取min（负数或0），Q取max → min(A) × max(B)
+      score = aMin * bMax;
+    }
   } else {
-    if (aMin > 0) score = aMin * bMin;
-    else if (aMax < 0) score = aMax * bMax;
-    else score = Math.max(aMin * bMin, aMax * bMax);
+    // B 区间有正有负
+    if (aMin > 0) {
+      // A全正：L取min，Q取min → min(A) × min(B)
+      score = aMin * bMin;
+    } else if (aMax < 0) {
+      // A全负：L取max，Q取max → max(A) × max(B)
+      score = aMax * bMax;
+    } else {
+      // A混合：两个候选 → max(min(A负) × min(B), max(A正) × max(B))
+      let negMin = Math.min(...subA.filter(x => x < 0));
+      let posMax = Math.max(...subA.filter(x => x > 0));
+      if (!isFinite(negMin)) negMin = 0;
+      if (!isFinite(posMax)) posMax = 0;
+      score = Math.max(negMin * bMin, posMax * bMax);
+    }
   }
 
+  // 特殊处理0
   if (hasAZero) score = Math.max(score, 0);
   if (hasBZero) score = Math.min(score, 0);
 
-  li = (score > 0 ? subA.indexOf(aMax) : score < 0 ? subA.indexOf(aMin) : subA.indexOf(0)) + l1;
-  if (li < l1 || li > r1) li = subA.indexOf(aMax) + l1;
+  // 反推 L 的选择：对每行，计算 Q 会选的最小值，L 取最大
+  let li = l1;
+  let maxMinScore = -Infinity;
+  for (let i = l1; i <= r1; i++) {
+    let minInRow = Math.min(...C[i].slice(l2, r2 + 1));
+    if (minInRow > maxMinScore) {
+      maxMinScore = minInRow;
+      li = i;
+    }
+  }
 
-  ji = (score > 0 ? subB.indexOf(bMin) : score < 0 ? subB.indexOf(bMax) : subB.indexOf(0)) + l2;
-  if (ji < l2 || ji > r2) ji = subB.indexOf(bMin) + l2;
+  // Q 的选择：在 L 选定 li 后，选择该行最小的列
+  let ji = l2;
+  let minVal = C[li][l2];
+  for (let j = l2; j <= r2; j++) {
+    if (C[li][j] < minVal) {
+      minVal = C[li][j];
+      ji = j;
+    }
+  }
+
+  score = C[li][ji];
 
   return {li, ji, score};
 }
@@ -589,12 +638,11 @@ function finishGame() {
 
 function renderRulesList() {
   const rules = [
-    "<b>A全正</b> (min>0): B全正→L取max,Q取min | B全负→L取min,Q取max | B混合→L取min,Q取min",
-    "<b>A全负</b> (max<0): B全正→L取max,Q取max | B全负→L取min,Q取min | B混合→L取max,Q取max",
-    "<b>A混合</b>: B全正→L取max,Q取min | B全负→L取min,Q取max | B混合→max(A负最小×B最小, A正最小×B最大)",
-    "<b>特殊</b>: 若A有0,ans对0取max | 若B有0,ans对0取min"
+    "<b>博弈规则</b>：小L先选行i ∈ [l₁,r₁]，小Q后选列j ∈ [l₂,r₂]，得分C[i][j]。L要最大化得分，Q要最小化得分。",
+    "<b>最优策略（逆向归纳）</b>：L先手，预知Q的应对。对每行i，Q会选该行最小值min(C[i][l₂..r₂])。所以L选让这个最小值最大的行：<br>最优行 = argmax<sub>i∈[l₁,r₁]</sub> min<sub>j∈[l₂,r₂]</sub> C[i][j]<br>最优列 = argmin<sub>j∈[l₂,r₂]</sub> C[行][j]<br>最优得分 = C[最优行][最优列]",
+    "<b>区间最值表 (ST表)</b>：快速查询A、B在区间内的min/max，支持上述分类讨论的9种情况"
   ];
-  $('rulesList').innerHTML = rules.map((r, i) => `<div style="margin-bottom: 8px;"><b>${i+1}.</b> ${r}</div>`).join('');
+  $('rulesList').innerHTML = rules.map((r, i) => `<div style="margin-bottom: 12px;"><b>${i+1}.</b> ${r}</div>`).join('');
 }
 
 init();
