@@ -349,7 +349,10 @@ function init() {
 function setupEventListeners() {
   $('generateBtn').onclick = generateMatrix;
   $('randomBtn').onclick = randomGenerate;
-  $('cppBtn').onclick = () => window.showCpp(CPP_CODE, 'C++');
+  $('cppBtn').onclick = () => {
+    CppView.register({ 'strategy-game': { title: 'CSP-S 2022 · 策略游戏', code: CPP_CODE } });
+    CppView.open('strategy-game');
+  };
 
   document.querySelectorAll('.tab').forEach(tab => {
     tab.onclick = () => switchMode(tab.dataset.mode);
