@@ -535,9 +535,10 @@ function performAutoL() {
   const {l1, r1, l2, r2} = gameState;
   const optimal = computeOptimal(l1, r1, l2, r2);
   gameState.lChoice = optimal.li;
-  $('gameStatus').textContent = `🤖 小L 选择了第 ${optimal.li+1} 行 (A[${optimal.li+1}]=${A[optimal.li]})`;
   gameState.isLTurn = false;
   renderMatrix();
+  $('gameStatus').className = 'game-status auto';
+  $('gameStatus').textContent = `🤖 小L 选择了第 ${optimal.li+1} 行 (A[${optimal.li+1}]=${A[optimal.li]})`;
   setTimeout(() => updateGameStatus(), 800);
 }
 
