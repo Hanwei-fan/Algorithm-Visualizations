@@ -567,6 +567,7 @@ window.selectCell = function(i, j) {
     updateGameStatus();
   } else if (!gameState.isLTurn && lChoice !== -1 && j >= l2 && j <= r2) {
     gameState.qChoice = j;
+    renderMatrix();
     finishGame();
   }
 };
