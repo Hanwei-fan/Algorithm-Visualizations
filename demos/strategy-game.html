@@ -540,9 +540,9 @@ function updateGameStatus() {
       $('gameStatus').className = 'game-status';
       $('gameStatus').textContent = `👤 小Q 的回合：小L 已选第 ${lChoice+1} 行，请从第 ${l2+1} 到 ${r2+1} 列中选择一列`;
     } else if (mode === 'user-l') {
-      // user-l模式，这不应该发生
-      $('gameStatus').className = 'game-status';
-      $('gameStatus').textContent = `👤 小Q 的回合：小L 已选第 ${lChoice+1} 行，请从第 ${l2+1} 到 ${r2+1} 列中选择一列`;
+      // user-l模式，AI选择列
+      $('gameStatus').className = 'game-status auto';
+      setTimeout(() => performAutoQ(), 800);
     } else {
       // auto模式，AI选择列
       $('gameStatus').className = 'game-status auto';
