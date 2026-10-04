@@ -510,24 +510,41 @@ function updateGameStatus() {
         $('gameStatus').className = 'game-status';
         $('gameStatus').textContent = `👤 小L 的回合：请从第 ${l1+1} 到 ${r1+1} 行中选择一行`;
       } else {
+        // user-q或auto模式，AI选择行
         $('gameStatus').className = 'game-status auto';
         performAutoL();
       }
     } else {
-      if (mode === 'user-q' || (mode === 'alternate' && !gameState.isLTurn)) {
+      // isLTurn === false，需要选择列
+      if (mode === 'user-l') {
+        // 这不应该发生（user-l模式中isLTurn应该是true）
+        $('gameStatus').className = 'game-status auto';
+        performAutoL();
+      } else if (mode === 'user-q') {
+        // user-q模式，AI选择行
+        $('gameStatus').className = 'game-status auto';
+        performAutoL();
+      } else if (mode === 'alternate') {
         $('gameStatus').className = 'game-status';
         $('gameStatus').textContent = `👤 小Q 的回合：请从第 ${l2+1} 到 ${r2+1} 列中选择一列`;
       } else {
+        // auto模式，AI选择行
         $('gameStatus').className = 'game-status auto';
         performAutoL();
       }
     }
     $('queryResult').style.display = 'none';
   } else if (qChoice === -1) {
+    // lChoice !== -1，L已选择，等待Q选择列
     if (mode === 'user-q' || (mode === 'alternate' && !gameState.isLTurn)) {
       $('gameStatus').className = 'game-status';
       $('gameStatus').textContent = `👤 小Q 的回合：小L 已选第 ${lChoice+1} 行，请从第 ${l2+1} 到 ${r2+1} 列中选择一列`;
+    } else if (mode === 'user-l') {
+      // user-l模式，这不应该发生
+      $('gameStatus').className = 'game-status';
+      $('gameStatus').textContent = `👤 小Q 的回合：小L 已选第 ${lChoice+1} 行，请从第 ${l2+1} 到 ${r2+1} 列中选择一列`;
     } else {
+      // auto模式，AI选择列
       $('gameStatus').className = 'game-status auto';
       setTimeout(() => performAutoQ(), 800);
     }
