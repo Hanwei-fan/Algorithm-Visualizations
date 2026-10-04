@@ -478,11 +478,19 @@ function switchMode(mode) {
       return;
     }
 
-    gameState = { mode, l1, r1, l2, r2, lChoice: -1, qChoice: -1, isLTurn: true };
+    const isLTurn = (mode === 'user-l' || mode === 'alternate') ? true : (mode === 'user-q' ? false : true);
+    gameState = { mode, l1, r1, l2, r2, lChoice: -1, qChoice: -1, isLTurn };
+  } else {
+    // 从一个游戏模式切换到另一个模式时，重置游戏状态（保持范围）
+    const oldMode = gameState.mode;
+    const {l1, r1, l2, r2} = gameState;
+    const isLTurn = (mode === 'user-l' || mode === 'alternate') ? true : (mode === 'user-q' ? false : true);
+    gameState = { mode, l1, r1, l2, r2, lChoice: -1, qChoice: -1, isLTurn };
+    console.log('Mode switched from', oldMode, 'to', mode, '- Reset gameState:', JSON.stringify(gameState));
   }
 
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  event.target.classList.add('active');
+  document.querySelector(`[data-mode="${mode}"]`).classList.add('active');
 
   renderGameState();
 }
@@ -503,25 +511,42 @@ function updateGameStatus() {
       if (mode === 'user-l' || mode === 'alternate') {
         $('gameStatus').className = 'game-status';
         $('gameStatus').textContent = `👤 小L 的回合：请从第 ${l1+1} 到 ${r1+1} 行中选择一行`;
-      } else {
+      } else if (mode === 'user-q' || mode === 'auto') {
+        // 在user-q和auto模式中，AI自动选择行
         $('gameStatus').className = 'game-status auto';
         performAutoL();
       }
     } else {
-      if (mode === 'user-q' || (mode === 'alternate' && !gameState.isLTurn)) {
-        $('gameStatus').className = 'game-status';
-        $('gameStatus').textContent = `👤 小Q 的回合：请从第 ${l2+1} 到 ${r2+1} 列中选择一列`;
+      // isLTurn === false，但还没有选择列，这不应该发生
+      // 保持等待选择行的状态
+      if (mode === 'user-l') {
+        $('gameStatus').className = 'game-status auto';
+        performAutoL();
       } else {
         $('gameStatus').className = 'game-status auto';
-        performAutoQ();
+        performAutoL();
       }
     }
     $('queryResult').style.display = 'none';
   } else if (qChoice === -1) {
-    if (mode === 'user-q' || (mode === 'alternate' && !gameState.isLTurn)) {
-      $('gameStatus').className = 'game-status';
-      $('gameStatus').textContent = `👤 小Q 的回合：小L 已选第 ${lChoice+1} 行，请从第 ${l2+1} 到 ${r2+1} 列中选择一列`;
-    } else {
+    // lChoice !== -1，等待选择列
+    if (mode === 'user-q' || mode === 'alternate' || mode === 'user-l') {
+      if (mode === 'user-q') {
+        $('gameStatus').className = 'game-status';
+        $('gameStatus').textContent = `👤 小Q 的回合：请从第 ${l2+1} 到 ${r2+1} 列中选择一列`;
+      } else if (mode === 'user-l') {
+        $('gameStatus').className = 'game-status';
+        $('gameStatus').textContent = `👤 小Q 的回合：小L 已选第 ${lChoice+1} 行，请从第 ${l2+1} 到 ${r2+1} 列中选择一列`;
+      } else if (mode === 'alternate') {
+        if (gameState.isLTurn) {
+          $('gameStatus').className = 'game-status';
+          $('gameStatus').textContent = `👤 小L 的回合：请从第 ${l1+1} 到 ${r1+1} 行中选择一行`;
+        } else {
+          $('gameStatus').className = 'game-status';
+          $('gameStatus').textContent = `👤 小Q 的回合：小L 已选第 ${lChoice+1} 行，请从第 ${l2+1} 到 ${r2+1} 列中选择一列`;
+        }
+      }
+    } else if (mode === 'auto') {
       $('gameStatus').className = 'game-status auto';
       setTimeout(() => performAutoQ(), 800);
     }
