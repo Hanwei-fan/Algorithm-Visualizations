@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>策略游戏演示 // CYBER</title>
+<style>
+  :root {
+    --bg: #07060f; --bg2: #0d0b1a; --panel: rgba(18, 15, 38, 0.72); --border: #2a2350;
+    --text: #e6e1ff; --muted: #7d76a8; --cyan: #00f0ff; --magenta: #ff2bd6;
+    --yellow: #ffd400; --green: #00ff9c; --grid: rgba(0, 240, 255, 0.06);
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    color: var(--text); line-height: 1.55;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(255,43,214,0.14), transparent 45%),
+      radial-gradient(circle at 90% 10%, rgba(0,240,255,0.14), transparent 45%),
+      linear-gradient(var(--grid) 1px, transparent 1px) 0 0 / 100% 34px,
+      linear-gradient(90deg, var(--grid) 1px, transparent 1px) 0 0 / 34px 100%,
+      var(--bg);
+  }
+  .mono { font-family: "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace; }
+  header { padding: 26px 30px 6px; }
+  header h1 {
+    margin: 0 0 6px; font-size: 26px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase;
+    color: #fff; text-shadow: 0 0 6px var(--cyan), 0 0 20px rgba(0,240,255,.5), 3px 0 var(--magenta);
+  }
+  header p { margin: 0; color: var(--muted); font-size: 14px; letter-spacing: .5px; }
+  .back {
+    display: inline-block; margin: 14px 30px 0; padding: 6px 16px;
+    border: 1px solid var(--border); border-radius: 4px; text-decoration: none;
+    color: var(--cyan); font-size: 13px; letter-spacing: 1px; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .back:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  .controls { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-end; padding: 18px 30px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 12px; color: var(--cyan); letter-spacing: 1px; text-transform: uppercase; }
+  .field input, .field select {
+    padding: 9px 12px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; background: rgba(5,4,15,0.8); color: var(--text); font-family: "SF Mono", Menlo, monospace;
+  }
+  .field input:focus, .field select:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 10px rgba(0,240,255,.4); }
+  .btn {
+    padding: 10px 20px; border: 1px solid var(--magenta); border-radius: 4px;
+    background: rgba(255,43,214,0.12); color: var(--magenta); font-size: 14px;
+    letter-spacing: 1px; cursor: pointer; text-transform: uppercase;
+    font-family: "SF Mono", Menlo, monospace; transition: all .18s;
+  }
+  .btn:hover { background: var(--magenta); color: #05060f; box-shadow: 0 0 16px rgba(255,43,214,.6); }
+  .btn.secondary { border-color: var(--border); color: var(--muted); background: rgba(255,255,255,0.02); }
+  .btn.secondary:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(0,240,255,.08); box-shadow: 0 0 12px rgba(0,240,255,.3); }
+  main { padding: 10px 30px 20px; }
+  .section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 22px;
+    backdrop-filter: blur(6px); box-shadow: 0 0 0 1px rgba(0,240,255,.05), 0 8px 40px rgba(0,0,0,.5);
+    margin-bottom: 20px; }
+  .section h2 { margin: 0 0 16px; font-size: 16px; color: var(--cyan); letter-spacing: 1px; }
+  .matrix-container { overflow-x: auto; margin-bottom: 16px; }
+  .matrix { display: inline-block; border-collapse: collapse; }
+  .matrix td {
+    width: 50px; height: 50px; border: 1px solid var(--border); text-align: center;
+    display: flex; align-items: center; justify-content: center; font-weight: 700;
+  }
+  .matrix td.header { background: rgba(0,240,255,0.1); color: var(--cyan); font-size: 12px; }
+  .matrix td.normal { background: rgba(5,4,15,0.5); cursor: pointer; transition: all .2s; }
+  .matrix td.normal:hover { background: rgba(0,240,255,0.2); box-shadow: 0 0 8px rgba(0,240,255,.3) inset; }
+  .matrix td.selected { background: var(--yellow); color: #05060f; font-weight: 800; }
+  .matrix td.range { background: rgba(0,255,156,0.2); border-color: var(--green); }
+  .game-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .info-box { background: rgba(0,240,255,0.05); border: 1px solid rgba(0,240,255,0.2); border-radius: 4px; padding: 12px; }
+  .info-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
+  .info-value { font-size: 20px; font-weight: 600; color: var(--cyan); font-family: "SF Mono", Menlo, monospace; }
+  .mode-tabs { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 16px; }
+  .mode-tab {
+    padding: 8px 16px; border: 1px solid var(--border); border-radius: 4px;
+    background: rgba(255,255,255,0.02); color: var(--muted); font-size: 13px;
+    letter-spacing: 0.5px; cursor: pointer; transition: all .18s;
+  }
+  .mode-tab:hover { border-color: var(--cyan); background: rgba(0,240,255,.08); }
+  .mode-tab.active { background: var(--cyan); color: #05060f; border-color: var(--cyan); font-weight: 700; }
+  .game-status {
+    padding: 14px; border-radius: 4px; margin-bottom: 12px; font-size: 14px;
+    background: rgba(0,255,156,0.1); border: 1px solid rgba(0,255,156,0.3); color: var(--green);
+  }
+  .game-status.waiting { background: rgba(0,240,255,0.1); border-color: rgba(0,240,255,0.3); color: var(--cyan); }
+  .note { font-size: 12px; color: var(--muted); margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
+</style>
+<script>
+(function () {
+  try {
+    var V = {
+      cyber: { "--bg": "#07060f", "--grid": "rgba(0,240,255,0.06)", "--text": "#e6e1ff", "--panel": "rgba(18,15,38,0.72)", "--border": "#2a2350", "--muted": "#7d76a8" },
+      ocean: { "--bg": "#0e1524", "--grid": "rgba(120,170,220,0.05)", "--text": "#e8eef7", "--panel": "rgba(22,32,52,0.82)", "--border": "#2b3b57", "--muted": "#8fa2bd" },
+      sepia: { "--bg": "#f3ecde", "--grid": "rgba(150,130,95,0.06)", "--text": "#3a332a", "--panel": "rgba(255,251,242,0.86)", "--border": "#d8c9ad", "--muted": "#8a7f6c" },
+      light: { "--bg": "#f7f9fc", "--grid": "rgba(80,120,170,0.05)", "--text": "#1f2733", "--panel": "rgba(255,255,255,0.9)", "--border": "#d5dde8", "--muted": "#6b7688" }
+    };
+    var t = localStorage.getItem("algoviz-theme") || "cyber";
+    if (!V[t]) t = "cyber";
+    var d = document.documentElement, v = V[t];
+    for (var k in v) d.style.setProperty(k, v[k]);
+    d.style.setProperty("color-scheme", (t === "sepia" || t === "light") ? "light" : "dark");
+  } catch (e) {}
+})();
+</script>
+</head>
+<body>
+<header>
+  <h1>策略游戏</h1>
+  <p>小L和小Q的博弈 [CSP-S 2022]</p>
+</header>
+<a class="back" href="../index.html">← 返回门户</a>
+
+<div class="controls">
+  <div class="field">
+    <label for="arrayAInput">数组 A（逗号分隔）</label>
+    <input id="arrayAInput" type="text" value="1, 2, 3, 4">
+  </div>
+  <div class="field">
+    <label for="arrayBInput">数组 B（逗号分隔）</label>
+    <input id="arrayBInput" type="text" value="2, 3, 4, 5">
+  </div>
+  <button class="btn secondary" id="randomBtn">🎲 随机生成</button>
+  <button class="btn secondary" id="generateBtn">生成矩阵</button>
+</div>
+
+<main>
+  <div class="section">
+    <h2>矩阵 C (C[i][j] = A[i] × B[j])</h2>
+    <div class="matrix-container" id="matrixContainer"></div>
+  </div>
+
+  <div class="section">
+    <h2>游戏轮次</h2>
+    <div class="mode-tabs">
+      <button class="mode-tab active" data-mode="user-l">用户为小L（最大化）</button>
+      <button class="mode-tab" data-mode="user-q">用户为小Q（最小化）</button>
+      <button class="mode-tab" data-mode="alternate">轮流扮演</button>
+      <button class="mode-tab" data-mode="auto">自动策略</button>
+    </div>
+
+    <div class="game-info" id="roundInfo"></div>
+    <div class="controls" style="padding: 0; gap: 10px;">
+      <div class="field">
+        <label for="l1Input">l₁ (行范围左)</label>
+        <input id="l1Input" type="number" value="1" min="1">
+      </div>
+      <div class="field">
+        <label for="r1Input">r₁ (行范围右)</label>
+        <input id="r1Input" type="number" value="4" min="1">
+      </div>
+      <div class="field">
+        <label for="l2Input">l₂ (列范围左)</label>
+        <input id="l2Input" type="number" value="1" min="1">
+      </div>
+      <div class="field">
+        <label for="r2Input">r₂ (列范围右)</label>
+        <input id="r2Input" type="number" value="4" min="1">
+      </div>
+      <button class="btn" id="playRoundBtn">开始游戏轮次</button>
+    </div>
+
+    <div id="gameArea" style="margin-top: 20px; display: none;">
+      <div class="game-status" id="gameStatus"></div>
+      <div class="matrix-container" id="gameMatrixContainer"></div>
+      <div id="moveControls" style="margin-top: 16px;"></div>
+      <div class="game-info" id="gameResult" style="display: none; margin-top: 16px;">
+        <div class="info-box">
+          <div class="info-label">小L选择</div>
+          <div class="info-value" id="lChoice">-</div>
+        </div>
+        <div class="info-box">
+          <div class="info-label">小Q选择</div>
+          <div class="info-value" id="qChoice">-</div>
+        </div>
+        <div class="info-box">
+          <div class="info-label">最终得分</div>
+          <div class="info-value" id="finalScore">-</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>游戏说明</h2>
+    <p>小L先选择行索引 x ∈ [l₁, r₁]，然后小Q选择列索引 y ∈ [l₂, r₂]。得分为 C[x][y]。</p>
+    <p>• <strong>小L的目标</strong>：最大化得分</p>
+    <p>• <strong>小Q的目标</strong>：最小化得分</p>
+    <p>• <strong>最优策略</strong>：两人都足够聪明，采用最优策略</p>
+    <div class="note">
+      <strong>最优得分计算</strong>：<br>
+      小L先选，知道小Q会最小化，所以小L选择能让小Q最小选择最大的行。<br>
+      最优得分 = max(A[l₁..r₁]) × min(B[l₂..r₂])
+    </div>
+  </div>
+</main>
+
+<script src="../assets/theme.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+
+let A = [], B = [], C = [];
+let currentMode = 'user-l';
+let gameState = {
+  active: false,
+  l1: 0, r1: 0, l2: 0, r2: 0,
+  lChoice: -1,
+  qChoice: -1,
+  isLTurn: true,
+  maxScore: -Infinity,
+  minScore: Infinity
+};
+
+// 初始化
+function init() {
+  generateMatrix();
+  setupEventListeners();
+}
+
+// 设置事件监听
+function setupEventListeners() {
+  $('generateBtn').onclick = generateMatrix;
+  $('randomBtn').onclick = randomGenerate;
+  $('playRoundBtn').onclick = startRound;
+
+  document.querySelectorAll('.mode-tab').forEach(tab => {
+    tab.onclick = () => {
+      document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      currentMode = tab.dataset.mode;
+    };
+  });
+}
+
+// 随机生成
+function randomGenerate() {
+  const n = Math.floor(Math.random() * 4) + 3;
+  const m = Math.floor(Math.random() * 4) + 3;
+  A = Array.from({length: n}, () => Math.floor(Math.random() * 9) + 1);
+  B = Array.from({length: m}, () => Math.floor(Math.random() * 9) + 1);
+  $('arrayAInput').value = A.join(', ');
+  $('arrayBInput').value = B.join(', ');
+  generateMatrix();
+}
+
+// 生成矩阵
+function generateMatrix() {
+  A = $('arrayAInput').value.split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+  B = $('arrayBInput').value.split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x));
+
+  if (A.length === 0 || B.length === 0) {
+    A = [1, 2, 3, 4];
+    B = [2, 3, 4, 5];
+  }
+
+  C = A.map((a, i) => B.map((b, j) => a * b));
+
+  // 更新输入框的范围
+  const n = A.length, m = B.length;
+  $('l1Input').max = n;
+  $('r1Input').max = n;
+  $('r1Input').value = Math.min(4, n);
+  $('l2Input').max = m;
+  $('r2Input').max = m;
+  $('r2Input').value = Math.min(4, m);
+
+  renderMatrix();
+}
+
+// 渲染矩阵
+function renderMatrix() {
+  const html = renderMatrixHTML(C, A.length, B.length, false);
+  $('matrixContainer').innerHTML = html;
+}
+
+// 渲染矩阵HTML
+function renderMatrixHTML(matrix, n, m, interactive = false, l1 = 0, r1 = n-1, l2 = 0, r2 = m-1, selectedI = -1, selectedJ = -1) {
+  let html = '<table class="matrix"><tr><td class="header"></td>';
+
+  for (let j = 0; j < m; j++) {
+    const isInRange = j >= l2 && j <= r2;
+    html += `<td class="header" style="${isInRange ? 'background: rgba(0,255,156,0.15);' : ''}">${j + 1}</td>`;
+  }
+  html += '</tr>';
+
+  for (let i = 0; i < n; i++) {
+    const isRowInRange = i >= l1 && i <= r1;
+    html += `<tr><td class="header" style="${isRowInRange ? 'background: rgba(0,255,156,0.15);' : ''}">${i + 1}</td>`;
+
+    for (let j = 0; j < m; j++) {
+      const isInRange = (i >= l1 && i <= r1) && (j >= l2 && j <= r2);
+      const isSelected = i === selectedI && j === selectedJ;
+      let cls = 'normal';
+      if (isSelected) cls = 'selected';
+      else if (isInRange) cls = 'range';
+
+      const onclick = interactive ? `onclick="selectCell(${i}, ${j})"` : '';
+      html += `<td class="${cls}" ${onclick}>${matrix[i][j]}</td>`;
+    }
+    html += '</tr>';
+  }
+  html += '</table>';
+  return html;
+}
+
+// 开始游戏轮次
+function startRound() {
+  const l1 = parseInt($('l1Input').value) - 1;
+  const r1 = parseInt($('r1Input').value) - 1;
+  const l2 = parseInt($('l2Input').value) - 1;
+  const r2 = parseInt($('r2Input').value) - 1;
+
+  if (l1 < 0 || r1 >= A.length || l2 < 0 || r2 >= B.length || l1 > r1 || l2 > r2) {
+    alert('范围参数错误！');
+    return;
+  }
+
+  gameState = {
+    active: true,
+    l1, r1, l2, r2,
+    lChoice: -1,
+    qChoice: -1,
+    isLTurn: true,
+    maxScore: -Infinity,
+    minScore: Infinity
+  };
+
+  renderGameUI();
+}
+
+// 渲染游戏UI
+function renderGameUI() {
+  const {l1, r1, l2, r2, isLTurn, lChoice, qChoice} = gameState;
+  const gameArea = $('gameArea');
+  gameArea.style.display = 'block';
+
+  if (lChoice === -1) {
+    // 小L选择阶段
+    $('gameStatus').className = 'game-status';
+    if (currentMode === 'auto') {
+      const optimalL = findOptimalL(l1, r1, l2, r2);
+      gameState.lChoice = optimalL;
+      $('gameStatus').textContent = `🤖 小L (自动) 选择了第 ${optimalL + 1} 行`;
+      renderGameMatrix();
+      setTimeout(qTurn, 1000);
+    } else if (currentMode === 'user-l' || (currentMode === 'alternate' && isLTurn)) {
+      $('gameStatus').textContent = `👤 小L，请选择第 ${l1 + 1} 到 ${r1 + 1} 行中的一行`;
+      renderGameMatrix(true, false);
+      renderMoveControls(true);
+    } else {
+      const optimalL = findOptimalL(l1, r1, l2, r2);
+      gameState.lChoice = optimalL;
+      $('gameStatus').textContent = `🤖 小L 选择了第 ${optimalL + 1} 行`;
+      renderGameMatrix();
+      setTimeout(qTurn, 1000);
+    }
+  } else if (qChoice === -1) {
+    // 小Q选择阶段
+    $('gameStatus').className = 'game-status waiting';
+    if (currentMode === 'auto' || currentMode === 'user-l' || (currentMode === 'alternate' && !isLTurn)) {
+      qTurn();
+    }
+  } else {
+    // 游戏结束
+    finishRound();
+  }
+}
+
+// 小Q的回合
+function qTurn() {
+  const {l1, r1, l2, r2, lChoice} = gameState;
+  if (currentMode === 'user-q' || (currentMode === 'alternate' && !gameState.isLTurn)) {
+    $('gameStatus').className = 'game-status';
+    $('gameStatus').textContent = `👤 小Q，请选择第 ${l2 + 1} 到 ${r2 + 1} 列中的一列`;
+    renderGameMatrix(false, true);
+    renderMoveControls(false);
+  } else {
+    const optimalQ = findOptimalQ(lChoice, l2, r2);
+    gameState.qChoice = optimalQ;
+    $('gameStatus').className = 'game-status waiting';
+    $('gameStatus').textContent = `🤖 小Q 选择了第 ${optimalQ + 1} 列`;
+    renderGameMatrix();
+    setTimeout(finishRound, 1000);
+  }
+}
+
+// 选择单元格
+window.selectCell = function(i, j) {
+  const {l1, r1, l2, r2, lChoice} = gameState;
+  if (lChoice === -1 && i >= l1 && i <= r1) {
+    gameState.lChoice = i;
+    renderGameUI();
+  } else if (lChoice !== -1 && j >= l2 && j <= r2) {
+    gameState.qChoice = j;
+    finishRound();
+  }
+};
+
+// 寻找小L的最优选择
+function findOptimalL(l1, r1, l2, r2) {
+  const minB = Math.min(...B.slice(l2, r2 + 1));
+  let maxIdx = l1;
+  for (let i = l1; i <= r1; i++) {
+    if (A[i] > A[maxIdx]) maxIdx = i;
+  }
+  return maxIdx;
+}
+
+// 寻找小Q的最优选择
+function findOptimalQ(x, l2, r2) {
+  let minIdx = l2;
+  for (let j = l2; j <= r2; j++) {
+    if (B[j] < B[minIdx]) minIdx = j;
+  }
+  return minIdx;
+}
+
+// 渲染游戏矩阵
+function renderGameMatrix(selectL = false, selectQ = false) {
+  const {l1, r1, l2, r2, lChoice, qChoice} = gameState;
+  const html = renderMatrixHTML(C, A.length, B.length, selectL || selectQ, l1, r1, l2, r2, lChoice, qChoice);
+  $('gameMatrixContainer').innerHTML = html;
+}
+
+// 渲染选择控制
+function renderMoveControls(isL) {
+  const {l1, r1, l2, r2} = gameState;
+  const container = $('moveControls');
+  container.innerHTML = '';
+
+  if (isL) {
+    for (let i = l1; i <= r1; i++) {
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.textContent = `选择第 ${i + 1} 行 (值: ${A[i]})`;
+      btn.onclick = () => {
+        gameState.lChoice = i;
+        renderGameUI();
+      };
+      container.appendChild(btn);
+    }
+  } else {
+    for (let j = l2; j <= r2; j++) {
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.textContent = `选择第 ${j + 1} 列 (值: ${B[j]})`;
+      btn.onclick = () => {
+        gameState.qChoice = j;
+        finishRound();
+      };
+      container.appendChild(btn);
+    }
+  }
+}
+
+// 游戏结束
+function finishRound() {
+  const {lChoice, qChoice} = gameState;
+  const score = C[lChoice][qChoice];
+
+  $('gameStatus').className = 'game-status';
+  $('gameStatus').innerHTML = `✓ 游戏结束！小L选择第 <strong>${lChoice + 1}</strong> 行，小Q选择第 <strong>${qChoice + 1}</strong> 列`;
+
+  renderGameMatrix(false, false);
+  $('moveControls').innerHTML = '';
+
+  const resultBox = $('gameResult');
+  resultBox.style.display = 'grid';
+  $('lChoice').textContent = `${lChoice + 1} (A[${lChoice + 1}] = ${A[lChoice]})`;
+  $('qChoice').textContent = `${qChoice + 1} (B[${qChoice + 1}] = ${B[qChoice]})`;
+  $('finalScore').textContent = score;
+
+  gameState.active = false;
+}
+
+// 初始化
+init();
+</script>
+</body>
+</html>
